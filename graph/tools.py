@@ -166,10 +166,12 @@ def discover_projects() -> List[Dict[str, Any]]:
 
     # Auto-discover directories with AGENTS.md in project roots
     project_roots_cfg = load_yaml(os.path.join(CONFIG_DIR, "config.yaml"))
-    roots = project_roots_cfg.get("project_roots", [])
-    seen_paths = {p.get("path") for p in projects}
+    roots = project_roots_cfg.get("project_roots") or []
+    seen_paths = {p.get("path") for p in projects if p.get("path")}
 
     for root in roots:
+        if not root:
+            continue
         expanded = os.path.expanduser(root)
         if not os.path.isdir(expanded):
             continue
@@ -179,7 +181,7 @@ def discover_projects() -> List[Dict[str, Any]]:
         else:
             matches = [expanded]
         for m in matches:
-            if not os.path.isdir(m):
+            if not m or not os.path.isdir(m):
                 continue
             agents_md = os.path.join(m, "AGENTS.md")
             claude_md = os.path.join(m, "CLAUDE.md")

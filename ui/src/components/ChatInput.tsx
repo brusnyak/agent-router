@@ -1,41 +1,34 @@
 import React, { useState } from 'react'
-import { Send, MoreVertical, Settings } from 'lucide-react'
+import { Send, MoreVertical } from 'lucide-react'
 
 interface ChatInputProps {
   project: string | null
   onSend: (message: string) => Promise<void>
+  sending: boolean
 }
 
-export function ChatInput({ project, onSend }: ChatInputProps) {
+export function ChatInput({ project, onSend, sending }: ChatInputProps) {
   const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || sending) return
-    setSending(true)
     await onSend(input)
     setInput('')
-    setSending(false)
   }
 
   return (
-    <div className="border-t border-border bg-[#252526] p-4 flex flex-col">
+    <div className="border-t border-[var(--border-subtle)] bg-[#1A1D26] p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-          <span className="text-textSecondary text-sm">
-            {project ? `Project: {project}` : 'No project selected'}
+          <div className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse"></div>
+          <span className="text-[var(--fg-secondary)] text-xs">
+            {project ? `Project: {project}` : 'Global context'}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="p-2 hover:bg-[#303030] rounded text-textSecondary">
-            <MoreVertical size={16} />
-          </button>
-          <button className="p-2 hover:bg-[#303030] rounded text-textSecondary">
-            <Settings size={16} />
-          </button>
-        </div>
+        <button className="btn-ghost" title="More options">
+          <MoreVertical size={16} />
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="flex gap-3">
@@ -43,8 +36,8 @@ export function ChatInput({ project, onSend }: ChatInputProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Dump your thoughts here — the router will triage and delegate..."
-          className="flex-1 bg-[#1E1E1E] border border-border rounded-lg px-4 py-3 text-text focus:outline-none focus:border-primary resize-none"
-          rows={3}
+          className="flex-1 bg-[#101216] border border-[var(--border-subtle)] rounded-lg px-4 py-3 text-[var(--fg-primary)] focus:outline-none focus:border-[var(--accent-primary)] resize-none font-mono text-xs"
+          rows={4}
           disabled={sending}
         />
         <button

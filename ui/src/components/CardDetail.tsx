@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, ChevronLeft, MessageCircle, Play, Bot, Code, Timer } from 'lucide-react'
+import { X, Play, Bot, Code, Timer, MessageCircle, ChevronLeft } from 'lucide-react'
 
 interface CardDetailProps {
   card: any
@@ -7,81 +7,96 @@ interface CardDetailProps {
   onStatusChange: (newStatus: string) => void
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  triaging: '#CCA700',
-  running: '#007ACC',
-  review: '#007ACC',
-  done: '#89D185',
-  blocked: '#EF4444',
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  triaging: { label: 'Triaging', color: '#CCA700' },
+  running: { label: 'Running', color: '#007ACC' },
+  review: { label: 'Review', color: '#007ACC' },
+  done: { label: 'Done', color: '#89D185' },
+  blocked: { label: 'Blocked', color: '#EF4444' },
+  backlog: { label: 'Backlog', color: '#646B78' },
 }
 
 export function CardDetail({ card, onClose, onStatusChange }: CardDetailProps) {
+  const config = STATUS_CONFIG[card.status] || STATUS_CONFIG.backlog
+
+  const statuses = Object.entries(STATUS_CONFIG)
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#1A1D26] border border-[#363C4D] rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-active)] rounded-lg w-full max-w-5xl max-h-[95vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="p-4 border-b border-[#242833] flex items-center justify-between">
-          <button onClick={onClose} className="p-2 hover:bg-[#212530] rounded text-textSecondary">
+        <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+          <button onClick={onClose} className="btn-ghost" title="Close">
             <X size={20} />
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`badge ${card.status === 'running' ? 'status-running' : card.status === 'done' ? 'status-done' : card.status === 'blocked' ? 'status-blocked' : card.status === 'triaging' ? 'status-triaging' : 'status-review'}`}>
-                {card.status}
+              <span className={`badge ${config.label.toLowerCase().includes('run') ? 'status-running' : config.label.toLowerCase().includes('done') ? 'status-done' : config.label.toLowerCase().includes('block') ? 'status-blocked' : config.label.toLowerCase().includes('triag') ? 'status-triaging' : 'status-review'}`}>
+                {config.label}
               </span>
-              <span className="text-xs font-mono text-textTertiary ml-auto">{card.tokens_spent} tokens</span>
+              <span className="ml-auto font-mono text-[var(--fg-tertiary)] text-xs">{card.tokens_spent} tokens</span>
             </div>
-            <h2 className="text-text text-lg font-medium truncate">{card.title}</h2>
-            <div className="flex items-center gap-2 text-textTertiary text-xs mt-1">
+            <h2 className="text-[var(--fg-primary)] text-lg font-medium truncate">{card.title}</h2>
+            <div className="flex items-center gap-3 text-[var(--fg-tertiary)] text-xs mt-1">
               <span className="font-mono">{card.agent}</span>
-              <span className="w-px h-3 bg-[#242833] mx-1"></span>
+              <span className="w-px h-3 bg-[var(--border-subtle)] mx-1"></span>
               <span className="font-mono">{card.model}</span>
-              <span className="w-px h-3 bg-[#242833] mx-1"></span>
+              <span className="w-px h-3 bg-[var(--border-subtle)] mx-1"></span>
               <span>{card.project || 'global'}</span>
             </div>
           </div>
-          <button onClick={() => onStatusChange(card.status === 'done' ? 'backlog' : 'done')} className="p-2 hover:bg-[#212530] rounded text-textSecondary">
-            <Play size={20} />
-          </button>
+          <div className="flex items-center gap-1">
+            {statuses.map(([key, cfg]) => (
+              <button
+                key={key}
+                onClick={() => onStatusChange(key)}
+                className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${card.status === key ? `bg-[${cfg.color}]/20 text-[${cfg.color}] border border-[${cfg.color}]/40` : 'text-[var(--fg-tertiary)] hover:bg-[var(--bg-card-hover)]'}`}
+              >
+                {cfg.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Left: Prompt sent */}
+            {/* Left: Prompt */}
             <div className="card-panel">
-              <h3 className="text-textSecondary font-medium text-sm mb-2 flex items-center gap-1">
-                <Code size={16} /> Prompt Sent
+              <h3 className="text-[var(--fg-secondary)] font-medium text-xs mb-2 flex items-center gap-1">
+                <Code size={14} /> Prompt Sent
               </h3>
-              <div className="bg-[#101216] border border-[#242833] rounded p-3 text-xs font-mono text-textTertiary overflow-x-auto max-h-64">
+              <div className="bg-[#101216] border border-[var(--border-subtle)] rounded p-3 text-[var(--fg-tertiary)] text-[10px] font-mono overflow-x-auto max-h-64 whitespace-pre-wrap">
                 {card.prompt_sent || 'No prompt recorded'}
               </div>
             </div>
 
             {/* Middle: Output */}
             <div className="card-panel md:col-span-2">
-              <h3 className="text-textSecondary font-medium text-sm mb-2 flex items-center gap-1">
-                <Bot size={16} /> Agent Output
-              </h3>
-              <div className="bg-[#101216] border border-[#242833] rounded p-3 text-xs font-mono text-text overflow-y-auto max-h-96 whitespace-pre-wrap">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[var(--fg-secondary)] font-medium text-xs flex items-center gap-1">
+                  <Bot size={14} /> Agent Output
+                </h3>
+              </div>
+              <div className="bg-[#101216] border border-[var(--border-subtle)] rounded p-3 text-[var(--fg-primary)] text-[11px] font-mono overflow-y-auto max-h-96 whitespace-pre-wrap break-words">
                 {card.output || 'No output recorded'}
               </div>
             </div>
 
             {/* Right: Delegation flow */}
             <div className="card-panel">
-              <h3 className="text-textSecondary font-medium text-sm mb-2 flex items-center gap-1">
-                <Timer size={16} /> Delegation Flow
+              <h3 className="text-[var(--fg-secondary)] font-medium text-xs mb-2 flex items-center gap-1">
+                <Timer size={14} /> Delegation Flow
               </h3>
               <div className="space-y-2">
                 {(card.delegation_flow || []).map((step: string, i: number) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
-                    <span className="w-6 h-6 rounded-full bg-[#242833] flex items-center justify-center text-textSecondary">
+                  <div key={i} className="flex items-center gap-2 text-[10px]">
+                    <span className="w-5 h-5 rounded-full bg-[var(--border-subtle)] flex items-center justify-center text-[var(--fg-tertiary)]">
                       {i + 1}
                     </span>
-                    <span className="text-text truncate">{step}</span>
+                    <span className="text-[var(--fg-primary)] truncate">{step}</span>
                     {i < (card.delegation_flow.length - 1) && (
-                      <span className="text-textTertiary">→</span>
+                      <span className="text-[var(--fg-tertiary)]">→</span>
                     )}
                   </div>
                 ))}
@@ -89,15 +104,15 @@ export function CardDetail({ card, onClose, onStatusChange }: CardDetailProps) {
             </div>
           </div>
 
-          {/* Comments / Reply */}
+          {/* Reply */}
           <div className="mt-4 card-panel">
-            <h3 className="text-textSecondary font-medium text-sm mb-3 flex items-center gap-1">
-              <MessageCircle size={16} /> Reply & Re-route
+            <h3 className="text-[var(--fg-secondary)] font-medium text-xs mb-3 flex items-center gap-1">
+              <MessageCircle size={14} /> Reply & Re-route
             </h3>
             <div className="flex gap-2">
               <textarea
                 placeholder="Reply to re-route or add a comment..."
-                className="flex-1 input-box text-xs"
+                className="flex-1 input-box text-[10px]"
                 rows={3}
               />
               <button className="btn-primary px-4">Send</button>

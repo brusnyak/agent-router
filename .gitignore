@@ -18,6 +18,11 @@ pip-delete-this-directory.txt
 *.sqlite3
 !schema.sql
 
+# Impeccable
+.impeccable/build/
+.impeccable/review/
+.impeccable/mocks/
+
 # Node
 node_modules/
 npm-debug.log*

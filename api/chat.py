@@ -1,19 +1,22 @@
 """Chat API endpoint — user input → LangGraph supervisor → agent → Kanban card."""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Any, Optional, Dict
 import sys
 import os
 
 HOME = os.path.expanduser("~")
 sys.path.insert(0, os.path.join(HOME, "Developer", "agent-router"))
 
-from graph.supervisor import RouterSupervisor
-
 router = APIRouter()
 
-# Single supervisor instance (MVP)
-supervisor = RouterSupervisor()
+# Supervisor is injected from main.py
+supervisor: Any = None
+
+
+def set_supervisor(sup: Any):
+    global supervisor
+    supervisor = sup
 
 
 class ChatRequest(BaseModel):
@@ -36,6 +39,8 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Send a message to the agent router."""
+    if supervisor is None:
+        raise HTTPException(status_code=500, detail="Supervisor not initialized")
     try:
         result = supervisor.run(request.message, project=request.project)
         return ChatResponse(**result)
@@ -46,6 +51,7 @@ async def chat(request: ChatRequest):
 @router.post("/chat/approve")
 async def approve_gate(request: ChatRequest):
     """Approve a gated action and resume."""
-    # Resume the interrupted graph
+    if supervisor is None:
+        raise HTTPException(status_code=500, detail="Supervisor not initialized")
     result = supervisor.run(request.message, project=request.project)
     return ChatResponse(**result)
