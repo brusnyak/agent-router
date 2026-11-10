@@ -1,0 +1,53 @@
+version: 1
+name: agent-router
+description: "LangGraph-based multi-agent router with Kanban UI — connects to Orca, raw NIM keys, Claude, Codex, OpenCode, Cline, Kilo, Hermes"
+
+host: 127.0.0.1
+port: 8080
+db_path: ~/.agent-router/kanban.db
+log_level: info
+
+supervisor:
+  model: nim:nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_3
+  base_url: https://integrate.api.nvidia.com/v1
+  temperature: 0.2
+  max_tokens: 4096
+
+project_roots:
+  - ~/Developer
+  - ~/Documents/Acore
+  - ~/bp-*
+  - ~/code/opencode
+  - ~
+
+discovery:
+  auto_scan_projects: true
+  scan_agents_md: true
+  scan_claude_md: true
+
+human_in_loop:
+  gate_words:
+    - send
+    - spend
+    - deploy
+    - approve
+    - submit
+    - push
+    - delete
+    - auth
+  interrupt_before: true
+
+kanban:
+  columns:
+    - backlog
+    - triaging
+    - running
+    - review
+    - done
+    - blocked
+
+ui:
+  theme: orca-warm-obsidian
+  layout: opencode-style

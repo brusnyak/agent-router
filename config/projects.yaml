@@ -1,0 +1,68 @@
+version: 1
+projects:
+  - id: agent-router
+    path: ~/.agent-router
+    name: Agent Router
+    type: build
+    default_agent: codex
+    default_model: gpt-6.1-sol
+    context_files:
+      - AGENTS.md
+      - CLAUDE.md
+    preferred_lanes:
+      - build
+      - review-roast
+
+  - id: orca
+    path: /Users/yegor/Library/Application Support/orca
+    name: Orca IDE
+    type: ops
+    default_agent: claude
+    default_model: claude-sonnet-5-5
+    context_files:
+      - AGENTS.md
+
+  - id: hermes-ui
+    path: ~/hermes-ui
+    name: Hermes UI
+    type: ops
+    default_agent: claude
+    default_model: claude-sonnet-5-5
+    context_files: []
+
+  - id: vault
+    path: ~/memory-vault
+    name: Memory Vault
+    type: research
+    default_agent: claude
+    default_model: claude-sonnet-5-5
+    context_files:
+      - CLAUDE.md
+
+  - id: trader
+    path: ~/Documents/Acore/Development/trader/dexscreener-bot
+    name: Trading Engine
+    type: research
+    default_agent: nim3
+    default_model: nemotron-3.5-super-vl-120b-a12b
+    context_files:
+      - CLAUDE.md
+    preferred_lanes:
+      - research-public
+      - mechanical
+
+  - id: global
+    path: ~
+    name: Global (Orca workspace)
+    type: general
+    default_agent: claude
+    default_model: claude-sonnet-5-5
+    context_files:
+      - AGENTS.md
+    preferred_lanes:
+      - ops-repair
+      - config-edit
+      - cash-leads
+      - cash-outreach
+      - upwork
+      - jobs

@@ -1,0 +1,107 @@
+version: 1
+lanes:
+  - id: planner
+    engine: claude
+    model: claude-sonnet-5-5
+    effort: medium
+    does: "discuss, decide, write the packet, accept or reject results"
+    never: "execute lane work; read raw material over 200 lines"
+    skills: []
+    acceptance: "packet written with all fields filled"
+
+  - id: build
+    engine: codex
+    model: gpt-6.1-sol
+    effort: medium
+    skills: [build-discipline, karpathy-guidelines, verification-before-completion]
+    acceptance: "tests or command output named in the packet; 'NOT RUN' = FAIL"
+    never: "execute without acceptance check"
+
+  - id: review-roast
+    engine: codex
+    model: gpt-6.1-sol
+    effort: medium
+    skills: [roast]
+    acceptance: "severity-ranked findings with evidence + smallest fix"
+
+  - id: ops-repair
+    engine: claude
+    model: claude-sonnet-5-5
+    effort: medium
+    skills: [build-discipline, verification-before-completion]
+    acceptance: "deterministic check named in the packet passes"
+    never: "git push, rebase, reset, delete"
+
+  - id: config-edit
+    engine: claude
+    model: claude-sonnet-5-5
+    effort: medium
+    skills: [writing-skills]
+    acceptance: "sync_roles.py --check shows no new drift; grep shows no dangling reference"
+    never: "edit settings.json, hooks or permissions"
+
+  - id: research-public
+    engine: nim3
+    model: nemotron-3.5-super-vl-120b-a12b
+    skills: [search-first]
+    acceptance: "every claim has a URL; fact-checker for decisive claims"
+    data: public only
+
+  - id: mechanical
+    engine: nim3
+    model: nemotron-3.5-super-vl-120b-a12b
+    skills: [mechanical]
+    acceptance: "script verifies quotes/counts; deterministic selftest"
+    data: public or cleared only
+
+  - id: content-clips
+    engine: nim3
+    model: nemotron-3.5-super-vl-120b-a12b
+    skills: [content-clips]
+    acceptance: "quotes verified by script; use flagged for unsourced numbers"
+    data: public clips only
+
+  - id: vision
+    engine: nim3
+    model: nemotron-3.5-super-vl-120b-a12b
+    skills: [vision]
+    acceptance: "describes only what is visible; owner spot-checks"
+    data: public screenshots only
+
+  - id: cash-leads
+    engine: claude
+    model: claude-sonnet-5-5
+    effort: medium
+    skills: [lead-dossier, icp-qualification, niche-scoring]
+    acceptance: "each lead row has ONE gap, a URL or screenshot path, and a source line"
+    never: "send"
+
+  - id: cash-outreach
+    engine: claude
+    model: claude-sonnet-5-5
+    effort: medium
+    skills: [offer-ladder]
+    acceptance: "roast pass + owner exact-text yes; send is owner-only"
+    never: "send"
+
+  - id: upwork
+    engine: claude
+    model: claude-sonnet-5-5
+    effort: medium
+    skills: [upwork-scan]
+    acceptance: "proposal draft within word range; owner clicks send"
+    never: "submit, spend Connects"
+
+  - id: jobs
+    engine: claude
+    model: claude-sonnet-5-5
+    effort: medium
+    skills: []
+    acceptance: "fit gate verdict per posting; max 2 drafts; owner approves exact text"
+    never: "submit without exact-text yes"
+
+  - id: owner-only
+    engine: planner
+    model: claude-sonnet-5-5
+    does: "approvals, deploys, sends, submits, spends — planner prepares, owner decides"
+    rule: "gate word overrides any lane"

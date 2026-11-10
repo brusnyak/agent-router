@@ -1,0 +1,109 @@
+version: 1
+agents:
+  - id: claude
+    cli: claude
+    launch_cmd: "orca agent launch --agent claude --surface terminal --prompt '{packet}'"
+    model: claude-sonnet-5-5
+    provider: anthropic
+    write_access: true
+    route_reasons: ["browser", "mcp", "verify", "judgment", "private", "fresh-context"]
+    skills:
+      - build
+      - review-roast
+      - ops-repair
+      - config-edit
+      - cash-leads
+      - cash-outreach
+      - upwork
+      - jobs
+
+  - id: codex
+    cli: codex
+    launch_cmd: "codex exec -p delegated -C {dir} -s {mode} '{packet}'"
+    model: gpt-6.1-sol
+    provider: openai
+    write_access: true
+    route_reasons: ["build", "review"]
+    skills:
+      - build
+      - review-roast
+
+  - id: opencode
+    cli: opencode
+    launch_cmd: "opencode run '{packet}'"
+    model: nim:nemotron-3.5-super-vl-120b-a12b
+    provider: nim
+    write_access: true
+    route_reasons: ["mechanical", "research-public", "content-clips"]
+    note: "owner uses by hand; do not spawn from sub-agents without explicit permission"
+
+  - id: nim3
+    cli: nim_call.py
+    launch_cmd: "python3 ~/.memory/venv/bin/python ~/memory-vault/scripts/nim_call.py nim:nvidia/nemotron-3.5-super-vl-120b-a12b '{packet}' </dev/null"
+    model: nemotron-3.5-super-vl-120b-a12b
+    provider: nim
+    api_key_env: NIM_3
+    base_url: https://integrate.api.nvidia.com/v1
+    write_access: false
+    route_reasons: ["supervisor", "research", "mechanical", "vision"]
+    skills:
+      - research-public
+      - mechanical
+      - content-clips
+      - vision
+
+  - id: nim2
+    cli: nim_call.py
+    launch_cmd: "python3 ~/.memory/venv/bin/python ~/memory-vault/scripts/nim_call.py nim:nvidia/nemotron-3.5-super-vl-120b-a12b '{packet}' </dev/null"
+    model: nemotron-3.5-super-vl-120b-a12b
+    provider: nim
+    api_key_env: NIM_2
+    base_url: https://integrate.api.nvidia.com/v1
+    write_access: false
+    route_reasons: ["hermes", "research"]
+    skills:
+      - research-public
+
+  - id: nim1
+    cli: nim_call.py
+    launch_cmd: "python3 ~/.memory/venv/bin/python ~/memory-vault/scripts/nim_call.py nim:nvidia/nemotron-3.5-super-vl-120b-a12b '{packet}' </dev/null"
+    model: nemotron-3.5-super-vl-120b-a12b
+    provider: nim
+    api_key_env: NIM_1
+    base_url: https://integrate.api.nvidia.com/v1
+    write_access: false
+    route_reasons: ["research"]
+    skills:
+      - research-public
+
+  - id: kilo
+    cli: kilo
+    launch_cmd: "kilo run '{packet}'"
+    model: kilo-default
+    provider: kilo
+    write_access: true
+    route_reasons: ["build", "review"]
+    skills: []
+    note: "check if free tier available before routing"
+
+  - id: cline
+    cli: cline
+    launch_cmd: "cline run '{packet}'"
+    model: cline-default
+    provider: cline
+    write_access: true
+    route_reasons: ["build", "review"]
+    skills: []
+    note: "default provider is hosted — would spend; do not auto-run without owner approval"
+
+  - id: hermes
+    cli: hermes
+    launch_cmd: "hermes chat --resume '{packet}'"
+    model: nemotron-3.5-super-vl-120b-a12b
+    provider: nim
+    api_key_env: NIM_2
+    write_access: true
+    route_reasons: ["hermes", "chat", "notification"]
+    skills:
+      - hermes-change
+      - nina-ops

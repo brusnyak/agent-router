@@ -1,0 +1,86 @@
+version: 1
+skills:
+  - id: build-discipline
+    path: ~/.claude/skills/build-discipline/SKILL.md
+    category: build
+    description: "Rules for building software once a target is chosen — spec-first, surgical changes, quality gates"
+
+  - id: roast
+    path: ~/.claude/skills/roast/SKILL.md
+    category: review
+    description: "Adversarial review of any artifact — severity-ranked findings with evidence + smallest fix"
+
+  - id: search-first
+    path: ~/.claude/skills/search-first/SKILL.md
+    category: research
+    description: "Force source-first work — check official docs, workspace files, code paths before guessing"
+
+  - id: karpathy-guidelines
+    path: ~/.claude/skills/karpathy-guidelines/SKILL.md
+    category: build
+    description: "Behavioral guidelines to reduce common LLM coding mistakes"
+
+  - id: verification-before-completion
+    path: ~/.claude/skills/verification-before-completion/SKILL.md
+    category: verify
+    description: "Require build, test, lint, and type checks before calling a change done"
+
+  - id: writing-skills
+    path: ~/.claude/skills/writing-skills/SKILL.md
+    category: config-edit
+    description: "Create, edit, and verify skills before deployment"
+
+  - id: lead-dossier
+    path: ~/.claude/skills/lead-dossier/SKILL.md
+    category: business
+    description: "Research a lead list into ranked dossiers"
+
+  - id: icp-qualification
+    path: ~/.claude/skills/icp-qualification/SKILL.md
+    category: business
+    description: "Define ICP with hard and soft filters, grade lead lists"
+
+  - id: niche-scoring
+    path: ~/.claude/skills/niche-scoring/SKILL.md
+    category: business
+    description: "Score and compare candidate market segments"
+
+  - id: upwork-scan
+    path: ~/.claude/skills/upwork-scan/SKILL.md
+    category: business
+    description: "Scan Upwork for recent, low-proposal, winnable gigs"
+
+  - id: offer-ladder
+    path: ~/.claude/skills/offer-ladder/SKILL.md
+    category: business
+    description: "Design or critique an offer, package, guarantee, pricing shape"
+
+  - id: research-public
+    path: ~/.claude/skills/search-first/SKILL.md
+    category: research
+    description: "Public web research with citations and fact-checking"
+
+  - id: mechanical
+    path: ~/.claude/skills/search-first/SKILL.md
+    category: mechanical
+    description: "Distill, dedupe, tag, extract — deterministic text processing"
+
+  - id: content-clips
+    path: ~/.claude/skills/search-first/SKILL.md
+    category: mechanical
+    description: "Distill a clip, then planner decides use"
+
+  - id: vision
+    path: ~/.claude/skills/search-first/SKILL.md
+    category: vision
+    description: "Describes only what is visible in screenshots"
+
+  - id: hermes-change
+    path: ~/.agent-skills/core/software-development/SKILL.md
+    category: hermes
+    description: "Make changes to Hermes without drifting"
+
+  - id: nina-ops
+    path: ~/.agent-skills/core/software-development/SKILL.md
+    category: hermes
+    description: "Operate Nina Telegram routine bot on Oracle VPS"

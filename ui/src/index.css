@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-neutral text-text font-sans antialiased selection:bg-primary selection:text-white;
+  }
+}
+
+@layer components {
+  .card-panel {
+    @apply bg-card border border-border rounded p-4;
+  }
+  .input-box {
+    @apply bg-[#3C3C3C] border border-border rounded px-4 py-2 text-text focus:outline-none focus:border-primary w-full;
+  }
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply bg-[#3C3C3C] border border-border text-text px-4 py-2 rounded hover:bg-[#404040] transition-colors;
+  }
+  .badge {
+    @apply px-2 py-1 rounded text-xs font-medium;
+  }
+  .status-running {
+    @apply bg-primary/10 text-primary border border-primary/30;
+  }
+  .status-done {
+    @apply bg-tertiary/10 text-tertiary border border-tertiary/30;
+  }
+  .status-blocked {
+    @apply bg-red-500/10 text-red-400 border border-red-500/30;
+  }
+  .status-triaging {
+    @apply bg-secondary/10 text-secondary border border-secondary/30;
+  }
+  .status-review {
+    @apply bg-primary/10 text-primary border border-primary/30;
+  }
+}

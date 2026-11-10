@@ -1,0 +1,26 @@
+version: 1
+servers:
+  - id: business-context
+    command: python3
+    args: [~/.agent-skills/mcp/server.py]
+    env: {}
+    tools:
+      - business_context
+      - business_intake
+      - business_copy_check
+      - business_message_plan
+    read_only: true
+
+  - id: bd-leads
+    command: python3
+    args: [~/.agent-skills/mcp/bd_mcp_server.py]
+    env: {}
+    tools:
+      - bd_leads_list
+      - bd_leads_scan
+      - bd_leads_score
+      - bd_leads_narrative
+      - bd_leads_compliance
+      - bd_leads_mark_blocked
+      - bd_leads_status
+    read_only: false

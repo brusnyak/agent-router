@@ -1,0 +1,31 @@
+version: 1
+models:
+  - id: nim-nemotron-3-5-super-vl
+    name: nvidia/nemotron-3.5-super-vl-120b-a12b
+    provider: nim
+    api_key_env: NIM_3
+    base_url: https://integrate.api.nvidia.com/v1
+    context_window: 128000
+    role: supervisor
+
+  - id: claude-sonnet-5-5
+    name: claude-sonnet-5-5
+    provider: anthropic
+    api_key_env: ANTHROPIC_API_KEY
+    context_window: 200000
+    role: worker
+
+  - id: gpt-6-1-sol
+    name: gpt-6.1-sol
+    provider: openai
+    api_key_env: OPENAI_API_KEY
+    context_window: 128000
+    role: worker
+
+  - id: nemotron-3-5-super-vl
+    name: nvidia/nemotron-3.5-super-vl-120b-a12b
+    provider: nim
+    api_key_env: NIM_2
+    base_url: https://integrate.api.nvidia.com/v1
+    context_window: 128000
+    role: worker
