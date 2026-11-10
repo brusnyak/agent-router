@@ -13,6 +13,7 @@ from api.chat import router as chat_router
 from api.cards import router as cards_router
 from api.analytics import router as analytics_router
 from api.projects import router as projects_router
+from api.evaluate import router as evaluate_router
 
 app = FastAPI(
     title="Agent Router",
@@ -32,6 +33,7 @@ app.include_router(chat_router, prefix="/api")
 app.include_router(cards_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(projects_router, prefix="/api")
+app.include_router(evaluate_router, prefix="/api")
 
 
 @app.get("/")
