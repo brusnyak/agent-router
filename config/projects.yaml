@@ -1,7 +1,7 @@
 version: 1
 projects:
   - id: agent-router
-    path: ~/.agent-router
+    path: ~/Developer/agent-router
     name: Agent Router
     type: build
     default_agent: codex

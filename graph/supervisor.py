@@ -3,7 +3,8 @@ import os
 import json
 import uuid
 from typing import Optional, Dict, Any, List
-from langgraph.graph import StateGraph, END, interrupt
+from langgraph.graph import StateGraph, END
+from langgraph.types import interrupt
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
@@ -19,7 +20,7 @@ from .tools import (
     dispatch_to_agent,
     check_gate_words,
 )
-from . import db as db_module
+import db as db_module
 
 HOME = os.path.expanduser("~")
 CONFIG_DIR = os.path.join(HOME, "Developer", "agent-router", "config")

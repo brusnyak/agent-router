@@ -7,7 +7,7 @@ import os
 HOME = os.path.expanduser("~")
 sys.path.insert(0, os.path.join(HOME, "Developer", "agent-router"))
 
-from langgraph.tools import discover_projects
+from graph.tools import discover_projects
 
 router = APIRouter()
 

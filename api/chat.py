@@ -8,7 +8,7 @@ import os
 HOME = os.path.expanduser("~")
 sys.path.insert(0, os.path.join(HOME, "Developer", "agent-router"))
 
-from langgraph.supervisor import RouterSupervisor
+from graph.supervisor import RouterSupervisor
 
 router = APIRouter()
 
