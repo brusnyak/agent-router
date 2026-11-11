@@ -17,3 +17,12 @@ class RouterState(dict):
     delegation_flow: List[str] = []
     packet: Optional[Dict[str, Any]] = None
     interrupt_reason: Optional[str] = None
+    # Project comprehension fields set by triager, persisted to card
+    project_vision: str = ""
+    direct_market: str = ""
+    value_exchange: str = ""
+    action_chain: str = ""
+    next_step: str = ""
+    index_context: str = ""
+    chosen_model: Optional[str] = None
+    trace_log: List[Dict[str, Any]] = []

@@ -18,6 +18,17 @@ pip-delete-this-directory.txt
 *.sqlite3
 !schema.sql
 
+# Generated config (auto-discovered, do not commit)
+config/discovered-inventory.json
+config/drift/config-drift.yaml
+
+# Agent cards (generated at runtime)
+cards/
+
+# Process PID files
+.backend.pid
+.frontend.pid
+
 # Impeccable
 .impeccable/build/
 .impeccable/review/
@@ -45,3 +56,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Not part of the router repo
+bp/
+*.bak-*

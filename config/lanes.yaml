@@ -1,107 +1,186 @@
 version: 1
 lanes:
-  - id: planner
-    engine: claude
-    model: claude-sonnet-5-5
-    effort: medium
-    does: "discuss, decide, write the packet, accept or reject results"
-    never: "execute lane work; read raw material over 200 lines"
-    skills: []
-    acceptance: "packet written with all fields filled"
-
-  - id: build
-    engine: codex
-    model: gpt-6.1-sol
-    effort: medium
-    skills: [build-discipline, karpathy-guidelines, verification-before-completion]
-    acceptance: "tests or command output named in the packet; 'NOT RUN' = FAIL"
-    never: "execute without acceptance check"
-
-  - id: review-roast
-    engine: codex
-    model: gpt-6.1-sol
-    effort: medium
-    skills: [roast]
-    acceptance: "severity-ranked findings with evidence + smallest fix"
-
-  - id: ops-repair
-    engine: claude
-    model: claude-sonnet-5-5
-    effort: medium
-    skills: [build-discipline, verification-before-completion]
-    acceptance: "deterministic check named in the packet passes"
-    never: "git push, rebase, reset, delete"
-
-  - id: config-edit
-    engine: claude
-    model: claude-sonnet-5-5
-    effort: medium
-    skills: [writing-skills]
-    acceptance: "sync_roles.py --check shows no new drift; grep shows no dangling reference"
-    never: "edit settings.json, hooks or permissions"
-
-  - id: research-public
-    engine: nim3
-    model: nemotron-3.5-super-vl-120b-a12b
-    skills: [search-first]
-    acceptance: "every claim has a URL; fact-checker for decisive claims"
-    data: public only
-
-  - id: mechanical
-    engine: nim3
-    model: nemotron-3.5-super-vl-120b-a12b
-    skills: [mechanical]
-    acceptance: "script verifies quotes/counts; deterministic selftest"
-    data: public or cleared only
-
-  - id: content-clips
-    engine: nim3
-    model: nemotron-3.5-super-vl-120b-a12b
-    skills: [content-clips]
-    acceptance: "quotes verified by script; use flagged for unsourced numbers"
-    data: public clips only
-
-  - id: vision
-    engine: nim3
-    model: nemotron-3.5-super-vl-120b-a12b
-    skills: [vision]
-    acceptance: "describes only what is visible; owner spot-checks"
-    data: public screenshots only
-
-  - id: cash-leads
-    engine: claude
-    model: claude-sonnet-5-5
-    effort: medium
-    skills: [lead-dossier, icp-qualification, niche-scoring]
-    acceptance: "each lead row has ONE gap, a URL or screenshot path, and a source line"
-    never: "send"
-
-  - id: cash-outreach
-    engine: claude
-    model: claude-sonnet-5-5
-    effort: medium
-    skills: [offer-ladder]
-    acceptance: "roast pass + owner exact-text yes; send is owner-only"
-    never: "send"
-
-  - id: upwork
-    engine: claude
-    model: claude-sonnet-5-5
-    effort: medium
-    skills: [upwork-scan]
-    acceptance: "proposal draft within word range; owner clicks send"
-    never: "submit, spend Connects"
-
-  - id: jobs
-    engine: claude
-    model: claude-sonnet-5-5
-    effort: medium
-    skills: []
-    acceptance: "fit gate verdict per posting; max 2 drafts; owner approves exact text"
-    never: "submit without exact-text yes"
-
-  - id: owner-only
-    engine: planner
-    model: claude-sonnet-5-5
-    does: "approvals, deploys, sends, submits, spends — planner prepares, owner decides"
-    rule: "gate word overrides any lane"
+- id: planner
+  engine: claude
+  model: claude-sonnet-5-5
+  effort: medium
+  does: discuss, decide, write the packet, accept or reject results
+  never: execute lane work; read raw material over 200 lines
+  skills: []
+  agents:
+  - claude
+  acceptance: packet written with all fields filled (lane, agent, project, skills,
+    reasoning, project_vision, direct_market, value_exchange, action_chain, next_step);
+    valid JSON; project comprehension fields non-empty when project is set
+- id: build
+  engine: codex
+  model: gpt-6.1-sol
+  effort: medium
+  skills:
+  - build-discipline
+  - karpathy-guidelines
+  - verification-before-completion
+  agents:
+  - codex
+  - ecc-architect
+  - ecc-code-architect
+  - ecc-refactor-cleaner
+  - ecc-build-error-resolver
+  acceptance: tests or command output named in the packet; 'NOT RUN' = FAIL; PEEM
+    accuracy and coherence verified by deterministic check
+  never: execute without acceptance check
+- id: design-ui
+  engine: agency-ui-designer
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  skills:
+  - impeccable
+  - frontend-design
+  agents:
+  - agency-ui-designer
+  - agency-ux-architect
+  acceptance: desktop and 390px screenshots attached; contrast and keyboard check
+    named; owner picks the direction; PEEM clarity verified
+  never: ship UI to production without owner pick
+- id: review-roast
+  engine: codex
+  model: gpt-6.1-sol
+  effort: medium
+  skills:
+  - roast
+  agents:
+  - codex
+  - ecc-code-reviewer
+  - ecc-security-reviewer
+  - ecc-silent-failure-hunter
+  acceptance: severity-ranked findings with evidence + smallest fix; PEEM objectivity
+    and clarity rated 3+ each
+- id: evaluation
+  engine: ecc-agent-evaluator
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  skills:
+  - verification-before-completion
+  agents:
+  - ecc-agent-evaluator
+  - ecc-code-reviewer
+  acceptance: scorecard on accuracy, completeness, clarity, actionability, conciseness;
+    every score below 5 cites evidence and names the fix; PEEM accuracy and coherence
+    verified
+  never: re-perform the task under evaluation
+- id: ops-repair
+  engine: claude
+  model: claude-sonnet-5-5
+  effort: medium
+  skills:
+  - build-discipline
+  - verification-before-completion
+  agents:
+  - claude
+  - ecc-build-error-resolver
+  - ecc-silent-failure-hunter
+  acceptance: deterministic check named in the packet passes; PEEM accuracy verified
+  never: git push, rebase, reset, delete
+- id: config-edit
+  engine: claude
+  model: claude-sonnet-5-5
+  effort: medium
+  skills:
+  - writing-skills
+  agents:
+  - claude
+  acceptance: sync_roles.py --check shows no new drift; grep shows no dangling reference;
+    PEEM clarity verified
+- id: research-public
+  engine: nim3
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  skills:
+  - search-first
+  agents:
+  - nim3
+  - ecc-code-explorer
+  acceptance: every claim has a URL; fact-checker for decisive claims; PEEM accuracy
+    and relevance rated 3+ each
+  data: public only
+- id: mechanical
+  engine: nim3
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  skills:
+  - mechanical
+  agents:
+  - nim3
+  acceptance: script verifies quotes/counts; deterministic selftest passes; PEEM accuracy
+    verified
+- id: content-clips
+  engine: nim3
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  skills:
+  - content-clips
+  agents:
+  - nim3
+  acceptance: quotes verified by script; use flagged for unsourced numbers; PEEM objectivity
+    verified
+- id: vision
+  engine: nim3
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  skills:
+  - vision
+  agents:
+  - nim3
+  acceptance: describes only what is visible; owner spot-checks; PEEM objectivity
+    verified
+  data: public screenshots only
+- id: cash-leads
+  engine: claude
+  model: claude-sonnet-5-5
+  effort: medium
+  skills:
+  - lead-dossier
+  - icp-qualification
+  - niche-scoring
+  agents:
+  - claude
+  - agency-outbound-strategist
+  - agency-offer-strategist
+  acceptance: each lead row has ONE gap, a URL or screenshot path, and a source line;
+    PEEM relevance verified
+  never: send
+- id: cash-outreach
+  engine: claude
+  model: claude-sonnet-5-5
+  effort: medium
+  skills:
+  - offer-ladder
+  agents:
+  - claude
+  - agency-outbound-strategist
+  - agency-offer-strategist
+  acceptance: roast pass + owner exact-text yes; send is owner-only; PEEM clarity
+    and conciseness verified
+  never: send
+- id: upwork
+  engine: claude
+  model: claude-sonnet-5-5
+  effort: medium
+  skills:
+  - upwork-scan
+  agents:
+  - claude
+  - agency-proposal-strategist
+  acceptance: proposal draft within word range; owner clicks send; PEEM relevance
+    and clarity verified
+  never: submit, spend Connects
+- id: jobs
+  engine: claude
+  model: claude-sonnet-5-5
+  effort: medium
+  skills: []
+  agents:
+  - claude
+  - agency-resume-tailor
+  acceptance: fit gate verdict per posting; max 2 drafts; owner approves exact text;
+    PEEM relevance verified
+  never: submit without exact-text yes
+- id: owner-only
+  engine: planner
+  model: claude-sonnet-5-5
+  does: approvals, deploys, sends, submits, spends — planner prepares, owner decides
+  rule: gate word overrides any lane

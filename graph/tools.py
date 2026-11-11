@@ -209,6 +209,38 @@ def discover_models() -> List[Dict[str, Any]]:
     return models_cfg.get("models", [])
 
 
+def search_vault(query: str, top_k: int = 5) -> List[Dict[str, str]]:
+    """Search the memory vault for relevant pages using vector memory."""
+    import subprocess
+    import json as _json
+    vault_dir = os.path.join(HOME, "memory-vault")
+    query_script = os.path.join(vault_dir, "scripts", "vector_memory", "query.py")
+    if not os.path.exists(query_script):
+        return []
+    try:
+        result = subprocess.run(
+            [os.path.join(HOME, ".memory", "venv", "bin", "python"), query_script, query, "--top-k", str(top_k)],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0:
+            return []
+        # Parse output - each result is a page reference
+        results = []
+        for line in result.stdout.strip().split("\n"):
+            line = line.strip()
+            if line and "|" in line:
+                parts = line.split("|", 2)
+                if len(parts) >= 2:
+                    results.append({
+                        "path": parts[0].strip(),
+                        "title": parts[1].strip() if len(parts) > 1 else parts[0].strip(),
+                        "snippet": parts[2].strip() if len(parts) > 2 else "",
+                    })
+        return results[:top_k]
+    except Exception:
+        return []
+
+
 # ---------------------------------------------------------------------------
 # Packet building
 # ---------------------------------------------------------------------------
@@ -232,7 +264,7 @@ def build_packet(
         "inputs": [user_input],
         "allowed_tools": "",
         "forbidden": forbidden or ["send", "spend", "delete", "push", "auth/DNS/mail config"],
-        "output_path": f"~/Developer/agent-router/cards/{uuid.uuid4().hex[:8]}.md",
+        "output_path": f"~/agent-router/cards/{uuid.uuid4().hex[:8]}.md",
         "acceptance_check": acceptance,
         "budget": "10 minutes / 20 tool calls",
         "report": "<=15 lines: done / evidence (N of M) / blocked / next",

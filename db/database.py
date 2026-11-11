@@ -6,7 +6,8 @@ from datetime import datetime
 from pathlib import Path
 
 HOME = os.path.expanduser("~")
-DB_PATH = os.path.join(HOME, "Developer", "agent-router", "kanban.db")
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(_PROJECT_ROOT, "kanban.db")
 
 
 def get_connection() -> sqlite3.Connection:
@@ -32,6 +33,13 @@ def init_db():
             prompt_sent TEXT,
             output TEXT,
             tokens_spent INTEGER DEFAULT 0,
+            project_vision TEXT,
+            direct_market TEXT,
+            value_exchange TEXT,
+            action_chain TEXT,
+            next_step TEXT,
+            claimed_files TEXT DEFAULT '[]',
+            file_verification TEXT DEFAULT '{}',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
@@ -65,6 +73,14 @@ def init_db():
             FOREIGN KEY (card_id) REFERENCES cards(id)
         );
     """)
+    try:
+        conn.execute("ALTER TABLE cards ADD COLUMN claimed_files TEXT DEFAULT '[]'")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE cards ADD COLUMN file_verification TEXT DEFAULT '{}'")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 

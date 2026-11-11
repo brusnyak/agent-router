@@ -22,7 +22,7 @@ export function CardDetail({ card, onClose, onStatusChange }: CardDetailProps) {
   const statuses = Object.entries(STATUS_CONFIG)
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
       <div className="bg-[var(--bg-card)] border border-[var(--border-active)] rounded-lg w-full max-w-5xl max-h-[95vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">

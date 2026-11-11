@@ -18,8 +18,9 @@ import yaml
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser("~")
-CONFIG_DIR = os.path.join(HOME, "Developer", "agent-router", "config")
+CONFIG_DIR = os.path.join(_PROJECT_ROOT, "config")
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +87,29 @@ def get_skill_brief(skill_id: str) -> Optional[str]:
     return None
 
 
+def load_persona(persona_file: str, max_chars: int = 6000) -> str:
+    """Load a persona markdown file (ECC / agency agent) for prompt injection.
+
+    The persona defines the agent's role, process and output format. Frontmatter
+    is stripped; the description is kept as the one-line header.
+    """
+    if not persona_file:
+        return ""
+    p = Path(os.path.expanduser(persona_file))
+    if not p.exists():
+        return ""
+    try:
+        text = p.read_text(errors="ignore")
+    except OSError:
+        return ""
+    meta, body = _frontmatter(text)
+    header = meta.get("description") or meta.get("name") or ""
+    body = body.strip()
+    if len(body) > max_chars:
+        body = body[:max_chars] + "\n[persona truncated]"
+    return f"{header}\n\n{body}" if header else body
+
+
 # ---------------------------------------------------------------------------
 # Lane definitions
 # ---------------------------------------------------------------------------
@@ -146,6 +170,22 @@ ACCEPTANCE (caller runs): <command or check>
 """
 
 
+def estimate_tokens(text: str) -> int:
+    """Rough token estimate: ~4 chars per token."""
+    return max(1, len(text) // 4)
+
+
+def truncate_context(context: str, max_tokens: int = 2000) -> str:
+    """Truncate project context to fit within token budget, keeping the most relevant parts."""
+    if estimate_tokens(context) <= max_tokens:
+        return context
+    # Keep first and last portions, drop middle
+    keep = max_tokens // 2
+    head = context[:keep * 4]
+    tail = context[-keep * 4:]
+    return f"{head}\n\n... [truncated {estimate_tokens(context) - max_tokens} tokens] ...\n\n{tail}"
+
+
 def build_packet(
     lane_id: str,
     agent_id: str,
@@ -171,16 +211,25 @@ def build_packet(
     from graph.agent_base import load_agent_config
     agent_config = load_agent_config(agent_id) or {}
 
+    # Agent persona (virtual agents: ECC / agency markdown defines the role)
+    persona = load_persona(agent_config.get("persona_file", ""))
+
     lane_skills = lane.get("skills", [])
     if skills:
         lane_skills = skills
 
-    # Load skill briefs
+    # Load skill briefs with token budget
     skill_briefs = {}
+    skill_budget = 1500  # tokens per skill brief
     for sid in lane_skills:
         brief = get_skill_brief(sid)
         if brief:
+            brief = truncate_context(brief, skill_budget)
             skill_briefs[sid] = brief
+
+    # Truncate project context to fit token budget
+    project_context_str = json.dumps(project, indent=2)
+    project_context_str = truncate_context(project_context_str, 3000)
 
     packet = {
         "lane": lane_id,
@@ -189,17 +238,20 @@ def build_packet(
         "agent_config": agent_config,
         "project": project_id,
         "project_context": project,
+        "project_context_summary": project_context_str[:500],  # short summary for quick reference
         "goal": user_input,
         "skills_to_read": lane_skills,
         "skill_briefs": skill_briefs,
+        "persona": persona,
         "inputs": [user_input],
         "allowed_tools": "",
         "forbidden": lane.get("never", ["send", "spend", "delete", "push", "auth/DNS/mail config"]),
-        "output_path": f"~/Developer/agent-router/cards/{__import__('uuid').uuid4().hex[:8]}.md",
+        "output_path": f"~/agent-router/cards/{__import__('uuid').uuid4().hex[:8]}.md",
         "acceptance_check": lane.get("acceptance", "run acceptance check"),
         "budget": "10 minutes / 20 tool calls",
         "report": "<=15 lines: done / evidence (N of M) / blocked / next",
         "orchestration_header": ORCHESTRATION_HEADER,
+        "token_budget": {"max_packet_tokens": 4000, "max_response_tokens": 2000},
     }
     return packet
 
@@ -253,6 +305,13 @@ def render_system_prompt(packet: Dict[str, Any]) -> str:
     lines.append(f"Model: {agent_cfg.get('model', 'unknown')}")
     lines.append(f"Write access: {agent_cfg.get('write_access', False)}")
     lines.append("")
+
+    # Agent persona (role, process, output format)
+    persona = packet.get("persona", "")
+    if persona:
+        lines.append("## Agent Persona")
+        lines.append(persona)
+        lines.append("")
 
     # User input
     lines.append("## User Request")

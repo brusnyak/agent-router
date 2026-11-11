@@ -82,27 +82,39 @@
   }
   
   .status-running {
-    @apply bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30;
+    @apply text-[var(--accent-primary)];
+    border: 1px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+    background-color: color-mix(in srgb, var(--accent-primary) 10%, transparent);
   }
   
   .status-done {
-    @apply bg-[var(--accent-tertiary)]/10 text-[var(--accent-tertiary)] border border-[var(--accent-tertiary)]/30;
+    @apply text-[var(--accent-tertiary)];
+    border: 1px color-mix(in srgb, var(--accent-tertiary) 30%, transparent);
+    background-color: color-mix(in srgb, var(--accent-tertiary) 10%, transparent);
   }
   
   .status-blocked {
-    @apply bg-[#EF4444]/10 text-[#EF4444] border border-[#EF4444]/30;
+    @apply text-[#EF4444];
+    border: 1px color-mix(in srgb, #EF4444 30%, transparent);
+    background-color: color-mix(in srgb, #EF4444 10%, transparent);
   }
   
   .status-triaging {
-    @apply bg-[var(--accent-secondary)]/10 text-[var(--accent-secondary)] border border-[var(--accent-secondary)]/30;
+    @apply text-[var(--accent-secondary)];
+    border: 1px color-mix(in srgb, var(--accent-secondary) 30%, transparent);
+    background-color: color-mix(in srgb, var(--accent-secondary) 10%, transparent);
   }
   
   .status-review {
-    @apply bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30;
+    @apply text-[var(--accent-primary)];
+    border: 1px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+    background-color: color-mix(in srgb, var(--accent-primary) 10%, transparent);
   }
   
   .status-backlog {
-    @apply bg-[var(--fg-tertiary)]/10 text-[var(--fg-tertiary)] border border-[var(--fg-tertiary)]/30;
+    @apply text-[var(--fg-tertiary)];
+    border: 1px color-mix(in srgb, var(--fg-tertiary) 30%, transparent);
+    background-color: color-mix(in srgb, var(--fg-tertiary) 10%, transparent);
   }
 
   .nav-item {
@@ -110,7 +122,9 @@
   }
   
   .nav-item.active {
-    @apply bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30;
+    @apply text-[var(--accent-primary)];
+    background-color: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+    border: 1px color-mix(in srgb, var(--accent-primary) 30%, transparent);
   }
 
   .tab {

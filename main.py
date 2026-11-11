@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 HOME = os.path.expanduser("~")
-sys.path.insert(0, os.path.join(HOME, "Developer", "agent-router"))
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PROJECT_ROOT)
 
 from graph.supervisor import RouterSupervisor
 from api.chat import router as chat_router, set_supervisor as set_chat_supervisor
@@ -15,6 +16,7 @@ from api.cards import router as cards_router
 from api.analytics import router as analytics_router
 from api.projects import router as projects_router
 from api.evaluate import router as evaluate_router
+from api.skills import router as skills_router
 from api.ws import router as ws_router, set_supervisor as set_ws_supervisor
 
 app = FastAPI(
@@ -41,6 +43,7 @@ app.include_router(cards_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(projects_router, prefix="/api")
 app.include_router(evaluate_router, prefix="/api")
+app.include_router(skills_router, prefix="/api")
 app.include_router(ws_router, prefix="/api")
 
 

@@ -1,109 +1,325 @@
 version: 1
 agents:
-  - id: claude
-    cli: claude
-    launch_cmd: "orca agent launch --agent claude --surface terminal --prompt '{packet}'"
-    model: claude-sonnet-5-5
-    provider: anthropic
-    write_access: true
-    route_reasons: ["browser", "mcp", "verify", "judgment", "private", "fresh-context"]
-    skills:
-      - build
-      - review-roast
-      - ops-repair
-      - config-edit
-      - cash-leads
-      - cash-outreach
-      - upwork
-      - jobs
-
-  - id: codex
-    cli: codex
-    launch_cmd: "codex exec -p delegated -C {dir} -s {mode} '{packet}'"
-    model: gpt-6.1-sol
-    provider: openai
-    write_access: true
-    route_reasons: ["build", "review"]
-    skills:
-      - build
-      - review-roast
-
-  - id: opencode
-    cli: opencode
-    launch_cmd: "opencode run '{packet}'"
-    model: nim:nemotron-3.5-super-vl-120b-a12b
-    provider: nim
-    write_access: true
-    route_reasons: ["mechanical", "research-public", "content-clips"]
-    note: "owner uses by hand; do not spawn from sub-agents without explicit permission"
-
-  - id: nim3
-    cli: nim_call.py
-    launch_cmd: "python3 ~/.memory/venv/bin/python ~/memory-vault/scripts/nim_call.py nim:nvidia/nemotron-3.5-super-vl-120b-a12b '{packet}' </dev/null"
-    model: nemotron-3.5-super-vl-120b-a12b
-    provider: nim
-    api_key_env: NIM_3
-    base_url: https://integrate.api.nvidia.com/v1
-    write_access: false
-    route_reasons: ["supervisor", "research", "mechanical", "vision"]
-    skills:
-      - research-public
-      - mechanical
-      - content-clips
-      - vision
-
-  - id: nim2
-    cli: nim_call.py
-    launch_cmd: "python3 ~/.memory/venv/bin/python ~/memory-vault/scripts/nim_call.py nim:nvidia/nemotron-3.5-super-vl-120b-a12b '{packet}' </dev/null"
-    model: nemotron-3.5-super-vl-120b-a12b
-    provider: nim
-    api_key_env: NIM_2
-    base_url: https://integrate.api.nvidia.com/v1
-    write_access: false
-    route_reasons: ["hermes", "research"]
-    skills:
-      - research-public
-
-  - id: nim1
-    cli: nim_call.py
-    launch_cmd: "python3 ~/.memory/venv/bin/python ~/memory-vault/scripts/nim_call.py nim:nvidia/nemotron-3.5-super-vl-120b-a12b '{packet}' </dev/null"
-    model: nemotron-3.5-super-vl-120b-a12b
-    provider: nim
-    api_key_env: NIM_1
-    base_url: https://integrate.api.nvidia.com/v1
-    write_access: false
-    route_reasons: ["research"]
-    skills:
-      - research-public
-
-  - id: kilo
-    cli: kilo
-    launch_cmd: "kilo run '{packet}'"
-    model: kilo-default
-    provider: kilo
-    write_access: true
-    route_reasons: ["build", "review"]
-    skills: []
-    note: "check if free tier available before routing"
-
-  - id: cline
-    cli: cline
-    launch_cmd: "cline run '{packet}'"
-    model: cline-default
-    provider: cline
-    write_access: true
-    route_reasons: ["build", "review"]
-    skills: []
-    note: "default provider is hosted — would spend; do not auto-run without owner approval"
-
-  - id: hermes
-    cli: hermes
-    launch_cmd: "hermes chat --resume '{packet}'"
-    model: nemotron-3.5-super-vl-120b-a12b
-    provider: nim
-    api_key_env: NIM_2
-    write_access: true
-    route_reasons: ["hermes", "chat", "notification"]
-    skills:
-      - hermes-change
-      - nina-ops
+- id: claude
+  cli: claude
+  model: claude-default
+  provider: claude
+  write_access: true
+  route_reasons:
+  - browser
+  - mcp
+  - verify
+  - judgment
+  - private
+  - fresh-context
+  skills: []
+  _source: discovered
+  _discovered_at: '2026-11-11T10:50:13.438012+00:00'
+- id: codex
+  cli: codex
+  model: codex-default
+  provider: codex
+  write_access: true
+  route_reasons:
+  - build
+  - review
+  skills: []
+  _source: discovered
+  _discovered_at: '2026-11-11T10:50:13.438025+00:00'
+- id: gemini
+  cli: gemini
+  model: gemini-default
+  provider: gemini
+  write_access: false
+  route_reasons:
+  - research
+  - deep-research
+  - vision
+  skills: []
+  _source: discovered
+  _discovered_at: '2026-11-11T10:50:13.438028+00:00'
+  note: browser-only via Neo/Ego; chat-based interaction
+- id: nim3
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_3
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - supervisor
+  - mechanical
+  skills:
+  - research-public
+  - mechanical
+  _source: discovered
+  _discovered_at: '2026-11-11T10:50:13.438032+00:00'
+  note: Virtual NIM agent — direct API call, no CLI required
+- id: nim2
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_2
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - research
+  - mechanical
+  skills:
+  - research-public
+  - mechanical
+  _source: discovered
+  _discovered_at: '2026-11-11T10:50:13.438035+00:00'
+  note: Virtual NIM agent — direct API call, no CLI required
+- id: nim1
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - research
+  - mechanical
+  skills:
+  - research-public
+  - mechanical
+  _source: discovered
+  _discovered_at: '2026-11-11T10:50:13.438038+00:00'
+  note: Virtual NIM agent — direct API call, no CLI required
+# ---------------------------------------------------------------------------
+# Virtual specialist agents.
+# provider: nim -> direct API call, no CLI, no TTY (works unattended).
+# persona_file -> markdown that defines the role; injected into the worker's
+# system prompt by graph/prompt_library.py (build_packet + render_system_prompt).
+# route_reasons hold lane ids, so the triage LLM can match a lane to a specialist.
+# ---------------------------------------------------------------------------
+- id: ecc-architect
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_2
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - build
+  - ops-repair
+  - design-ui
+  skills:
+  - build-discipline
+  - karpathy-guidelines
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/architect.md
+  _source: ecc-reference
+  note: ECC architect persona — system design, trade-offs, scalability (read-only)
+- id: ecc-code-architect
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - build
+  skills:
+  - build-discipline
+  - verification-before-completion
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/code-architect.md
+  _source: ecc-reference
+  note: ECC code-architect persona — blueprint with files, interfaces, build order
+- id: ecc-code-reviewer
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_2
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - review-roast
+  skills:
+  - roast
+  - security-review
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/code-reviewer.md
+  _source: ecc-reference
+  note: ECC code-reviewer persona — confidence-filtered findings, file:line evidence
+- id: ecc-agent-evaluator
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - evaluation
+  skills:
+  - verification-before-completion
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/agent-evaluator.md
+  _source: ecc-reference
+  note: ECC agent-evaluator persona — 5-axis scorecard, never re-performs the task
+- id: ecc-security-reviewer
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - review-roast
+  skills:
+  - security-review
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/security-reviewer.md
+  _source: ecc-reference
+  note: ECC security-reviewer persona — secrets, injection, unsafe defaults
+- id: ecc-silent-failure-hunter
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - review-roast
+  - ops-repair
+  skills:
+  - roast
+  - verification-before-completion
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/silent-failure-hunter.md
+  _source: ecc-reference
+  note: ECC silent-failure-hunter persona — swallowed errors, bad fallbacks
+- id: ecc-code-explorer
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - research-public
+  - build
+  skills:
+  - research
+  - search-first
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/code-explorer.md
+  _source: ecc-reference
+  note: ECC code-explorer persona — traces execution paths and dependency layers
+- id: ecc-refactor-cleaner
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - build
+  - ops-repair
+  skills:
+  - build-discipline
+  - karpathy-guidelines
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/refactor-cleaner.md
+  _source: ecc-reference
+  note: ECC refactor-cleaner persona — dead code and duplication, minimal diff
+- id: ecc-build-error-resolver
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - ops-repair
+  - build
+  skills:
+  - build-discipline
+  - verification-before-completion
+  persona_file: /Users/yegor/Developer/ecc-reference/agents/build-error-resolver.md
+  _source: ecc-reference
+  note: ECC build-error-resolver persona — build/type errors, minimal diff, no redesign
+- id: agency-ui-designer
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_2
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - design-ui
+  skills:
+  - impeccable
+  - frontend-design
+  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/design/design-ui-designer.md
+  _source: agency-agents
+  note: Agency UI Designer persona — visual system, components, accessibility
+- id: agency-ux-architect
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - design-ui
+  skills:
+  - impeccable
+  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/design/design-ux-architect.md
+  _source: agency-agents
+  note: Agency UX Architect persona — flows, hierarchy, usability before pixels
+- id: agency-outbound-strategist
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_2
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - cash-outreach
+  - cash-leads
+  skills:
+  - opportunity-scout
+  - niche-scoring
+  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-outbound-strategist.md
+  _source: agency-agents
+  note: Agency Outbound Strategist persona — signal-based sequences, ICP, no spray-and-pray
+- id: agency-offer-strategist
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - cash-outreach
+  - cash-leads
+  skills:
+  - niche-scoring
+  - customer-research
+  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-offer-lead-gen-strategist.md
+  _source: agency-agents
+  note: Agency offer/lead-gen strategist persona — offer angles, positioning, pricing
+- id: agency-proposal-strategist
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - upwork
+  skills:
+  - upwork-scan
+  - critique
+  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-proposal-strategist.md
+  _source: agency-agents
+  note: Agency Proposal Strategist persona — Upwork proposal draft, owner sends
+- id: agency-resume-tailor
+  cli: nim_call.py
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  provider: nim
+  api_key_env: NIM_1
+  base_url: https://integrate.api.nvidia.com/v1
+  write_access: false
+  route_reasons:
+  - jobs
+  skills:
+  - critique
+  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/specialized/resume-tailor.md
+  _source: agency-agents
+  note: Agency resume-tailor persona — CV tailoring per posting, owner approves text
