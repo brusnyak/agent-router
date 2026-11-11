@@ -1,0 +1,14 @@
+{
+  "$schema": "https://pi.dev/schemas/models.schema.json",
+  "providers": {
+    "omni": {
+      "baseUrl": "http://localhost:20128/v1",
+      "api": "openai-completions",
+      "apiKey": "${OMNIROUTER_FULL_API_KEY}",
+      "models": [
+        { "id": "nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b" },
+        { "id": "groq/openai/gpt-oss-120b" }
+      ]
+    }
+  }
+}
