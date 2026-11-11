@@ -1,0 +1,25 @@
+name: project-pick
+description: Rank CV/portfolio projects against job requirements and a shippable target group, using vault evidence only.
+provider: pi
+model: omni/nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b
+nodes:
+  - id: gather
+    bash: |
+      cd ~/memory-vault/pages
+      echo "## JOB REQUIREMENTS"; head -c 9000 research/2026-10-20-junior-jobs-requirements.md
+      echo "## PRIOR PROJECT PICK"; head -c 7000 research/2026-10-21-job-worthy-project-pick.md
+      echo "## SESSION REVIEW"; cat reports/2026-11-11-session-review-project-pick.md
+      echo "## SELECTION SYSTEM"; cat ~/Developer/project-picker/SYSTEM.md
+      echo "## AGENT-ROUTER SCOPE"; cat ~/Developer/agent-router/SCOPE.md
+  - id: rank
+    depends_on: [gather]
+    loop:
+      prompt: |
+        Using ONLY the evidence below, write reports/project-pick.md (create the reports/ directory if needed; write the file with your tools, do not only print it).
+        Content: a ranked table of at least 5 candidate projects. Columns: rank, project, job requirement it answers (quote the exact line from the evidence), who it ships to (a concrete group or community), cheapest 1-day test, kill condition, evidence tag (seen-in-text or unverified). Include agent-router as a candidate and judge it with the evidence in AGENT-ROUTER SCOPE. Do not invent job postings or numbers; anything not in the text is marked unverified.
+
+        EVIDENCE:
+        $gather.output
+      until_bash: "test -f reports/project-pick.md && [ $(grep -c '^|' reports/project-pick.md) -ge 7 ] && grep -qi 'agent-router' reports/project-pick.md && grep -qi 'unverified' reports/project-pick.md"
+      max_iterations: 3
+      fresh_context: true
