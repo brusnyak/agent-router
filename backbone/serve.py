@@ -37,6 +37,8 @@ def make_handler(bb, token: str):
             if not self._auth():
                 return
             u = urlparse(self.path)
+            if u.path == "/nodes":
+                return self._send(200, jobs.nodes())
             if u.path == "/jobs":
                 return self._send(200, jobs.list())
             if u.path.startswith("/runs/"):
@@ -52,16 +54,25 @@ def make_handler(bb, token: str):
         def do_POST(self):
             if not self._auth():
                 return
-            if urlparse(self.path).path != "/submit":
+            path = urlparse(self.path).path
+            if path not in ("/submit", "/nodes/claim", "/nodes/result"):
                 return self._send(404, {"error": "not found"})
             try:
                 d = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                if path == "/nodes/claim":
+                    return self._send(200, {"job": jobs.claim_for_node(str(d["node"]), d.get("caps") or {})})
+                if path == "/nodes/result":
+                    return self._send(200, {"ok": jobs.finish_from_node(str(d["node"]), str(d["job"]), str(d.get("state", "blocked")),
+                                                                        str(d.get("output", "")), str(d.get("run", "")))})
                 opts = {}
                 if d.get("gate"):
-                    opts["gate"] = bb.named_gate(d["gate"])
+                    bb.named_gate(d["gate"])  # validate the name against the hub config
+                    opts["gate_name"] = d["gate"]  # nodes re-resolve the NAME against their own config; raw commands never travel
+                    if not str(d.get("text", "")).count("@node:") and not d.get("target"):
+                        opts["gate"] = bb.named_gate(d["gate"])
                 if d.get("cwd"):
                     opts["cwd"] = bb.check_cwd(d["cwd"])
-                for k in ("project", "worker"):
+                for k in ("project", "worker", "target"):
                     if d.get(k):
                         opts[k] = d[k]
                 self._send(200, {"job": jobs.submit(str(d["text"]), **opts)})

@@ -48,6 +48,8 @@ def main(argv=None) -> None:
     sv.add_argument("--port", type=int, default=8799)
     ak = sub.add_parser("ask", help="free text: NIM1 decides command/project/worker/gate (validated), router runs, critic reviews")
     ak.add_argument("text", nargs="+"); ak.add_argument("--cwd"); ak.add_argument("--dry", action="store_true", help="print the engineered prompt + plan, run nothing")
+    nd = sub.add_parser("node", help="connect OUTBOUND to a hub, claim jobs addressed to @node:NAME, run them here")
+    nd.add_argument("--hub", required=True, help="hub serve URL, e.g. http://127.0.0.1:8799 (through an ssh -L tunnel)"); nd.add_argument("--name", required=True)
     dr = sub.add_parser("doctor", help="probe every detected agent with one tiny headless call (uses your logins briefly)")
     dr.add_argument("--only", nargs="*")
     sub.add_parser("discover", help="detect agents, keys, ssh hosts, projects on this machine")
@@ -87,6 +89,10 @@ def main(argv=None) -> None:
         _j(doctor_run(discover()["agents"], tempfile.mkdtemp(prefix="doctor-"), out, a.only))
         return
     bb = Backbone()
+    if a.cmd == "node":
+        from . import node
+        node.loop(bb, a.hub, a.name)
+        return
     if a.cmd == "ask":
         _j(bb.ask(" ".join(a.text), cwd=a.cwd, dry=a.dry))
     elif a.cmd == "run":

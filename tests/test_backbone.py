@@ -465,3 +465,51 @@ def test_no_personal_paths_in_tracked_code():
     out = subprocess.run(["git", "grep", "-l", "-E", "/Users/[a-z]|yegor|brusnyak", "--", ".", ":!docs", ":!*.md", ":!data", ":!.archon", ":!tests"],
                          capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.split()
     assert out == [], f"personal paths in: {out}"
+
+
+def test_hub_node_roundtrip(bb):
+    """Outbound-only node: job addressed to @node:mac is NOT run by the hub, is claimed by mac over HTTP, result flows back."""
+    import json as _json
+    import threading as _t
+    import urllib.request as _u
+    from http.server import ThreadingHTTPServer
+    from backbone import node
+    from backbone.jobs import Jobs
+    from backbone.serve import make_handler
+
+    tok = "t" * 20
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(bb, tok))
+    _t.Thread(target=srv.serve_forever, daemon=True).start()
+    hub = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        req = _u.Request(hub + "/submit", _json.dumps({"text": "@node:mac say hi"}).encode(),
+                         {"Content-Type": "application/json", "Authorization": f"Bearer {tok}"})
+        jid = _json.loads(_u.urlopen(req).read())["job"]
+        jobs = Jobs(bb)
+        assert jobs._claim() is None  # hub must not take a job addressed to a node
+        assert node.poll_once(bb, hub, tok, "other", {}, runner=lambda t, **o: {"state": "done"}) is False  # wrong node gets nothing
+        seen = {}
+        def fake(text, **o):
+            seen["text"] = text
+            return {"state": "done", "output": "hi from mac", "run": "r1"}
+        assert node.poll_once(bb, hub, tok, "mac", {"workers": ["nim1"]}, runner=fake) is True
+        assert seen["text"] == "say hi"  # routing token stripped
+        row = bb.con.execute("SELECT state,node,result FROM jobs WHERE id=?", (jid,)).fetchone()
+        assert (row["state"], row["node"], row["result"]) == ("done", "mac", "hi from mac")
+        assert not jobs.finish_from_node("other", jid, "done", "x")  # only the claiming node may finish
+        assert [n["name"] for n in jobs.nodes() if n["online"]] == sorted(["mac", "other"])
+        bad = _u.Request(hub + "/nodes/claim", b"{}", {"Authorization": "Bearer wrong"})
+        with pytest.raises(Exception):
+            _u.urlopen(bad)
+    finally:
+        srv.shutdown()
+
+
+def test_reroute_offline_policy(bb):
+    from backbone.jobs import Jobs
+    jobs = Jobs(bb)
+    jid = jobs.submit("@node:mac later")
+    bb.con.execute("UPDATE jobs SET updated=? WHERE id=?", (time.time() - 500, jid)); bb.con.commit()
+    assert jobs.reroute_offline("wait", 120) == 0
+    assert jobs.reroute_offline("reroute", 120) == 1  # mac never connected: hub takes the job
+    assert jobs._claim()["id"] == jid
