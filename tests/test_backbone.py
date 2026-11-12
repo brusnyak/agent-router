@@ -457,3 +457,11 @@ def test_analyze_validates():
     assert ok["task_class"] == "review" and ok["goal"] == "g"
     bad = analyze(lambda m: "nonsense", "q")
     assert bad["task_class"] == "other" and bad["error"] == "analysis_failed"
+
+
+def test_no_personal_paths_in_tracked_code():
+    """Open-source gate: no owner-specific absolute path or handle in tracked code/config (docs and data excluded)."""
+    import subprocess
+    out = subprocess.run(["git", "grep", "-l", "-E", "/Users/[a-z]|yegor|brusnyak", "--", ".", ":!docs", ":!*.md", ":!data", ":!.archon", ":!tests"],
+                         capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.split()
+    assert out == [], f"personal paths in: {out}"

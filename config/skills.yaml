@@ -1,602 +1,602 @@
 version: 1
 skills:
 - id: core-research-skill
-  path: /Users/yegor/.agent-skills/core/research/SKILL.md
+  path: ~/.agent-skills/core/research/SKILL.md
   category: research
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/core/research/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/core/research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.441913+00:00'
 - id: core-writing-quality-skill
-  path: /Users/yegor/.agent-skills/core/writing-quality/SKILL.md
+  path: ~/.agent-skills/core/writing-quality/SKILL.md
   category: writing-quality
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/core/writing-quality/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/core/writing-quality/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.441936+00:00'
 - id: core-software-development-skill
-  path: /Users/yegor/.agent-skills/core/software-development/SKILL.md
+  path: ~/.agent-skills/core/software-development/SKILL.md
   category: software-development
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/core/software-development/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/core/software-development/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.441953+00:00'
 - id: core-code-review-skill
-  path: /Users/yegor/.agent-skills/core/code-review/SKILL.md
+  path: ~/.agent-skills/core/code-review/SKILL.md
   category: code-review
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/core/code-review/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/core/code-review/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.441967+00:00'
 - id: core-security-review-skill
-  path: /Users/yegor/.agent-skills/core/security-review/SKILL.md
+  path: ~/.agent-skills/core/security-review/SKILL.md
   category: security-review
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/core/security-review/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/core/security-review/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.441982+00:00'
 - id: business-niche-scoring-skill
-  path: /Users/yegor/.agent-skills/business/niche-scoring/SKILL.md
+  path: ~/.agent-skills/business/niche-scoring/SKILL.md
   category: niche-scoring
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/niche-scoring/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/niche-scoring/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.441996+00:00'
 - id: business-customer-discovery-skill
-  path: /Users/yegor/.agent-skills/business/customer-discovery/SKILL.md
+  path: ~/.agent-skills/business/customer-discovery/SKILL.md
   category: customer-discovery
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/customer-discovery/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/customer-discovery/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442010+00:00'
 - id: business-archive-copywriting-skill
-  path: /Users/yegor/.agent-skills/business/archive/copywriting/SKILL.md
+  path: ~/.agent-skills/business/archive/copywriting/SKILL.md
   category: copywriting
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/archive/copywriting/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/archive/copywriting/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442026+00:00'
 - id: business-archive-spintax-skill
-  path: /Users/yegor/.agent-skills/business/archive/spintax/SKILL.md
+  path: ~/.agent-skills/business/archive/spintax/SKILL.md
   category: spintax
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/archive/spintax/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/archive/spintax/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442042+00:00'
 - id: business-archive-outbound-skill
-  path: /Users/yegor/.agent-skills/business/archive/outbound/SKILL.md
+  path: ~/.agent-skills/business/archive/outbound/SKILL.md
   category: outbound
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/archive/outbound/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/archive/outbound/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442057+00:00'
 - id: business-archive-offer-ladder-skill
-  path: /Users/yegor/.agent-skills/business/archive/offer-ladder/SKILL.md
+  path: ~/.agent-skills/business/archive/offer-ladder/SKILL.md
   category: offer-ladder
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/archive/offer-ladder/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/archive/offer-ladder/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442072+00:00'
 - id: business-customer-research-skill
-  path: /Users/yegor/.agent-skills/business/customer-research/SKILL.md
+  path: ~/.agent-skills/business/customer-research/SKILL.md
   category: customer-research
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/customer-research/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/customer-research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442086+00:00'
 - id: business-opportunity-scout-skill
-  path: /Users/yegor/.agent-skills/business/opportunity-scout/SKILL.md
+  path: ~/.agent-skills/business/opportunity-scout/SKILL.md
   category: opportunity-scout
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/opportunity-scout/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/opportunity-scout/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442099+00:00'
 - id: business-offer-design-skill
-  path: /Users/yegor/.agent-skills/business/offer-design/SKILL.md
+  path: ~/.agent-skills/business/offer-design/SKILL.md
   category: offer-design
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/offer-design/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/offer-design/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442113+00:00'
 - id: business-slovak-writing-skill
-  path: /Users/yegor/.agent-skills/business/slovak-writing/SKILL.md
+  path: ~/.agent-skills/business/slovak-writing/SKILL.md
   category: slovak-writing
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/slovak-writing/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/slovak-writing/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442126+00:00'
 - id: business-icp-qualification-skill
-  path: /Users/yegor/.agent-skills/business/icp-qualification/SKILL.md
+  path: ~/.agent-skills/business/icp-qualification/SKILL.md
   category: icp-qualification
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/icp-qualification/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/icp-qualification/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442139+00:00'
 - id: business-proposals-skill
-  path: /Users/yegor/.agent-skills/business/proposals/SKILL.md
+  path: ~/.agent-skills/business/proposals/SKILL.md
   category: proposals
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/business/proposals/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/business/proposals/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442153+00:00'
 - id: hormozi-objection-destroyer-skill
-  path: /Users/yegor/.agent-skills/hormozi/objection-destroyer/SKILL.md
+  path: ~/.agent-skills/hormozi/objection-destroyer/SKILL.md
   category: objection-destroyer
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/objection-destroyer/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/objection-destroyer/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442166+00:00'
 - id: hormozi-hormozi-hooks-skill
-  path: /Users/yegor/.agent-skills/hormozi/hormozi-hooks/SKILL.md
+  path: ~/.agent-skills/hormozi/hormozi-hooks/SKILL.md
   category: hormozi-hooks
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/hormozi-hooks/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/hormozi-hooks/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442180+00:00'
 - id: hormozi-dfy-dwy-diy-skill
-  path: /Users/yegor/.agent-skills/hormozi/dfy-dwy-diy/SKILL.md
+  path: ~/.agent-skills/hormozi/dfy-dwy-diy/SKILL.md
   category: dfy-dwy-diy
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/dfy-dwy-diy/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/dfy-dwy-diy/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442193+00:00'
 - id: hormozi-landing-page-copy-skill
-  path: /Users/yegor/.agent-skills/hormozi/landing-page-copy/SKILL.md
+  path: ~/.agent-skills/hormozi/landing-page-copy/SKILL.md
   category: landing-page-copy
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/landing-page-copy/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/landing-page-copy/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442206+00:00'
 - id: hormozi-business-model-skill
-  path: /Users/yegor/.agent-skills/hormozi/business-model/SKILL.md
+  path: ~/.agent-skills/hormozi/business-model/SKILL.md
   category: business-model
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/business-model/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/business-model/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442218+00:00'
 - id: hormozi-bonus-stack-skill
-  path: /Users/yegor/.agent-skills/hormozi/bonus-stack/SKILL.md
+  path: ~/.agent-skills/hormozi/bonus-stack/SKILL.md
   category: bonus-stack
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/bonus-stack/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/bonus-stack/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442231+00:00'
 - id: hormozi-create-plugin-skill
-  path: /Users/yegor/.agent-skills/hormozi/create-plugin/SKILL.md
+  path: ~/.agent-skills/hormozi/create-plugin/SKILL.md
   category: create-plugin
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/create-plugin/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/create-plugin/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442244+00:00'
 - id: hormozi-market-research-skill
-  path: /Users/yegor/.agent-skills/hormozi/market-research/SKILL.md
+  path: ~/.agent-skills/hormozi/market-research/SKILL.md
   category: market-research
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/market-research/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/market-research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442257+00:00'
 - id: hormozi-idea-to-product-skill
-  path: /Users/yegor/.agent-skills/hormozi/idea-to-product/SKILL.md
+  path: ~/.agent-skills/hormozi/idea-to-product/SKILL.md
   category: idea-to-product
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/idea-to-product/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/idea-to-product/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442270+00:00'
 - id: hormozi-offer-angles-skill
-  path: /Users/yegor/.agent-skills/hormozi/offer-angles/SKILL.md
+  path: ~/.agent-skills/hormozi/offer-angles/SKILL.md
   category: offer-angles
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/offer-angles/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/offer-angles/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442282+00:00'
 - id: hormozi-productize-skill
-  path: /Users/yegor/.agent-skills/hormozi/productize/SKILL.md
+  path: ~/.agent-skills/hormozi/productize/SKILL.md
   category: productize
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/productize/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/productize/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442295+00:00'
 - id: hormozi-pricing-strategy-skill
-  path: /Users/yegor/.agent-skills/hormozi/pricing-strategy/SKILL.md
+  path: ~/.agent-skills/hormozi/pricing-strategy/SKILL.md
   category: pricing-strategy
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/pricing-strategy/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/pricing-strategy/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442308+00:00'
 - id: hormozi-value-perception-skill
-  path: /Users/yegor/.agent-skills/hormozi/value-perception/SKILL.md
+  path: ~/.agent-skills/hormozi/value-perception/SKILL.md
   category: value-perception
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/value-perception/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/value-perception/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442321+00:00'
 - id: hormozi-audit-offer-skill
-  path: /Users/yegor/.agent-skills/hormozi/audit-offer/SKILL.md
+  path: ~/.agent-skills/hormozi/audit-offer/SKILL.md
   category: audit-offer
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/audit-offer/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/audit-offer/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442334+00:00'
 - id: hormozi-hormozi-pitch-skill
-  path: /Users/yegor/.agent-skills/hormozi/hormozi-pitch/SKILL.md
+  path: ~/.agent-skills/hormozi/hormozi-pitch/SKILL.md
   category: hormozi-pitch
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/hormozi-pitch/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/hormozi-pitch/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442347+00:00'
 - id: hormozi-hormozi-offer-skill
-  path: /Users/yegor/.agent-skills/hormozi/hormozi-offer/SKILL.md
+  path: ~/.agent-skills/hormozi/hormozi-offer/SKILL.md
   category: hormozi-offer
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/hormozi-offer/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/hormozi-offer/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442360+00:00'
 - id: hormozi-ask-hormozi-skill
-  path: /Users/yegor/.agent-skills/hormozi/ask-hormozi/SKILL.md
+  path: ~/.agent-skills/hormozi/ask-hormozi/SKILL.md
   category: ask-hormozi
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/ask-hormozi/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/ask-hormozi/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442373+00:00'
 - id: hormozi-value-accelerator-skill
-  path: /Users/yegor/.agent-skills/hormozi/value-accelerator/SKILL.md
+  path: ~/.agent-skills/hormozi/value-accelerator/SKILL.md
   category: value-accelerator
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/value-accelerator/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/value-accelerator/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442386+00:00'
 - id: hormozi-effort-reduction-skill
-  path: /Users/yegor/.agent-skills/hormozi/effort-reduction/SKILL.md
+  path: ~/.agent-skills/hormozi/effort-reduction/SKILL.md
   category: effort-reduction
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/hormozi/effort-reduction/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/hormozi/effort-reduction/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442399+00:00'
 - id: specialist-trading-research-skill
-  path: /Users/yegor/.agent-skills/specialist/trading-research/SKILL.md
+  path: ~/.agent-skills/specialist/trading-research/SKILL.md
   category: trading-research
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/specialist/trading-research/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/specialist/trading-research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442412+00:00'
 - id: specialist-lead-generation-skill
-  path: /Users/yegor/.agent-skills/specialist/lead-generation/SKILL.md
+  path: ~/.agent-skills/specialist/lead-generation/SKILL.md
   category: lead-generation
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/specialist/lead-generation/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/specialist/lead-generation/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442425+00:00'
 - id: nina-music-daily-skill
-  path: /Users/yegor/.agent-skills/nina/music-daily/SKILL.md
+  path: ~/.agent-skills/nina/music-daily/SKILL.md
   category: music-daily
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/nina/music-daily/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/nina/music-daily/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442438+00:00'
 - id: nina-tech-digest-skill
-  path: /Users/yegor/.agent-skills/nina/tech-digest/SKILL.md
+  path: ~/.agent-skills/nina/tech-digest/SKILL.md
   category: tech-digest
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/nina/tech-digest/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/nina/tech-digest/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442451+00:00'
 - id: nina-book-week-skill
-  path: /Users/yegor/.agent-skills/nina/book-week/SKILL.md
+  path: ~/.agent-skills/nina/book-week/SKILL.md
   category: book-week
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/nina/book-week/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/nina/book-week/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442464+00:00'
 - id: backups-20261021-110003-claude-copywriting-skill
-  path: /Users/yegor/.agent-skills/backups/20261021-110003/claude/copywriting/SKILL.md
+  path: ~/.agent-skills/backups/20261021-110003/claude/copywriting/SKILL.md
   category: copywriting
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/backups/20261021-110003/claude/copywriting/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/backups/20261021-110003/claude/copywriting/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442481+00:00'
 - id: backups-20261021-110003-claude-customer-research-skill
-  path: /Users/yegor/.agent-skills/backups/20261021-110003/claude/customer-research/SKILL.md
+  path: ~/.agent-skills/backups/20261021-110003/claude/customer-research/SKILL.md
   category: customer-research
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/backups/20261021-110003/claude/customer-research/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/backups/20261021-110003/claude/customer-research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442498+00:00'
 - id: backups-20260719-121326-claude-research-skill
-  path: /Users/yegor/.agent-skills/backups/20260719-121326/claude/research/SKILL.md
+  path: ~/.agent-skills/backups/20260719-121326/claude/research/SKILL.md
   category: research
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/backups/20260719-121326/claude/research/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/backups/20260719-121326/claude/research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442515+00:00'
 - id: backups-20260719-121326-claude-code-review-skill
-  path: /Users/yegor/.agent-skills/backups/20260719-121326/claude/code-review/SKILL.md
+  path: ~/.agent-skills/backups/20260719-121326/claude/code-review/SKILL.md
   category: code-review
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/backups/20260719-121326/claude/code-review/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/backups/20260719-121326/claude/code-review/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442531+00:00'
 - id: backups-20260719-121326-opencode-code-review-skill
-  path: /Users/yegor/.agent-skills/backups/20260719-121326/opencode/code-review/SKILL.md
+  path: ~/.agent-skills/backups/20260719-121326/opencode/code-review/SKILL.md
   category: code-review
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/backups/20260719-121326/opencode/code-review/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/backups/20260719-121326/opencode/code-review/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442547+00:00'
 - id: vendor-mohamedabdallah-14-unslop-plugins-unslop-skills-unslop-reasoning-skill
-  path: /Users/yegor/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-reasoning/SKILL.md
+  path: ~/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-reasoning/SKILL.md
   category: unslop-reasoning
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-reasoning/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-reasoning/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442569+00:00'
 - id: vendor-mohamedabdallah-14-unslop-plugins-unslop-skills-unslop-review-skill
-  path: /Users/yegor/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-review/SKILL.md
+  path: ~/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-review/SKILL.md
   category: unslop-review
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-review/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-review/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442589+00:00'
 - id: vendor-mohamedabdallah-14-unslop-plugins-unslop-skills-unslop-help-skill
-  path: /Users/yegor/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-help/SKILL.md
+  path: ~/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-help/SKILL.md
   category: unslop-help
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-help/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-help/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442609+00:00'
 - id: vendor-mohamedabdallah-14-unslop-plugins-unslop-skills-unslop-file-skill
-  path: /Users/yegor/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-file/SKILL.md
+  path: ~/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-file/SKILL.md
   category: unslop-file
-  description: Auto-discovered skill from /Users/yegor/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-file/SKILL.md
+  description: Auto-discovered skill from ~/.agent-skills/vendor/MohamedAbdallah-14_unslop/plugins/unslop/skills/unslop-file/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442629+00:00'
 - id: research-skill
-  path: /Users/yegor/.claude/skills/research/SKILL.md
+  path: ~/.claude/skills/research/SKILL.md
   category: research
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/research/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442645+00:00'
 - id: youtube-likes-skill
-  path: /Users/yegor/.claude/skills/youtube-likes/SKILL.md
+  path: ~/.claude/skills/youtube-likes/SKILL.md
   category: youtube-likes
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/youtube-likes/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/youtube-likes/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442657+00:00'
 - id: niche-scoring-skill
-  path: /Users/yegor/.claude/skills/niche-scoring/SKILL.md
+  path: ~/.claude/skills/niche-scoring/SKILL.md
   category: niche-scoring
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/niche-scoring/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/niche-scoring/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442669+00:00'
 - id: customer-discovery-skill
-  path: /Users/yegor/.claude/skills/customer-discovery/SKILL.md
+  path: ~/.claude/skills/customer-discovery/SKILL.md
   category: customer-discovery
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/customer-discovery/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/customer-discovery/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442680+00:00'
 - id: gather-skill
-  path: /Users/yegor/.claude/skills/gather/SKILL.md
+  path: ~/.claude/skills/gather/SKILL.md
   category: gather
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/gather/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/gather/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442692+00:00'
 - id: scenario-war-room-skill
-  path: /Users/yegor/.claude/skills/scenario-war-room/SKILL.md
+  path: ~/.claude/skills/scenario-war-room/SKILL.md
   category: scenario-war-room
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/scenario-war-room/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/scenario-war-room/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442703+00:00'
 - id: trade-forensics-skill
-  path: /Users/yegor/.claude/skills/trade-forensics/SKILL.md
+  path: ~/.claude/skills/trade-forensics/SKILL.md
   category: trade-forensics
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/trade-forensics/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/trade-forensics/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442714+00:00'
 - id: music-daily-skill
-  path: /Users/yegor/.claude/skills/music-daily/SKILL.md
+  path: ~/.claude/skills/music-daily/SKILL.md
   category: music-daily
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/music-daily/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/music-daily/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442726+00:00'
 - id: tech-digest-skill
-  path: /Users/yegor/.claude/skills/tech-digest/SKILL.md
+  path: ~/.claude/skills/tech-digest/SKILL.md
   category: tech-digest
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/tech-digest/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/tech-digest/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442737+00:00'
 - id: impeccable-skill
-  path: /Users/yegor/.claude/skills/impeccable/SKILL.md
+  path: ~/.claude/skills/impeccable/SKILL.md
   category: impeccable
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/impeccable/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/impeccable/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442748+00:00'
 - id: market-discovery-skill
-  path: /Users/yegor/.claude/skills/market-discovery/SKILL.md
+  path: ~/.claude/skills/market-discovery/SKILL.md
   category: market-discovery
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/market-discovery/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/market-discovery/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442760+00:00'
 - id: dispatching-parallel-agents-skill
-  path: /Users/yegor/.claude/skills/dispatching-parallel-agents/SKILL.md
+  path: ~/.claude/skills/dispatching-parallel-agents/SKILL.md
   category: dispatching-parallel-agents
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/dispatching-parallel-agents/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/dispatching-parallel-agents/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442771+00:00'
 - id: upwork-scan-skill
-  path: /Users/yegor/.claude/skills/upwork-scan/SKILL.md
+  path: ~/.claude/skills/upwork-scan/SKILL.md
   category: upwork-scan
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/upwork-scan/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/upwork-scan/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442782+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-morning-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/morning/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/morning/SKILL.md
   category: morning
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/morning/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/morning/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442798+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-learn-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/learn/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/learn/SKILL.md
   category: learn
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/learn/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/learn/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442813+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-deep-research-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/deep-research/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/deep-research/SKILL.md
   category: deep-research
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/deep-research/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/deep-research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442829+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-xlsx-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/xlsx/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/xlsx/SKILL.md
   category: xlsx
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/xlsx/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/xlsx/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442843+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-pdf-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/pdf/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/pdf/SKILL.md
   category: pdf
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/pdf/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/pdf/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442858+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-import-memory-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/import-memory/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/import-memory/SKILL.md
   category: import-memory
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/import-memory/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/import-memory/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442873+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-docs-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/docs/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/docs/SKILL.md
   category: docs
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/docs/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/docs/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442887+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-skill-creator-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/skill-creator/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/skill-creator/SKILL.md
   category: skill-creator
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/skill-creator/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/skill-creator/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442902+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-pptx-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/pptx/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/pptx/SKILL.md
   category: pptx
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/pptx/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/pptx/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442916+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-google-workspace-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/google-workspace/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/google-workspace/SKILL.md
   category: google-workspace
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/google-workspace/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/google-workspace/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442931+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-chrome-browser-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/chrome-browser/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/chrome-browser/SKILL.md
   category: chrome-browser
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/chrome-browser/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/chrome-browser/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442960+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-built-in-browser-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/built-in-browser/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/built-in-browser/SKILL.md
   category: built-in-browser
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/built-in-browser/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/built-in-browser/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442977+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-computer-use-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/computer-use/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/computer-use/SKILL.md
   category: computer-use
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/computer-use/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/computer-use/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.442992+00:00'
 - id: synced-02944a60-545b-4946-b0ae-6e577c6a713d-776ddc79-9f32-4b22-a6b1-7193ce21a8d9-docx-skill
-  path: /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/docx/SKILL.md
+  path: ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/docx/SKILL.md
   category: docx
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/docx/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/synced/02944a60-545b-4946-b0ae-6e577c6a713d_776ddc79-9f32-4b22-a6b1-7193ce21a8d9/docx/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443009+00:00'
 - id: market-research-skill
-  path: /Users/yegor/.claude/skills/market-research/SKILL.md
+  path: ~/.claude/skills/market-research/SKILL.md
   category: market-research
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/market-research/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/market-research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443022+00:00'
 - id: hermes-change-skill
-  path: /Users/yegor/.claude/skills/hermes-change/SKILL.md
+  path: ~/.claude/skills/hermes-change/SKILL.md
   category: hermes-change
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/hermes-change/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/hermes-change/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443034+00:00'
 - id: ponytail-skill
-  path: /Users/yegor/.claude/skills/ponytail/SKILL.md
+  path: ~/.claude/skills/ponytail/SKILL.md
   category: ponytail
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/ponytail/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/ponytail/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443045+00:00'
 - id: risk-management-skill
-  path: /Users/yegor/.claude/skills/risk-management/SKILL.md
+  path: ~/.claude/skills/risk-management/SKILL.md
   category: risk-management
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/risk-management/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/risk-management/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443056+00:00'
 - id: executing-plans-skill
-  path: /Users/yegor/.claude/skills/executing-plans/SKILL.md
+  path: ~/.claude/skills/executing-plans/SKILL.md
   category: executing-plans
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/executing-plans/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/executing-plans/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443067+00:00'
 - id: lead-dossier-skill
-  path: /Users/yegor/.claude/skills/lead-dossier/SKILL.md
+  path: ~/.claude/skills/lead-dossier/SKILL.md
   category: lead-dossier
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/lead-dossier/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/lead-dossier/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443078+00:00'
 - id: roast-skill
-  path: /Users/yegor/.claude/skills/roast/SKILL.md
+  path: ~/.claude/skills/roast/SKILL.md
   category: roast
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/roast/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/roast/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443089+00:00'
 - id: mentor-skill
-  path: /Users/yegor/.claude/skills/mentor/SKILL.md
+  path: ~/.claude/skills/mentor/SKILL.md
   category: mentor
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/mentor/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/mentor/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443100+00:00'
 - id: last30days-skill
-  path: /Users/yegor/.claude/skills/last30days/SKILL.md
+  path: ~/.claude/skills/last30days/SKILL.md
   category: last30days
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/last30days/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/last30days/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443112+00:00'
 - id: vault-memory-skill
-  path: /Users/yegor/.claude/skills/vault-memory/SKILL.md
+  path: ~/.claude/skills/vault-memory/SKILL.md
   category: vault-memory
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/vault-memory/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/vault-memory/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443123+00:00'
 - id: skill-router-skill
-  path: /Users/yegor/.claude/skills/skill-router/SKILL.md
+  path: ~/.claude/skills/skill-router/SKILL.md
   category: skill-router
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/skill-router/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/skill-router/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443134+00:00'
 - id: customer-research-skill
-  path: /Users/yegor/.claude/skills/customer-research/SKILL.md
+  path: ~/.claude/skills/customer-research/SKILL.md
   category: customer-research
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/customer-research/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/customer-research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443145+00:00'
 - id: phone-and-neo-actions-skill
-  path: /Users/yegor/.claude/skills/phone-and-neo-actions/SKILL.md
+  path: ~/.claude/skills/phone-and-neo-actions/SKILL.md
   category: phone-and-neo-actions
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/phone-and-neo-actions/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/phone-and-neo-actions/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443156+00:00'
 - id: trading-analysis-skill
-  path: /Users/yegor/.claude/skills/trading-analysis/SKILL.md
+  path: ~/.claude/skills/trading-analysis/SKILL.md
   category: trading-analysis
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/trading-analysis/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/trading-analysis/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443167+00:00'
 - id: build-discipline-skill
-  path: /Users/yegor/.claude/skills/build-discipline/SKILL.md
+  path: ~/.claude/skills/build-discipline/SKILL.md
   category: build-discipline
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/build-discipline/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/build-discipline/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443178+00:00'
 - id: brainstorming-skill
-  path: /Users/yegor/.claude/skills/brainstorming/SKILL.md
+  path: ~/.claude/skills/brainstorming/SKILL.md
   category: brainstorming
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/brainstorming/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/brainstorming/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443189+00:00'
 - id: opportunity-scout-skill
-  path: /Users/yegor/.claude/skills/opportunity-scout/SKILL.md
+  path: ~/.claude/skills/opportunity-scout/SKILL.md
   category: opportunity-scout
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/opportunity-scout/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/opportunity-scout/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443200+00:00'
 - id: browseros-neo-skill
-  path: /Users/yegor/.claude/skills/browseros-neo/SKILL.md
+  path: ~/.claude/skills/browseros-neo/SKILL.md
   category: browseros-neo
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/browseros-neo/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/browseros-neo/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443211+00:00'
 - id: market-intelligence-skill
-  path: /Users/yegor/.claude/skills/market-intelligence/SKILL.md
+  path: ~/.claude/skills/market-intelligence/SKILL.md
   category: market-intelligence
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/market-intelligence/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/market-intelligence/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443223+00:00'
 - id: trading-research-skill
-  path: /Users/yegor/.claude/skills/trading-research/SKILL.md
+  path: ~/.claude/skills/trading-research/SKILL.md
   category: trading-research
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/trading-research/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/trading-research/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443234+00:00'
 - id: orchestration-skill
-  path: /Users/yegor/.claude/skills/orchestration/SKILL.md
+  path: ~/.claude/skills/orchestration/SKILL.md
   category: orchestration
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/orchestration/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/orchestration/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443245+00:00'
 - id: retro-skill
-  path: /Users/yegor/.claude/skills/retro/SKILL.md
+  path: ~/.claude/skills/retro/SKILL.md
   category: retro
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/retro/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/retro/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443256+00:00'
 - id: karpathy-guidelines-skill
-  path: /Users/yegor/.claude/skills/karpathy-guidelines/SKILL.md
+  path: ~/.claude/skills/karpathy-guidelines/SKILL.md
   category: karpathy-guidelines
-  description: Auto-discovered skill from /Users/yegor/.claude/skills/karpathy-guidelines/SKILL.md
+  description: Auto-discovered skill from ~/.claude/skills/karpathy-guidelines/SKILL.md
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.443267+00:00'

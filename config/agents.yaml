@@ -108,7 +108,7 @@ agents:
   skills:
   - build-discipline
   - karpathy-guidelines
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/architect.md
+  persona_file: ~/Developer/ecc-reference/agents/architect.md
   _source: ecc-reference
   note: ECC architect persona — system design, trade-offs, scalability (read-only)
 - id: ecc-code-architect
@@ -123,7 +123,7 @@ agents:
   skills:
   - build-discipline
   - verification-before-completion
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/code-architect.md
+  persona_file: ~/Developer/ecc-reference/agents/code-architect.md
   _source: ecc-reference
   note: ECC code-architect persona — blueprint with files, interfaces, build order
 - id: ecc-code-reviewer
@@ -138,7 +138,7 @@ agents:
   skills:
   - roast
   - security-review
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/code-reviewer.md
+  persona_file: ~/Developer/ecc-reference/agents/code-reviewer.md
   _source: ecc-reference
   note: ECC code-reviewer persona — confidence-filtered findings, file:line evidence
 - id: ecc-agent-evaluator
@@ -152,7 +152,7 @@ agents:
   - evaluation
   skills:
   - verification-before-completion
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/agent-evaluator.md
+  persona_file: ~/Developer/ecc-reference/agents/agent-evaluator.md
   _source: ecc-reference
   note: ECC agent-evaluator persona — 5-axis scorecard, never re-performs the task
 - id: ecc-security-reviewer
@@ -166,7 +166,7 @@ agents:
   - review-roast
   skills:
   - security-review
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/security-reviewer.md
+  persona_file: ~/Developer/ecc-reference/agents/security-reviewer.md
   _source: ecc-reference
   note: ECC security-reviewer persona — secrets, injection, unsafe defaults
 - id: ecc-silent-failure-hunter
@@ -182,7 +182,7 @@ agents:
   skills:
   - roast
   - verification-before-completion
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/silent-failure-hunter.md
+  persona_file: ~/Developer/ecc-reference/agents/silent-failure-hunter.md
   _source: ecc-reference
   note: ECC silent-failure-hunter persona — swallowed errors, bad fallbacks
 - id: ecc-code-explorer
@@ -198,7 +198,7 @@ agents:
   skills:
   - research
   - search-first
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/code-explorer.md
+  persona_file: ~/Developer/ecc-reference/agents/code-explorer.md
   _source: ecc-reference
   note: ECC code-explorer persona — traces execution paths and dependency layers
 - id: ecc-refactor-cleaner
@@ -214,7 +214,7 @@ agents:
   skills:
   - build-discipline
   - karpathy-guidelines
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/refactor-cleaner.md
+  persona_file: ~/Developer/ecc-reference/agents/refactor-cleaner.md
   _source: ecc-reference
   note: ECC refactor-cleaner persona — dead code and duplication, minimal diff
 - id: ecc-build-error-resolver
@@ -230,7 +230,7 @@ agents:
   skills:
   - build-discipline
   - verification-before-completion
-  persona_file: /Users/yegor/Developer/ecc-reference/agents/build-error-resolver.md
+  persona_file: ~/Developer/ecc-reference/agents/build-error-resolver.md
   _source: ecc-reference
   note: ECC build-error-resolver persona — build/type errors, minimal diff, no redesign
 - id: agency-ui-designer
@@ -245,7 +245,7 @@ agents:
   skills:
   - impeccable
   - frontend-design
-  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/design/design-ui-designer.md
+  persona_file: ~/.agent-skills/vendor/msitarzewski_agency-agents/design/design-ui-designer.md
   _source: agency-agents
   note: Agency UI Designer persona — visual system, components, accessibility
 - id: agency-ux-architect
@@ -259,7 +259,7 @@ agents:
   - design-ui
   skills:
   - impeccable
-  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/design/design-ux-architect.md
+  persona_file: ~/.agent-skills/vendor/msitarzewski_agency-agents/design/design-ux-architect.md
   _source: agency-agents
   note: Agency UX Architect persona — flows, hierarchy, usability before pixels
 - id: agency-outbound-strategist
@@ -275,7 +275,7 @@ agents:
   skills:
   - opportunity-scout
   - niche-scoring
-  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-outbound-strategist.md
+  persona_file: ~/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-outbound-strategist.md
   _source: agency-agents
   note: Agency Outbound Strategist persona — signal-based sequences, ICP, no spray-and-pray
 - id: agency-offer-strategist
@@ -291,7 +291,7 @@ agents:
   skills:
   - niche-scoring
   - customer-research
-  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-offer-lead-gen-strategist.md
+  persona_file: ~/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-offer-lead-gen-strategist.md
   _source: agency-agents
   note: Agency offer/lead-gen strategist persona — offer angles, positioning, pricing
 - id: agency-proposal-strategist
@@ -306,7 +306,7 @@ agents:
   skills:
   - upwork-scan
   - critique
-  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-proposal-strategist.md
+  persona_file: ~/.agent-skills/vendor/msitarzewski_agency-agents/sales/sales-proposal-strategist.md
   _source: agency-agents
   note: Agency Proposal Strategist persona — Upwork proposal draft, owner sends
 - id: agency-resume-tailor
@@ -320,7 +320,7 @@ agents:
   - jobs
   skills:
   - critique
-  persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/specialized/resume-tailor.md
+  persona_file: ~/.agent-skills/vendor/msitarzewski_agency-agents/specialized/resume-tailor.md
   _source: agency-agents
   note: Agency resume-tailor persona — CV tailoring per posting, owner approves text
 # ---------------------------------------------------------------------------
