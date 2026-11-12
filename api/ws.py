@@ -8,7 +8,7 @@ import json
 HOME = os.path.expanduser("~")
 sys.path.insert(0, os.path.join(HOME, "Developer", "agent-router"))
 
-from graph.supervisor import RouterSupervisor
+from graph.router import RouterSupervisor
 
 router = APIRouter()
 

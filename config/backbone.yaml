@@ -1,0 +1,79 @@
+# Backbone config. Shareable: no secrets here, only env var NAMES. Copy to ~/.agent-router/backbone.yaml to override.
+db: data/backbone.db
+tickets_dir: data/tickets          # point at your vault inbox when ready, e.g. ~/memory-vault/inbox/tickets
+runs_dir: data/runs
+graph_db: data/graph.db
+work_dir: data/work
+projects_file: config/projects.yaml
+
+nim:
+  base_url: https://integrate.api.nvidia.com/v1
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b   # direct NIM id; Pi uses nim<N>/<this>
+  keys: [NIM_1, NIM_2, NIM_3]      # env var names; values never stored here
+  default_key: NIM_1
+  embed_model: nvidia/nemotron-3.5-embed-1b   # dense retrieval; BM25-only if unavailable
+  max_concurrent_per_key: 2        # measured: cold node 41 s, warm 0.6 s
+  retries: 1
+  backoff_s: 3
+  cooldown_s: 20
+  wait_s: 120
+
+workers:
+  pi:     {cmd: pi,     timeout_s: 600}
+  claude: {cmd: claude, timeout_s: 900}   # owner's own binary + login; see SPEC D5
+  codex:  {cmd: codex,  timeout_s: 900}
+
+escalation:
+  expert: codex                    # used after two failed attempts; "" disables
+
+context:
+  budget_tokens: 24000
+  summarize_over_tokens: 12000
+  keep_recent_turns: 6
+  vault_query: ~/memory-vault/scripts/vector_memory/query.py
+
+library:
+  sources:
+    - {path: backbone/commands,                                       kind: command}
+    - {path: ~/.claude/skills,                                         kind: skill}
+    - {path: ~/Developer/refs/coreyhaines31_marketingskills/skills,    kind: skill}
+    - {path: data/clips_md,                                          kind: clip}
+    - {path: ~/.claude/commands,                                       kind: command}
+    - {path: ~/Developer/ecc-reference/skills,                         kind: skill}
+    - {path: ~/.agent-skills/vendor/msitarzewski_agency-agents,        kind: agent}
+
+# Model-facing tools (MCP) may only use these named gates and these roots. Raw gates/cwd are CLI-only.
+gates:
+  pytest: "python3 -m pytest -q"
+  compile: "python3 -m compileall -q ."
+  noop: "true"
+allowed_roots: []   # extra directories MCP callers may use besides registered projects
+
+# Output style the router tells every worker to use. Per-command override: `style:` in the command's frontmatter.
+style:
+  default: caveman
+  texts:
+    caveman: "Terse. Result first. No openers, no recaps, no pleasantries. Short sentences, file paths and commands, not prose."
+    ponytail: "Laziest solution that works: standard library first, fewest lines, no new abstractions or dependencies. Terse output."
+    none: ""
+
+openrouter:
+  default_model: nvidia/nemotron-3-ultra-550b-a55b:free   # reviewers: any :free model with tool support
+
+# Router events (owner-trusted shell commands). Env: RUN_ID, EVENT, plus fields.
+hooks:
+  pre_run: []
+  post_run: []
+
+rerank: false        # measured no gain on config/eval_queries.yaml (24 q); enable only if the eval shows one
+watch:
+  repos: [coreyhaines31/marketingskills]   # owner_repo dirs under ~/Developer/refs; add more here
+  every_s: 21600   # daemon polls watched repos every 6 h
+
+decide:
+  allow_experts: false   # the decider may only pick cheap workers; experts run via escalation or an explicit @claude/@codex
+
+inject:                 # library text that shapes a prompt, with provenance in every run result (`prompt_sources`)
+  max_bodies: 1
+  min_score: 0.028      # fused RRF score; ~both retrievers agree at rank 1-2
+  max_chars: 1500

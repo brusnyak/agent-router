@@ -257,24 +257,38 @@ class NIMAgent(Agent):
 
     def dispatch(self, packet: Dict[str, Any]) -> str:
         model = self.config.get("model", "nemotron-3.5-super-vl-120b-a12b")
-        # Use the key harness for rotation + retry instead of direct nim_call
-        _scripts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts")
-        sys.path.insert(0, os.path.abspath(_scripts_dir))
-        from nim_key_harness import NimKeyHarness
-        harness = NimKeyHarness()
-        messages = [{"role": "user", "content": packet.get("user_input", json.dumps(packet))}]
+        # Call OmniRoute gateway (http://localhost:20128/v1) — OmniRoute owns
+        # NIM key rotation across nim1/nim2/nim3, fallback, and quota.
+        # Errors are raised (not returned as strings) so callers can
+        # distinguish success from failure via typed results.
+        import urllib.request, urllib.error
+        body = {
+            "model": model,
+            "messages": [{"role": "user", "content": packet.get("user_input", json.dumps(packet))}],
+            "temperature": 0.2,
+            "max_tokens": 4096,
+        }
+        if "nemotron" in model:
+            body["chat_template_kwargs"] = {"enable_thinking": False}
+        data = json.dumps(body).encode()
+        req = urllib.request.Request(
+            f"{self.base_url}/chat/completions",
+            data=data,
+            headers={"Authorization": f"Bearer {os.environ.get(self.api_key_env, '')}",
+                     "Content-Type": "application/json"},
+        )
         try:
-            resp = harness.call_with_retry(
-                messages,
-                model=model,
-                timeout=120,
-                max_tokens=4096,
-                attempts=3,
-                preferred=self.api_key_env,
-            )
-            return resp.get("content", "") or "No output"
-        except RuntimeError as e:
-            return f"Error: NIM agent {self.id}: {e}"
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                resp_data = json.loads(resp.read().decode())
+            content = resp_data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
+            if not content.strip():
+                raise RuntimeError(f"NIM agent {self.id}: empty completion")
+            return content
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")[:200]
+            raise RuntimeError(f"NIM agent {self.id}: http {e.code} {detail}")
+        except Exception as e:
+            raise RuntimeError(f"NIM agent {self.id}: {e}")
 
 
 class OrcaAgent(CLIAgent):
