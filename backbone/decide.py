@@ -73,6 +73,6 @@ def named_persona(text: str, personas: Dict[str, str]) -> str:
     low = text.lower()
     best = ""
     for n in personas:
-        if len(n) >= 6 and n.lower() in low and len(n) > len(best):
+        if len(n) >= 8 and n.lower() in low and len(n) > len(best):
             best = n
     return best
