@@ -47,7 +47,7 @@ def main(argv=None) -> None:
     sv = sub.add_parser("serve", help="loopback HTTP API for adapters (Telegram, Hermes, UI); needs BACKBONE_TOKEN")
     sv.add_argument("--port", type=int, default=8799)
     ak = sub.add_parser("ask", help="free text: NIM1 decides command/project/worker/gate (validated), router runs, critic reviews")
-    ak.add_argument("text", nargs="+"); ak.add_argument("--cwd")
+    ak.add_argument("text", nargs="+"); ak.add_argument("--cwd"); ak.add_argument("--dry", action="store_true", help="print the engineered prompt + plan, run nothing")
     dr = sub.add_parser("doctor", help="probe every detected agent with one tiny headless call (uses your logins briefly)")
     dr.add_argument("--only", nargs="*")
     sub.add_parser("discover", help="detect agents, keys, ssh hosts, projects on this machine")
@@ -88,7 +88,7 @@ def main(argv=None) -> None:
         return
     bb = Backbone()
     if a.cmd == "ask":
-        _j(bb.ask(" ".join(a.text), cwd=a.cwd))
+        _j(bb.ask(" ".join(a.text), cwd=a.cwd, dry=a.dry))
     elif a.cmd == "run":
         _j(bb.run(" ".join(a.prompt), session=a.session, project=a.project, cwd=a.cwd, gate=a.gate,
                   isolate=not a.no_isolate, worker=a.worker, read_only=a.read_only, use_vault=not a.no_vault,

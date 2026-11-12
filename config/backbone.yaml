@@ -54,6 +54,15 @@ library:
     - {path: ~/memory-vault/pages/upwork-drafts,                       kind: application}
     - {path: ~/memory-vault/pages/jobs-system,                         kind: application}
     - {path: docs/appendix,                                            kind: loop}
+    - {path: ~/Developer/refs/anthropic-web,                           kind: prompt}
+    - {path: ~/Developer/refs/anthropics_skills/skills,                kind: skill}
+    - {path: ~/Developer/refs/anthropics_claude-plugins-official/plugins, kind: skill}
+    - {path: ~/Developer/refs/anthropics_claude-plugins-official/plugins, kind: agent,   match: "/agents/"}
+    - {path: ~/Developer/refs/anthropics_claude-plugins-official/plugins, kind: command, match: "/commands/"}
+    - {path: ~/Developer/refs/Piebald-AI_claude-code-system-prompts/system-prompts, kind: subagent, prefix: agent-prompt}
+    - {path: ~/Developer/refs/Piebald-AI_claude-code-system-prompts/system-prompts, kind: system,   prefix: system-prompt}
+    - {path: ~/Developer/refs/Piebald-AI_claude-code-system-prompts/system-prompts, kind: hook,     prefix: system-reminder}
+    - {path: ~/Developer/refs/Piebald-AI_claude-code-system-prompts/system-prompts, kind: prompt,   prefix: skill-}
 
 # Model-facing tools (MCP) may only use these named gates and these roots. Raw gates/cwd are CLI-only.
 gates:
@@ -90,3 +99,17 @@ inject:                 # library text that shapes a prompt, with provenance in 
   max_bodies: 1
   min_score: 0.028      # fused RRF score; ~both retrievers agree at rank 1-2
   max_chars: 1500
+
+# task class -> worker (experts only used when decide.allow_experts and doctor says usable; else falls back to nim1)
+tiers:
+  classify: nim1
+  code_edit: nim2
+  multi_file: codex
+  review: claude
+  research: nim3
+  draft: or
+  plan: claude
+  browse: nim1
+  other: nim1
+
+exclude_refs: [skill-router, gather, router]   # the router's own meta skills must not become references
