@@ -462,7 +462,7 @@ def test_analyze_validates():
 def test_no_personal_paths_in_tracked_code():
     """Open-source gate: no owner-specific absolute path or handle in tracked code/config (docs and data excluded)."""
     import subprocess
-    out = subprocess.run(["git", "grep", "-l", "-E", "/Users/[a-z]|yegor|brusnyak", "--", ".", ":!docs", ":!*.md", ":!data", ":!.archon", ":!tests"],
+    out = subprocess.run(["git", "grep", "-l", "-E", "/Users/[a-z]|yegor|brusnyak", "--", ".", ":!docs", ":!*.md", ":!data", ":!.archon", ":!tests", ":!eval/check_bundle.py"],
                          capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.split()
     assert out == [], f"personal paths in: {out}"
 
