@@ -14,7 +14,7 @@ projects:
       - review-roast
 
   - id: orca
-    path: /Users/yegor/Library/Application Support/orca
+    path: ~/Library/Application Support/orca
     name: Orca IDE
     type: ops
     default_agent: claude
