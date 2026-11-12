@@ -184,3 +184,12 @@ lanes:
   model: claude-sonnet-5-5
   does: approvals, deploys, sends, submits, spends — planner prepares, owner decides
   rule: gate word overrides any lane
+- id: browser
+  engine: neo
+  model: browseros-neo
+  does: open, read, act, fill, sign in, download, verify on websites — real browser with live logins
+  never: use headless fetchers or devtools automation when neo is available
+  skills: []
+  agents: []
+  acceptance: page snapshot or read output attached; claim verified by act diff or readback
+  note: Uses BrowserOS neo MCP at http://127.0.0.1:9010/mcp. Agents call neo tools via MCP, not headless fetch.

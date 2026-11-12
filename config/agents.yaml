@@ -44,7 +44,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_3
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - supervisor
@@ -60,7 +60,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_2
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - research
@@ -76,7 +76,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - research
@@ -99,7 +99,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_2
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - build
@@ -116,7 +116,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - build
@@ -131,7 +131,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_2
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - review-roast
@@ -146,7 +146,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - evaluation
@@ -160,7 +160,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - review-roast
@@ -174,7 +174,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - review-roast
@@ -190,7 +190,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - research-public
@@ -206,7 +206,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - build
@@ -222,7 +222,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - ops-repair
@@ -238,7 +238,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_2
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - design-ui
@@ -253,7 +253,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - design-ui
@@ -267,7 +267,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_2
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - cash-outreach
@@ -283,7 +283,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - cash-outreach
@@ -299,7 +299,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - upwork
@@ -314,7 +314,7 @@ agents:
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   api_key_env: NIM_1
-  base_url: https://integrate.api.nvidia.com/v1
+  base_url: http://localhost:20128/v1
   write_access: false
   route_reasons:
   - jobs
@@ -323,3 +323,63 @@ agents:
   persona_file: /Users/yegor/.agent-skills/vendor/msitarzewski_agency-agents/specialized/resume-tailor.md
   _source: agency-agents
   note: Agency resume-tailor persona — CV tailoring per posting, owner approves text
+# ---------------------------------------------------------------------------
+# Browser agent — BrowserOS neo MCP for web tasks.
+# provider: browser -> delegates to neo MCP (http://127.0.0.1:9010/mcp)
+# read-only by construction; agents call neo tools (tabs, navigate, read, act, grep)
+# ---------------------------------------------------------------------------
+- id: neo-browser-research
+  cli: neo
+  model: browseros-neo
+  provider: browser
+  write_access: false
+  route_reasons:
+  - browser
+  - research-public
+  - vision
+  skills: []
+  base_url: http://127.0.0.1:9010/mcp
+  _source: configured
+  note: BrowserOS neo — real browser with live logins for web research and verification
+
+# ---------------------------------------------------------------------------
+# OpenRouter provider agents — route to any OpenRouter model (free + paid).
+# provider: openrouter -> Backbone `or:` worker, read-only by construction,
+# uses OPENROUTER_API_KEY from env. Model slugs are OpenRouter model IDs.
+# ---------------------------------------------------------------------------
+- id: or-nemotron-3-ultra
+  cli: nim_call.py
+  model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
+  provider: openrouter
+  write_access: false
+  route_reasons:
+  - review-roast
+  - evaluation
+  - research-public
+  skills: []
+  _source: configured
+  note: OpenRouter nemotron-3-ultra free tier — second opinion, different weights
+- id: or-deepseek-v3
+  cli: nim_call.py
+  model: openrouter/deepseek/deepseek-v3:free
+  provider: openrouter
+  write_access: false
+  route_reasons:
+  - build
+  - research-public
+  - mechanical
+  skills: []
+  _source: configured
+  note: OpenRouter deepseek-v3 free tier — coding and analysis
+- id: or-llama-3.1-405b
+  cli: nim_call.py
+  model: openrouter/meta-llama/llama-3.1-405b:free
+  provider: openrouter
+  write_access: false
+  route_reasons:
+  - planner
+  - build
+  - research-public
+  skills: []
+  _source: configured
+  note: OpenRouter llama-3.1-405b free tier — general purpose

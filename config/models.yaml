@@ -1,38 +1,71 @@
 version: 1
 models:
-- id: nim-nemotron-3-5-super-vl
+- id: nim-nemotron-3-5-super-vl-1
   name: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   role: supervisor
-  base_url: https://integrate.api.nvidia.com/v1
-  context_window: 128000
-  api_key_env: NIM_3
+  base_url: http://localhost:20128/v1
+  context_window: 1048576
+  api_key_env: NIM_1
   _source: discovered
-  _discovered_at: '2026-11-11T10:50:13.435494+00:00'
+  _discovered_at: '2026-11-11T10:50:13.435663+00:00'
 - id: nim-nemotron-3-5-super-vl-2
   name: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   role: worker
-  base_url: https://integrate.api.nvidia.com/v1
-  context_window: 128000
+  base_url: http://localhost:20128/v1
+  context_window: 1048576
   api_key_env: NIM_2
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.435661+00:00'
-- id: nim-nemotron-3-5-super-vl-1
+- id: nim-nemotron-3-5-super-vl-3
   name: nvidia/nemotron-3.5-super-vl-120b-a12b
   provider: nim
   role: worker
-  base_url: https://integrate.api.nvidia.com/v1
-  context_window: 128000
-  api_key_env: NIM_1
+  base_url: http://localhost:20128/v1
+  context_window: 1048576
+  api_key_env: NIM_3
   _source: discovered
-  _discovered_at: '2026-11-11T10:50:13.435663+00:00'
+  _discovered_at: '2026-11-11T10:50:13.435494+00:00'
 - id: gemini-pro
   name: gemini-pro
   provider: google
   role: worker
   browser_only: true
-  context_window: 128000
+  context_window: 1048576
   api_key_env: GEMINI_API_KEY
   _source: discovered
   _discovered_at: '2026-11-11T10:50:13.435665+00:00'
+- id: openrouter-nemotron-3-ultra
+  name: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
+  provider: openrouter
+  role: worker
+  context_window: 1048576
+  api_key_env: OPENROUTER_API_KEY
+  base_url: https://openrouter.ai/api/v1
+  _source: configured
+- id: openrouter-deepseek-v3
+  name: openrouter/deepseek/deepseek-v3:free
+  provider: openrouter
+  role: worker
+  context_window: 1048576
+  api_key_env: OPENROUTER_API_KEY
+  base_url: https://openrouter.ai/api/v1
+  _source: configured
+- id: openrouter-llama-3.1-405b
+  name: openrouter/meta-llama/llama-3.1-405b:free
+  provider: openrouter
+  role: worker
+  context_window: 1048576
+  api_key_env: OPENROUTER_API_KEY
+  base_url: https://openrouter.ai/api/v1
+  _source: configured
+- id: browseros-neo
+  name: browseros-neo
+  provider: browser
+  role: worker
+  context_window: 0
+  api_key_env: ""
+  base_url: http://127.0.0.1:9010/mcp
+  _source: configured
+  note: BrowserOS neo MCP — not a text model; context window N/A (browser automation)

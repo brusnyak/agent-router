@@ -1,0 +1,25 @@
+# query (paraphrase, avoids the skill's own name) -> expected library skill name
+- {q: "persuasive words for my homepage", want: copywriting}
+- {q: "why do visitors leave my page without buying", want: cro}
+- {q: "reach strangers by email to get clients", want: cold-email}
+- {q: "how much should I charge for my product tiers", want: pricing}
+- {q: "get my site to rank higher on Google", want: seo-audit}
+- {q: "be cited by ChatGPT and AI answer engines", want: ai-seo}
+- {q: "announce my new product to the world", want: launch}
+- {q: "stop customers from cancelling subscriptions", want: churn-prevention}
+- {q: "which of two page versions performs better", want: ab-testing}
+- {q: "get existing customers to bring their friends", want: referrals}
+- {q: "study what rival companies offer and how they position", want: competitor-profiling}
+- {q: "interview users to learn what they struggle with", want: customer-research}
+- {q: "free download to capture emails", want: lead-magnets}
+- {q: "get articles about us in newspapers", want: public-relations}
+- {q: "get other sites to link to mine", want: link-building}
+- {q: "make short vertical clips for promotion", want: video}
+- {q: "create thousands of landing pages from a template and data", want: programmatic-seo}
+- {q: "first-run experience that gets new users to their aha moment", want: onboarding}
+- {q: "paid campaigns on Google and Meta", want: ads}
+- {q: "craft an irresistible package and guarantee for a service", want: offers}
+- {q: "enable the sales team with battle cards and decks", want: sales-enablement}
+- {q: "work with creators to promote us", want: influencer-marketing}
+- {q: "build and grow a user community", want: community-marketing}
+- {q: "track which channel brings signups", want: attribution}
