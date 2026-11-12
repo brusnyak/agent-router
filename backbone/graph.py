@@ -164,10 +164,14 @@ def build(bb, db_path: str):
         bb._hook("post_run", rid, state="done" if success else "blocked", verified=str(bool(s.get("verified"))))
         stop_beat(rid)
         ws.cleanup()
-        verified = bool(s.get("verified"))
+        from .evidence import missing_paths
+        gate_passed = bool(s.get("verified"))
+        miss = missing_paths(last["text"], [s["ws_path"], s["proj_path"]]) if last["ok"] else []
+        verified = gate_passed and not miss
+        reason = "" if verified else (f"cites_missing_file: {', '.join(miss[:5])}" if miss else ("no gate" if not s.get("gate") else "gate failed"))
         return {"out": {"run": rid, "session": s["sid"], "state": "done" if success else "blocked", "worker": last["worker"],
                         "mode": s["mode"], "style": s["style"], "verified": verified,
-                        "unverified_reason": "" if verified else ("no gate" if not s.get("gate") else "gate failed"),
+                        "gate_passed": gate_passed, "evidence_missing": miss, "unverified_reason": reason,
                         "attempts": s["n"], "output": last["text"], "gate_output": s.get("gate_out", ""), "patch": patch,
                         "ticket": ticket, "workspace": s["ws_path"] if s["isolated"] else s["proj_path"], "prompt_sources": s.get("sources", []),
                         "latency_ms": last["latency_ms"]}}
