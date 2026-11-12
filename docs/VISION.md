@@ -38,9 +38,14 @@ Best persona and command for the task; style; a gate that decides pass/fail; a r
 ## 6. Not the goal
 Another IDE; a multi-user SaaS; routing other people's subscriptions; blind auto-installing of components; polishing features before the Soul Knight test passes.
 
-## 7. Open points that still need a decision (discuss, then write into the spec)
-1 Clarification protocol: how many questions maximum, which channel, how defaults are shown.
-2 Master build prompt template: final section list (draft in `COMPONENTS.md`), size limits, where components and licences are listed.
-3 What "good enough spec" means (a gate for the spec itself).
-4 The first end-to-end target for the Soul Knight test (small web game? the router's own next feature?).
-5 Component policy: dependency budget (stdlib+SQLite core, optional extras).
+## 7. Decisions made (owner, 2026-11-12) and points still open
+DECIDED
+- Input is usually DICTATED (Whisper): rambling, unstructured, decisions mixed with ideas. The router's first job is to turn it into structure: intents, entities, constraints, decisions already made, open questions. Raw dictation alone gives weak results; the same content with role, context, constraints and acceptance gives strong ones.
+- Clarification protocol: FIRST retrieve (vault second brain, project docs, library, earlier decisions) and answer from owned material; ask only what retrieval cannot answer, three or more questions at once with a proposed default each. Never ask what can be found.
+- First Soul Knight test target: the router researches idea-generation apps and product trends to pick the owner's THIRD PROJECT, scoped to the job technical requirements (vault job material, CV) AND viable as a product that gets users/clients/customers fast. Then the build test (one master prompt, <=2 prompts to a working result) runs on that chosen project.
+- Dependencies are NOT fixed: the stack is re-scoped from research on retrieval/decision technology that relies little on a big LLM (see `COMPONENTS.md`, `STACK.md` when written). The current stdlib+SQLite+NIM setup is treated as a baseline to beat, not a rule.
+- The central problem (measured on the owner's sessions): skills/commands are almost never used unless named (32 Skill-tool calls in 953 prompts; subagents used in 74% of sessions). The router must make the right skill/command/persona ACTIVE at the right time by construction (deterministic pre-injection of the selected asset into the prompt or a hook), not by hoping the model chooses it.
+OPEN
+1 Master build prompt template: final section list (draft in `COMPONENTS.md` section 6), size limits.
+2 What "good enough spec" means (a gate for the spec itself).
+3 Shadow mode: run routing decisions in parallel without acting, log them against what the owner then did, backtest, then go live (pattern from `kerpopule/hermes-jev-skills` docs/shadow-to-live.md). Adopt as the way to measure the router on real use.
