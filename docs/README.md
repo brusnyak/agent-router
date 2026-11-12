@@ -10,4 +10,4 @@ Read in this order in a fresh session:
 7. `E2E-SCOPE-PLAN.md`, `ADAPTER-RESEARCH.md`: earlier scoping and the Hermes/OpenClaw study.
 `archive/` superseded specs (do not follow). `appendix/` old deployment, cross-device and dev-loop notes (still loaded as `loop` rows in the library).
 
-Verify the repo in one line: `python3 -m pytest tests -q` (all green), `python3 eval/check_bundle.py library/bundles` (bundles valid), `python3 -m backbone library counts`.
+Verify the repo in one line: `python3 -m pytest tests -q` (all green except 2 known legacy tests that call the real NVIDIA API, see HANDOFF), `python3 eval/check_bundle.py library/bundles` (bundles valid), `python3 -m backbone library counts`.
