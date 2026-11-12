@@ -1,0 +1,15 @@
+[Unit]
+Description=agent-router backbone daemon
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/agent-router
+Environment=PYTHONPATH=%h/agent-router/.deps
+EnvironmentFile=%h/.config/agent-router/env
+ExecStart=/usr/bin/python3 -m backbone daemon --poll 5 --parallel 2
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

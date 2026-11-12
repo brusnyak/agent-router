@@ -33,6 +33,7 @@ Restrained: obsidian neutrals plus one electric-blue accent carrying ~30% of the
 | `--badge-bg` | `#242018` | Warm dark amber container |
 | `--badge-border` | `#4E3E26` | Muted amber border |
 | `--selection` | `#264F78` | Selection highlight |
+| `--danger` | `#EF4444` | Error / destructive red |
 
 ## Typography
 
