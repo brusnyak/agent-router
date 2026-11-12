@@ -165,10 +165,10 @@ def build(bb, db_path: str):
             pass
         bb._hook("post_run", rid, state="done" if success else "blocked", verified=str(bool(s.get("verified"))))
         stop_beat(rid)
-        ws.cleanup()
         from .evidence import missing_paths
         gate_passed = bool(s.get("verified"))
-        miss = missing_paths(last["text"], [s["ws_path"], s["proj_path"]]) if last["ok"] else []
+        miss = missing_paths(last["text"], [s["ws_path"], s["proj_path"]]) if last["ok"] else []  # before cleanup: the worktree still holds files the worker just wrote
+        ws.cleanup()
         verified = gate_passed and not miss
         reason = "" if verified else (f"cites_missing_file: {', '.join(miss[:5])}" if miss else ("no gate" if not s.get("gate") else "gate failed"))
         return {"out": {"run": rid, "session": s["sid"], "state": "done" if success else "blocked", "worker": last["worker"],
