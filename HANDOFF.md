@@ -69,3 +69,18 @@ Backend work only inside this repo; experts (Claude/Codex) only for review, one 
 - Parallel swarm subtasks do not see each other; swarm now ends with a synthesis step (unverified live).
 - Telegram: the router project's own bot token is the old lingonberry_trading_bot with a bot as chat id (403). Reports go via Nina's bot, one-way. Two-way needs a dedicated bot: set ROUTER_TG_POLL=1 after owner creates it (backbone/tg.py).
 - Outputs from NIM workers are drafts: read before building on them.
+
+
+## Update 2026-11-12 (evening): spec + M0, M1, M2, M4, M6 built (branch dev/backbone, 37 tests)
+Master spec: `docs/AGENT_ROUTER.md` (hub/node, standalone, library kinds, milestones). Scope plan: `docs/E2E-SCOPE-PLAN.md`. Adapter research: `docs/ADAPTER-RESEARCH.md`. Old specs: `docs/archive/`, `docs/appendix/`.
+| Milestone | State | Evidence |
+|---|---|---|
+| M0 evidence check | done | `backbone/evidence.py`; the hallucinated review (5 fake files) now gives `verified=false`, `unverified_reason=cites_missing_file`; field `gate_passed` added |
+| M1 library + retrieval | done | 2.1k+ rows, 12 kinds (agent, subagent, skill, command, system, hook, prompt, design, playbook, application, loop, clip), license per row; eval 67 queries: plain hybrid top1 0.64 / top3 0.87, NIM goal-understanding (`understand.expand` + `rerank`) top1 **0.91** / top3 **0.99** (`python3 -m backbone.evalset`) |
+| M2 composer + tiers | done | `compose.py`, `understand.analyze`, `tiers:` in config, `python3 -m backbone ask --dry "<raw>"` prints engineered prompt + sources + tier |
+| M4 hub/node | built, tested in-process | outbound node client (`backbone node --hub URL --name mac`), `@node:NAME` routing, `/nodes/claim`, `/nodes/result`, offline policy `node_offline: wait|reroute`, Telegram `/nodes` and `/run @node:mac ...`; NOT yet run Mac<->Oracle for real |
+| M6 browser worker | done | `browser.py` via Ego, page text fenced as untrusted, `task.finish` cleanup, verified no leaked spaces; `@browser Read <url> ...` |
+| Open-source gate | done | test fails on personal paths in tracked code; fresh-HOME `init` wrote config |
+Library sources added: ECC agents/commands/rules, VoltAgent subagents + design-md, ai-sales-team playbooks, Anthropic skills + plugins, Piebald extraction of Claude Code system prompts/reminders (MIT), Anthropic prompt-engineering + system-prompt docs scraped via Ego (`~/Developer/refs/anthropic-web`, local-reference licence, never commit).
+Known gaps: hooks corpus is only Claude Code reminders (no repo hook scripts indexed); no loop corpus besides the appendix docs; vault has NO proven applications (ledger: 3 rows, 1 acknowledged, 1 rejected, 1 unverified; upwork ledger 22 rows all new/queued); retrieval eval filters by kind (kind-less routing not yet measured); `ask` retrieves twice (resolve + ask).
+Not done yet: M3 real-task kill test (3 arms, blind), M5 patch merge, M7 UI check + adapters, M8 init cut + licence audit, Oracle re-sync, Kaggle/BP task.
