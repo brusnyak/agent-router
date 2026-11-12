@@ -16,6 +16,8 @@ def _cred(name: str) -> str:
     for n in names:
         if os.environ.get(n):
             return os.environ[n]
+    if os.environ.get("BACKBONE_NO_SECRETS_FILE"):  # tests set this: they must never read real credentials or message the owner
+        return ""
     root = Path(__file__).resolve().parent.parent
     for fn in (".env.local", ".env"):  # the router's own bot first
         f = root / fn
