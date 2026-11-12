@@ -23,3 +23,48 @@
 - {q: "work with creators to promote us", want: influencer-marketing}
 - {q: "build and grow a user community", want: community-marketing}
 - {q: "track which channel brings signups", want: attribution}
+
+# kind-tagged queries (paraphrase, avoid the asset's own name)
+- {kind: agent, q: "someone to review my Rust code for idioms and safety", want: rust-reviewer}
+- {kind: agent, q: "write outbound messages to win new prospects", want: Sales Outreach}
+- {kind: agent, q: "help me get up to speed in a codebase I just joined", want: Codebase Onboarding Engineer}
+- {kind: agent, q: "coordinate several agents each doing part of one project", want: Agents Orchestrator}
+- {kind: agent, q: "merge findings from many sources into one report", want: Research Synthesist}
+- {kind: agent, q: "grow a startup through fast cheap experiments", want: Growth Hacker}
+- {kind: agent, q: "plan and write newsletter and drip campaigns", want: Email Marketing Strategist}
+- {kind: agent, q: "answer customer tickets politely and fast", want: Support Responder}
+- {kind: agent, q: "make the smallest possible diff to fix this", want: Minimal Change Engineer}
+- {kind: agent, q: "run full browser flows to catch regressions", want: e2e-runner}
+- {kind: subagent, q: "tune slow database queries and indexes", want: [postgres-pro, database-optimizer, sql-pro]}
+- {kind: subagent, q: "check a page for screen reader and contrast problems", want: accessibility-tester}
+- {kind: subagent, q: "write reference documentation for my endpoints", want: api-documenter}
+- {kind: subagent, q: "declare cloud infrastructure as code", want: terraform-engineer}
+- {kind: subagent, q: "find why this function throws", want: [debugger, error-detective]}
+- {kind: subagent, q: "write conversion copy for a landing page", want: landing-page-copywriter}
+- {kind: subagent, q: "design a scalable AWS system", want: cloud-architect}
+- {kind: subagent, q: "read a contract and flag legal risk", want: legal-advisor}
+- {kind: design, q: "make my product UI feel like Notion", want: Notion-design-analysis}
+- {kind: design, q: "design system for a Nike style sportswear site", want: Nike-design-analysis}
+- {kind: design, q: "Apple style minimal product page design", want: Apple-design-analysis}
+- {kind: design, q: "Intercom style marketing site design", want: Intercom-design-analysis}
+- {kind: command, q: "the compile is red, repair it", want: build-fix}
+- {kind: command, q: "write down where I stopped so I can resume later", want: save-session}
+- {kind: command, q: "split a large epic into small tasks", want: epic-decompose}
+- {kind: command, q: "decide which model should take this task", want: model-route}
+- {kind: command, q: "refresh documentation after my change", want: update-docs}
+- {kind: command, q: "look over a pull request before merge", want: [review-pr, code-review, pr]}
+- {kind: playbook, q: "a prospect says it costs too much", want: objection-playbook}
+- {kind: playbook, q: "get ready for tomorrow's sales call", want: meeting-prep}
+- {kind: playbook, q: "describe the ideal customer profile", want: sales-icp}
+- {kind: playbook, q: "first message to a stranger who never heard of us", want: outreach-cold}
+- {kind: playbook, q: "draft a client-facing commercial offer document", want: proposal-template}
+- {kind: application, q: "plan for mid-level CV variants", want: 2026-11-06-cv-mid-level-plan}
+- {kind: application, q: "design of the daily job application pipeline", want: 2026-11-06-daily-pipeline-spec}
+- {kind: application, q: "which CV version went to which employer", want: cv-registry}
+- {kind: application, q: "tracker for chasing employers after applying", want: followup-tracker}
+- {kind: application, q: "how applications are prepared, submitted and approved", want: application-system}
+- {kind: loop, q: "unattended development iteration and definition of done", want: DEVELOPMENT_LOOP}
+- {kind: loop, q: "copy the router to another server and start it", want: PORTABLE_DEPLOYMENT_SPEC}
+- {kind: loop, q: "telegram bridge between phone and the router on the VM", want: CROSS_DEVICE_SPEC}
+- {kind: system, q: "rules for writing Python tests", want: python/testing}
+- {kind: system, q: "conventions for Go code style", want: golang/coding-style}

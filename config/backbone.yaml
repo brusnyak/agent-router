@@ -41,6 +41,19 @@ library:
     - {path: ~/.claude/commands,                                       kind: command}
     - {path: ~/Developer/ecc-reference/skills,                         kind: skill}
     - {path: ~/.agent-skills/vendor/msitarzewski_agency-agents,        kind: agent}
+    - {path: ~/.claude/agents,                                         kind: agent}
+    - {path: ~/Developer/ecc-reference/agents,                         kind: agent}
+    - {path: ~/Developer/ecc-reference/commands,                       kind: command}
+    - {path: ~/Developer/ecc-reference/rules,                          kind: system}
+    - {path: ~/Developer/ecc-reference/hooks,                          kind: hook}
+    - {path: ~/ai-context/rules,                                       kind: system}
+    - {path: ~/Developer/refs/VoltAgent_awesome-claude-code-subagents, kind: subagent}
+    - {path: ~/Developer/refs/VoltAgent_awesome-design-md,             kind: design}
+    - {path: ~/Developer/refs/zubair-trabzada_ai-sales-team-claude,    kind: playbook}
+    - {path: ~/.codex/skills,                                          kind: skill}
+    - {path: ~/memory-vault/pages/upwork-drafts,                       kind: application}
+    - {path: ~/memory-vault/pages/jobs-system,                         kind: application}
+    - {path: docs/appendix,                                            kind: loop}
 
 # Model-facing tools (MCP) may only use these named gates and these roots. Raw gates/cwd are CLI-only.
 gates:

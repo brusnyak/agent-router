@@ -52,16 +52,32 @@ def upsert(con: sqlite3.Connection, kind: str, name: str, description: str, body
     return iid
 
 
+def detect_license(root: str) -> str:
+    """Nearest LICENSE* file within 3 parent levels: first non-empty line, else ''. Recorded per row for the open-source audit."""
+    d = os.path.abspath(root)
+    for _ in range(4):
+        for fn in ("LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING"):
+            f = os.path.join(d, fn)
+            if os.path.isfile(f):
+                try:
+                    return next((l.strip() for l in open(f, encoding="utf-8", errors="replace") if l.strip()), "")[:60]
+                except OSError:
+                    return ""
+        d = os.path.dirname(d)
+    return ""
+
+
 def ingest_dir(con: sqlite3.Connection, root: str, kind: str, max_body: int = 60000) -> int:
     """Ingest *.md under root. Skills are <dir>/SKILL.md; commands are <name>.md. Returns rows written."""
     root = os.path.expanduser(root)
     n = 0
     if not os.path.isdir(root):
         return 0
+    lic = detect_license(root)
     for dirpath, dirs, files in os.walk(root):
         dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ("node_modules", "references", "assets")]
         for fn in files:
-            if not fn.endswith(".md") or fn.lower().startswith(("readme", "changelog", "contributing", "security", "code_of")):
+            if not fn.endswith(".md") or "sync-conflict" in fn or fn.lower().startswith(("readme", "changelog", "contributing", "security", "code_of")):
                 continue
             if kind == "skill" and fn != "SKILL.md":
                 continue
@@ -71,7 +87,11 @@ def ingest_dir(con: sqlite3.Connection, root: str, kind: str, max_body: int = 60
             except OSError:
                 continue
             meta, body = parse_markdown(text)
+            if lic:
+                meta["license"] = lic
             name = meta.get("name") or (os.path.basename(dirpath) if fn == "SKILL.md" else fn[:-3])
+            if kind in ("system", "hook") and fn != "SKILL.md":  # rules repeat per language: keep them distinguishable
+                name = f"{os.path.basename(dirpath)}/{fn[:-3]}"
             desc = meta.get("description", "") or body.strip().split("\n", 1)[0][:200]
             upsert(con, kind, name, desc, body[:max_body], meta, path)
             n += 1
