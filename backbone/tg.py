@@ -13,7 +13,7 @@ from .notify import _cred, notify
 NODE = os.environ.get("ROUTER_NODE") or os.uname().nodename.split(".")[0]
 ICON = {"done": "✅", "blocked": "⛔", "failed": "❌"}
 HELP = ("Commands:\n/status  daemon + jobs\n/jobs  last 8 jobs\n/show <id>  result of a job\n"
-        "/run <prompt>  queue a job (NIM, runs here)\n/retry <id>  queue the same prompt again\n"
+        "/run <prompt>  queue a job (runs on the hub); add @node:NAME to run on a node, e.g. /run @node:mac fix tests\n/nodes  which nodes are online\n/retry <id>  queue the same prompt again\n"
         "Any other text is saved as a note for the next Claude session.")
 
 
@@ -53,6 +53,8 @@ def _handle(jobs, text: str) -> str:
     if cmd == "/show":
         r = jobs.bb.runs.get(next((j["run_id"] for j in jobs.list(50) if j["id"] == arg), "") or "")
         return (str((r or {}).get("output") or (r or {}).get("error") or "no result yet"))[:3500]
+    if cmd == "/nodes":
+        return "\n".join(f"{'🟢' if n['online'] else '⚫'} {n['name']} ({n['age_s']}s ago)" for n in jobs.nodes()) or "no nodes have connected"
     if cmd == "/run" and arg:
         return f"queued job {jobs.submit(arg)}"
     if cmd == "/retry":

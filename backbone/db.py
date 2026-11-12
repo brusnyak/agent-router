@@ -46,6 +46,9 @@ CREATE TABLE IF NOT EXISTS jobs(
   id TEXT PRIMARY KEY, text TEXT NOT NULL, opts TEXT DEFAULT '{}', state TEXT NOT NULL, owner TEXT DEFAULT '',
   attempts INTEGER DEFAULT 0, run_id TEXT DEFAULT '', created REAL, updated REAL
 );
+CREATE TABLE IF NOT EXISTS nodes(
+  name TEXT PRIMARY KEY, last_seen REAL, caps TEXT DEFAULT '{}'
+);
 CREATE TABLE IF NOT EXISTS steps(
   id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, n INTEGER, kind TEXT, worker TEXT, key_slot TEXT,
   ok INTEGER, latency_ms INTEGER, tokens INTEGER DEFAULT 0, output TEXT DEFAULT '', note TEXT DEFAULT '', ts REAL
@@ -93,4 +96,9 @@ def connect(path: str) -> DB:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA busy_timeout=30000")
     con.executescript(SCHEMA)
+    cols = {r[1] for r in con.execute("PRAGMA table_info(jobs)")}
+    for c in ("target", "node", "result"):  # hub/node: which node must run a job, who ran it, what it returned
+        if c not in cols:
+            con.execute(f"ALTER TABLE jobs ADD COLUMN {c} TEXT DEFAULT ''")
+    con.commit()
     return DB(con)

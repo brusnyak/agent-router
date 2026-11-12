@@ -6,6 +6,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 import threading
 import time
 import uuid
@@ -25,9 +26,14 @@ class Jobs:
         self.owner = uuid.uuid4().hex[:8]  # this daemon instance
 
     def submit(self, text: str, **opts) -> str:
+        """`@node:NAME` anywhere in the text addresses the job to that node (it must claim it); otherwise the hub runs it."""
         jid = uuid.uuid4().hex[:8]
-        self.con.execute("INSERT INTO jobs(id,text,opts,state,attempts,created,updated) VALUES (?,?,?,?,?,?,?)",
-                         (jid, text, json.dumps(opts), "pending", 0, time.time(), time.time()))
+        m = re.search(r"(?:^|\s)@node:([\w.-]+)", text)
+        target = m.group(1) if m else opts.pop("target", "")
+        if m:
+            text = (text[:m.start()] + text[m.end():]).strip()
+        self.con.execute("INSERT INTO jobs(id,text,opts,state,attempts,created,updated,target) VALUES (?,?,?,?,?,?,?,?)",
+                         (jid, text, json.dumps(opts), "pending", 0, time.time(), time.time(), target))
         self.con.commit()
         return jid
 
@@ -35,10 +41,56 @@ class Jobs:
         return [dict(r) for r in self.con.execute(
             "SELECT id,state,attempts,run_id,substr(text,1,60) AS text FROM jobs ORDER BY created DESC LIMIT ?", (limit,))]
 
+    # -- hub side of hub/node: nodes connect OUTBOUND, claim jobs addressed to them, post results ------------------
+    def node_seen(self, name: str, caps: dict | None = None) -> None:
+        self.con.execute("INSERT INTO nodes(name,last_seen,caps) VALUES (?,?,?) ON CONFLICT(name) DO UPDATE SET last_seen=excluded.last_seen, caps=excluded.caps",
+                         (name, time.time(), json.dumps(caps or {})))
+        self.con.commit()
+
+    def nodes(self, online_s: float = 60.0) -> List[dict]:
+        now = time.time()
+        return [{"name": r["name"], "online": now - r["last_seen"] < online_s, "age_s": int(now - r["last_seen"]), "caps": json.loads(r["caps"] or "{}")}
+                for r in self.con.execute("SELECT * FROM nodes ORDER BY name")]
+
+    def claim_for_node(self, name: str, caps: dict | None = None) -> Optional[dict]:
+        self.node_seen(name, caps)
+        r = self.con.execute("SELECT * FROM jobs WHERE state='pending' AND target=? ORDER BY created LIMIT 1", (name,)).fetchone()
+        if not r:
+            return None
+        cur = self.con.execute("UPDATE jobs SET state='running', owner=?, node=?, attempts=attempts+1, updated=? WHERE id=? AND state='pending'",
+                               (f"node:{name}", name, time.time(), r["id"]))
+        self.con.commit()
+        return {"id": r["id"], "text": r["text"], "opts": json.loads(r["opts"] or "{}")} if cur.rowcount == 1 else None
+
+    def finish_from_node(self, name: str, jid: str, state: str, output: str, run_id: str = "") -> bool:
+        """Only the node that claimed the job may finish it."""
+        state = "done" if state == "done" else "blocked"
+        cur = self.con.execute("UPDATE jobs SET state=?, run_id=?, result=?, updated=? WHERE id=? AND state='running' AND node=?",
+                               (state, run_id, output[:20000], time.time(), jid, name))
+        self.con.commit()
+        if cur.rowcount != 1:
+            return False
+        row = self.con.execute("SELECT * FROM jobs WHERE id=?", (jid,)).fetchone()
+        notify(tg.report(dict(row), state, {"output": output, "run": run_id}).replace(f"· {tg.NODE} ·", f"· {name} ·"))
+        return True
+
+    def reroute_offline(self, policy: str = "wait", ttl_s: float = 120.0) -> int:
+        """Node offline longer than ttl: policy 'reroute' lets the hub run its pending jobs; 'wait' leaves them queued."""
+        if policy != "reroute":
+            return 0
+        n = 0
+        online = {x["name"] for x in self.nodes(ttl_s) if x["online"]}
+        for r in self.con.execute("SELECT id, target FROM jobs WHERE state='pending' AND target!='' AND target IS NOT NULL").fetchall():
+            if r["target"] not in online and time.time() - self.con.execute("SELECT updated FROM jobs WHERE id=?", (r["id"],)).fetchone()["updated"] > ttl_s:
+                self.con.execute("UPDATE jobs SET target='', updated=? WHERE id=?", (time.time(), r["id"]))
+                n += 1
+        self.con.commit()
+        return n
+
     def adopt_orphans(self) -> int:
         """Jobs left 'running' by a dead daemon: retry up to MAX_ATTEMPTS, then block with a ticket."""
         n = 0
-        for r in self.con.execute("SELECT * FROM jobs WHERE state='running' AND owner!=?", (self.owner,)).fetchall():
+        for r in self.con.execute("SELECT * FROM jobs WHERE state='running' AND owner!=? AND owner NOT LIKE 'node:%'", (self.owner,)).fetchall():
             run = self.bb.runs.get(r["run_id"]) if r["run_id"] else None
             if run and run["state"] == "done":  # finished before the daemon died: never repeat completed work
                 self.con.execute("UPDATE jobs SET state='done', updated=? WHERE id=?", (time.time(), r["id"]))
@@ -53,7 +105,7 @@ class Jobs:
         return n
 
     def _claim(self) -> Optional[dict]:
-        r = self.con.execute("SELECT * FROM jobs WHERE state='pending' ORDER BY created LIMIT 1").fetchone()
+        r = self.con.execute("SELECT * FROM jobs WHERE state='pending' AND (target='' OR target IS NULL) ORDER BY created LIMIT 1").fetchone()
         if not r:
             return None
         cur = self.con.execute("UPDATE jobs SET state='running', owner=?, attempts=attempts+1, updated=? "
@@ -110,6 +162,7 @@ class Jobs:
         last_watch = 0.0
         while True:
             self.tick(max_parallel)
+            self.reroute_offline(self.bb.cfg.get("node_offline", "wait"), float(self.bb.cfg.get("node_ttl_s", 120)))
             if time.time() - last_recover > 60:
                 self.bb.resume_stale()
                 last_recover = time.time()
