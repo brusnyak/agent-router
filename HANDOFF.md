@@ -1,97 +1,50 @@
-# Agent Router: handoff (2026-11-12, end of session)
+# HANDOFF: Agent Router (2026-11-12, end of session). Read this, then `docs/VISION.md`.
 
-Start here in a fresh session. Branch `dev/backbone`, nothing committed or pushed (54+ files staged/untracked; review before committing).
+Branch `dev/backbone`, nothing pushed. Repo: `~/Developer/agent-router`. Previous handoff: `docs/archive/HANDOFF-2026-11-12-backbone-history.md`. Reading order for docs: `docs/README.md`.
 
-## What exists (all in `backbone/`, 29 tests: `python3 -m pytest tests/test_backbone.py -q`)
-| Piece | State | How to check |
-|---|---|---|
-| Key pool (NIM_1..3, cap 2/key, retry + failover) | works | `python3 -m backbone keys` (under `~/.claude/scripts/with-env NIM_1 NIM_2 NIM_3 --`) |
-| Workers: Pi on NIM keys, `@or` = `openrouter/free`, Claude + Codex (own login, one at a time) | works | `python3 -m backbone run "@nim2 ..." --gate "<cmd>"` |
-| LangGraph run graph + SQLite checkpoints, `runs resume ID` | works (kill -9 mid-gate then resume re-ran only the gate) | `python3 -m backbone runs resume ID` |
-| Library DB (FTS5 + NIM embeddings): 418 skills, 293 agent personas, 13 commands, 2 clips | works | `python3 -m backbone library search "..."`; eval `python3 -m backbone.evalset` |
-| Prompt provenance (`prompt_sources` in every result; strong skill hits inject their text) | works | any run result |
-| Decision layer `ask` (NIM1 proposes, validation drops invented values; experts opt-in) + advisory critic | works; critic on `openrouter/free` often returns empty | `python3 -m backbone ask "..."` |
-| `doctor` (probes each agent) -> `data/capabilities.json` | works | `python3 -m backbone doctor`: claude, codex, kilo, pi usable; qwen, gemini not (auth) |
-| `discover` / `init` (writes `~/.agent-router/backbone.yaml`; `init` NOT run yet) | discover works | `python3 -m backbone discover` |
-| Remote host dispatch `@host:NAME[:worker]` over ssh | works Mac -> Oracle | needs `hosts:` in config |
-| Jobs inbox + daemon (+ GitHub watcher every 6 h), HTTP API `serve` (token), MCP server | work | `jobs`, `daemon`, `serve`, `mcp` |
-| Oracle VM: `~/agent-router`, systemd user unit `agent-router`, Pi + Node 22 in `.tools`, `.deps`, keys in `~/.config/agent-router/env` (600) | active; VM not re-synced after the last turn | `ssh oracle-vm systemctl --user is-active agent-router` |
+## 1. The thesis after today's research (this changes the plan)
+The owner's pain is NOT "no executor plumbing". It is: (a) installed skills/commands/personas are almost never used unless named, and (b) dictated (Whisper) input is unstructured and gives weak results. Evidence:
+- Own sessions (MEASURED, `~/.claude/projects`): 92 sessions / 953 prompts, Skill tool called 32 times (3%), 14 sessions (15%), 20 distinct skills; subagents in 74% of sessions.
+- Vercel eval: skill by description 53% (= no skill), always-in-context index 100%; forced-eval hook 84-100% vs simple hook 20-59% (`docs/SKILL-ACTIVATION.md`, single-author, small n).
+- The owner's existing `~/.agent-skills/router/router.py hook` is NOT wired in `~/.claude/settings.json` (0 matches).
+So the first valuable product slice is a CONTEXT COMPILER delivered as a hook: for each prompt, structure the dictation, retrieve deterministically (vault/docs/library), pick the task class + bundle with a confidence gate, and INJECT a compact factual context via UserPromptSubmit `additionalContext` (Codex: AGENTS.md / exec wrapper). Execution/delegation (workers, hub/node, Oracle) is the second slice and already exists.
 
-## Measured, not claimed
-- Retrieval eval (24 own queries, 724 rows): BM25 top1 0.46 / top3 0.71; hybrid 0.71 / 0.96; rerank no gain (off).
-- 20 parallel NIM calls over 3 keys: 20 ok, 7.8 s wall.
-- Codex review of the first backend: 9 P1 findings fixed with regression tests.
+## 2. What exists (verified this session: `python3 -m pytest tests -q`; 2 legacy tests fail because they call the real NVIDIA API: tests/test_agent_base.py::test_nim_agent_dispatch_without_key, tests/test_supervisor.py::test_nim_key_available_flag)
+- Backbone (39 modules in `backbone/`): key pool NIM_1..3, Pi/Claude/Codex/browser workers, LangGraph run graph + SQLite checkpoints (`runs resume`), jobs daemon, hub/node (`backbone node`, `@node:NAME`), serve HTTP + MCP, evidence check (`verified` only if cited paths exist; field `gate_passed`), vault privacy gate (`vault_to`).
+- Library: 2,101 rows, 12 kinds (`python3 -m backbone library counts`), licence per row, dedupe module (not applied: 41 duplicate rows). Retrieval: hybrid BM25+NIM embeddings; NIM reasoning rerank top1 0.91 / top3 0.99 on 67 self-written kind-filtered queries (CONTAMINATED, see RESEARCH-AND-REDESIGN); no-LLM local hybrid 0.70/0.82 with kind, 0.49/0.66 without kind.
+- Composer: `python3 -m backbone ask --dry "<raw>"` prints task class, persona, tier, engineered prompt, sources.
+- Worker-built via the router, test-first, all gates passed attempt 1: `kind.py` (REJECTED by measurement: 0.31 LOO vs 0.36 baseline; do not wire), `dedupe.py`, `margin.py`, `outcomes.py`, `utility.py` (not wired); 6 bundles in `library/bundles/` (valid structure by `eval/check_bundle.py`; quality UNPROVEN, generic, not yet ingested).
+- Telegram: router bot `router_lingonberry_bot` PAIRED (`python3 -m backbone telegram-pair`), outbound verified; inbound needs the daemon. A local `backbone daemon` is RUNNING (pid via `pgrep -f "backbone daemon"`): stop with `pkill -f "backbone daemon"` unless you want to test `/status` `/nodes` from the phone.
+- Browser worker (Ego): `@browser Read <url> ...`, space always finished, no leaks verified.
+- Held-out set: `eval/mine_transcripts.py` -> `eval/heldout/{dev,test}.jsonl` (949 real prompts, 190 frozen test by time, LOCAL, gitignored). Only 87 have a skill/agent label (8 in test): labels must come from owner spot-check and shadow-mode outcomes.
+- Open-source gate: test fails on personal paths in tracked code; fresh-HOME `init` works.
 
-## Not built / open
-Adapters (Telegram, WhatsApp, Nina/Mimoza) via `serve`; browser/research worker (Ego CLI exists, Neo MCP was down); chat UI (design system exists, see below); step-level resume inside a worker; real gate sandbox; patch merge across fan-out workers; GitHub self-improvement loop beyond `watch`; T9 12-task replay (the eval that would justify the scaffold vs NIM alone); `init` never run on a clean HOME (the open-source claim is untested).
+## 3. Decisions made by the owner (do not re-ask)
+- Standalone open-source project; Oracle is the always-on hub, the Mac is the dev machine; hub/node outbound-only.
+- Clarification: retrieve FIRST (vault, project docs, library, earlier decisions); ask only what retrieval cannot answer, 3+ questions at once with a default each.
+- Soul Knight test #1: the router researches idea-generation apps/trends to pick the THIRD PROJECT (fits the job technical requirements, viable for users/clients), then one-master-prompt build on it.
+- Dependencies re-scoped by research (`docs/STACK.md`); NIM is a baseline, not a rule. Do not adopt hosted routers/Jev (user turn leaves the machine). Arch-Router rejected (licence).
+- Spending on Claude/Codex allowed for the evals (one expert at a time); Neo on the owner's signed-in Kaggle allowed; BP/Kaggle only AFTER documentation/research of Kaggle requirements; do NOT touch `nearpitch`; nightcloser is `~/Documents/Acore/Development/nightcloser` (not a priority).
 
-## Design system
-`DESIGN.md` has 17 tokens; all defined in `ui/src/index.css` with matching hex. 4 off-token hexes in `ui/` (`#1E1E1E #2A2E3A #EF4444 #ffffff`). Router review (unchecked): DESIGN.md says amber for blocked but CSS uses red; `KanbanBoard` imported but not rendered in `App.tsx`; `StatusBar` placement differs from the spec. No browser verification done yet (needs 1440/390 px screenshots viewed by the owner).
+## 4. Next session: ordered plan with gates (stop at the first failed gate, write a ticket)
+1 FIXTURE + SHADOW: build a 30-prompt should-fire / should-not-fire fixture from `eval/heldout` and the owner's catalog; run the context-compiler decision in SHADOW mode (log what it would inject, do not inject) over the 190 test prompts. Gate: decision logged with confidence for 100%; owner spot-checks 50.
+2 HOOK v0 (`backbone/hook.py`, UserPromptSubmit, factual wording, <= 6k chars, score floor, silent on chit-chat): L0 rules + FTS5 + bge-small (onnxruntime, MIT) + margin gate. Gate: on the fixture, activation of the right bundle/skill >= +30 pp vs hook-off, <= 1 false positive of 15 negatives; p95 latency < 300 ms on the Mac.
+3 TASK CLASS -> BUNDLE table: owner reviews/curates 10-15 real bundles (authored by workers, reviewed by Claude Haiku/Sonnet); measure bundle vs bare persona on held-out prompts.
+4 DICTATION STRUCTURING step + retrieval-first clarification protocol (`docs/VISION.md` section 7).
+5 M3 three-arm blind test (raw->Claude, raw->NIM, router->NIM) on the frozen test split. Kill rule: router must beat raw-NIM by >= 10 pp gate-pass (CI above 0) at <= 2x latency, else ship only deterministic parts.
+6 Wire `outcomes` + `utility` into routing (replace the `tiers:` table); fix `verified` loopholes (basename match, `noop` gate); one retrieval per `ask`; apply `dedupe`.
+7 Soul Knight test #1 (third-project research) using the router; then the master build prompt (`docs/COMPONENTS.md` section 6 structure).
+8 Oracle: install onnxruntime/numpy there, re-sync, real Mac<->Oracle node test.
+9 BP/Kaggle: first research what Kaggle expects (account, compute limits, model/DTS configs), write it down, only then dispatch.
 
-## Global Claude config (done by script, backups in `~/.claude/backups-minimize-*`)
-Minimal `CLAUDE.md` (1.3 KB) + trimmed Mentor style; context-dumping hooks and the 12 caveman hooks removed; `ANTHROPIC_BASE_URL` removed. Obsidian now opens `memory-vault` (home-dir vault removed from `obsidian.json`).
+## 5. First prompt for the next session (paste)
+"Read HANDOFF.md and docs/VISION.md. Start with plan item 1 and 2: build the shadow-mode decision log and hook v0 per the gates. Use the router's own workers (`fanout`, test-first) for independent modules; keep integration yourself. No pushes, sends or spend beyond what HANDOFF.md section 3 allows."
 
-## Pending owner actions
-- `ssh oracle-vm` old project already removed by owner. Install-log lines for VM Node 22 / Pi / langgraph `.deps` not written (denied to the agent).
-- Review and commit the staged work on `dev/backbone` yourself.
-- Neo: reconnect the browseros-neo MCP in the next session if tab clipping is wanted.
-
-## Next steps (ordered)
-1. T9 replay: 12 real tasks x (NIM alone / NIM + router loop / Claude) -> scored table. Kill the scaffold claim if no gain.
-2. Fresh-user test: temp `HOME`, one NIM key, `backbone init`, `backbone ask`.
-3. UI: serve `ui/`, screenshots 1440 + 390, fix the 4 tokens and layout findings, owner views the screenshots.
-4. Browser worker (ego-browser) + clip pipeline into `library` kind `clip` (`data/clips_md/` pattern already works: two YouTube transcripts ingested and retrievable).
-5. Adapter over `serve` (copy from Hermes/OpenClaw after reading them).
-
-## Rules for the next session
-Backend work only inside this repo; experts (Claude/Codex) only for review, one at a time; no pushes, no spend, no sends without the owner.
-
-## Delegated to Oracle (started 2026-11-12, running unattended)
-- **T9-lite replay**: `eval/replay.py --trials 3` on the VM (8 tasks x 2 arms x 3 trials, NIM1 only): single attempt vs router gate-loop. Log `~/agent-router/data/eval/replay.log`, result `~/agent-router/data/eval/replay-*.json` (summary line starts `SUMMARY`). Check: `ssh oracle-vm 'tail -3 ~/agent-router/data/eval/replay.log; ls ~/agent-router/data/eval'`.
-  Caveat: tasks are small katas, a ceiling effect (both arms ~100%) means "no evidence either way", not "scaffold useless". The Claude arm and real-repo tasks are still missing.
-- **Suits Oracle** (NIM/OpenRouter workers, gate = a command, no subscription login, no secrets): replay evals, test-writing for untested modules, token/lint cleanups in `ui/` (patch for review), scheduled `watch` ingestion, library re-embedding, retrieval eval reruns.
-- **Keep on the Mac**: anything needing Claude/Codex logins, Neo/Ego browser, vault writes, git push, the design check you must view.
-- **Not set up on the VM**: Claude/Codex, library skill folders (ingest happens on the Mac), git remote.
-
-## 2026-11-12 evening: delegated to Oracle
-- Jobs (daemon, Telegram message on finish): aa802712 = SPEC.md for Drizzle triggers plugin in ~/drizzle-triggers (gate: SPEC.md exists, has kill rule + #843); 4e591b9e = tests/test_notify_jobs.py in ~/agent-router (gate: pytest).
-- Check: ssh oracle-vm, then in ~/agent-router with env file + PYTHONPATH=.deps: `python3 -m backbone jobs list`.
-- Approved by owner: project #3 = Drizzle Postgres triggers plugin (research/L3-scout.md). Kill rule: no outside install/reply in 14 days, or Drizzle ships native triggers.
-- Router fixes today: swarm synthesis step, clean no-keys error. Clip ledger now records failure reason (vault scripts/clip_v3.py, backup .bak-20261112).
-- Replay result: 24/24 both arms (tie). L3 A/B: router 19 min, 2/3 workers blocked, fabricated output; Claude 4 min; scout agent best. Logs: data/ab/.
-- Not done: Mac<->VM sync (git remote), live A/B on owner prompts, outreach U1 day 3 (Fri), clip/CV/brand lanes.
-
-## Unattended-work contract (learned 2026-11-12, each line from a real failure)
-- A "done" job = a patch in data/runs/<run>/patch.diff, NOT applied. Harvest: scp the patch, `git apply --check`, run the gate locally, then apply.
-- Gate must be scoped to the job's own file (a whole-suite gate blocked on old failures: job 4e591b9e).
-- Never rsync config over the VM without checking: it clobbered the pi path (fixed by repo-local `.tools/` fallback in workers.py). `scripts/sync_vm.sh` keeps data/, credentials, .deps, .tools.
-- VM submit env: set -a; . ~/.config/agent-router/env; PYTHONPATH=$HOME/agent-router/.deps:$HOME/agent-router; python3 -m backbone submit --cwd <git repo> --gate "<scoped cmd>" "<prompt>".
-- Parallel swarm subtasks do not see each other; swarm now ends with a synthesis step (unverified live).
-- Telegram: the router project's own bot token is the old lingonberry_trading_bot with a bot as chat id (403). Reports go via Nina's bot, one-way. Two-way needs a dedicated bot: set ROUTER_TG_POLL=1 after owner creates it (backbone/tg.py).
-- Outputs from NIM workers are drafts: read before building on them.
-
-
-## Update 2026-11-12 (evening): spec + M0, M1, M2, M4, M6 built (branch dev/backbone, 37 tests)
-Master spec: `docs/AGENT_ROUTER.md` (hub/node, standalone, library kinds, milestones). Scope plan: `docs/E2E-SCOPE-PLAN.md`. Adapter research: `docs/ADAPTER-RESEARCH.md`. Old specs: `docs/archive/`, `docs/appendix/`.
-| Milestone | State | Evidence |
-|---|---|---|
-| M0 evidence check | done | `backbone/evidence.py`; the hallucinated review (5 fake files) now gives `verified=false`, `unverified_reason=cites_missing_file`; field `gate_passed` added |
-| M1 library + retrieval | done | 2.1k+ rows, 12 kinds (agent, subagent, skill, command, system, hook, prompt, design, playbook, application, loop, clip), license per row; eval 67 queries: plain hybrid top1 0.64 / top3 0.87, NIM goal-understanding (`understand.expand` + `rerank`) top1 **0.91** / top3 **0.99** (`python3 -m backbone.evalset`) |
-| M2 composer + tiers | done | `compose.py`, `understand.analyze`, `tiers:` in config, `python3 -m backbone ask --dry "<raw>"` prints engineered prompt + sources + tier |
-| M4 hub/node | built, tested in-process | outbound node client (`backbone node --hub URL --name mac`), `@node:NAME` routing, `/nodes/claim`, `/nodes/result`, offline policy `node_offline: wait|reroute`, Telegram `/nodes` and `/run @node:mac ...`; NOT yet run Mac<->Oracle for real |
-| M6 browser worker | done | `browser.py` via Ego, page text fenced as untrusted, `task.finish` cleanup, verified no leaked spaces; `@browser Read <url> ...` |
-| Open-source gate | done | test fails on personal paths in tracked code; fresh-HOME `init` wrote config |
-Library sources added: ECC agents/commands/rules, VoltAgent subagents + design-md, ai-sales-team playbooks, Anthropic skills + plugins, Piebald extraction of Claude Code system prompts/reminders (MIT), Anthropic prompt-engineering + system-prompt docs scraped via Ego (`~/Developer/refs/anthropic-web`, local-reference licence, never commit).
-Known gaps: hooks corpus is only Claude Code reminders (no repo hook scripts indexed); no loop corpus besides the appendix docs; vault has NO proven applications (ledger: 3 rows, 1 acknowledged, 1 rejected, 1 unverified; upwork ledger 22 rows all new/queued); retrieval eval filters by kind (kind-less routing not yet measured); `ask` retrieves twice (resolve + ask).
-Not done yet: M3 real-task kill test (3 arms, blind), M5 patch merge, M7 UI check + adapters, M8 init cut + licence audit, Oracle re-sync, Kaggle/BP task.
-
-
-## Update 2026-11-12 (night): READ docs/README.md FIRST, then docs/VISION.md
-State (branch dev/backbone, `python3 -m pytest tests -q`: 125 pass, 2 legacy tests fail because they call the real NVIDIA API: tests/test_agent_base.py::test_nim_agent_dispatch_without_key, tests/test_supervisor.py::test_nim_key_available_flag):
-- Telegram: router bot is paired (chat id captured with `python3 -m backbone telegram-pair`, outbound verified; inbound needs `python3 -m backbone daemon` running). Tests are hermetic (tests/conftest.py blocks the secrets file).
-- Built via router workers (NIM_1..3, spec-first tests, gate = pytest, all passed attempt 1): backbone/kind.py (kNN kind classifier + margin), dedupe.py, margin.py, outcomes.py (Beta posterior stats), utility.py (Pareto + utility pick). NOT yet wired into ask/retrieve/routing.
-- Library bundles by workers: library/bundles/*.md (6), validator eval/check_bundle.py; quality unproven (structure only), not yet ingested as a source.
-- Held-out set: eval/mine_transcripts.py -> eval/heldout/{dev,test}.jsonl (949 real prompts, local, gitignored); only 87 carry a skill/agent label, 8 in test: labels must come from owner spot-check or outcome log.
-- Research: docs/RESEARCH-AND-REDESIGN.md (roast + research), docs/COMPONENTS.md (reuse verdicts, measured no-LLM retrieval, LangGraph reality, master build prompt structure).
-Next, in order: (1) DO NOT wire kind.py (measured 0.31 vs 0.36 baseline, see COMPONENTS.md 3); instead build task_class -> bundle selection (9 classes, ~10-15 bundles), margin gate decides when the model is asked, one retrieval per ask; (2) wire outcomes + utility into routing (replace tiers table); (3) fix `verified` loopholes (basename match, noop gate); (4) read kerpopule/hermes-jev-skills to see if Jev is hosted or local; (5) M3 three-arm blind test on the held-out set; (6) master build prompt for the remaining build (docs/COMPONENTS.md section 6) after the open points in docs/VISION.md section 7 are decided; (7) BP/Kaggle delegation only after documentation + research of Kaggle requirements.
-Daemon: a local `backbone daemon` was started for the Telegram test; stop it with `pkill -f "backbone daemon"`.
+## 6. Known weaknesses (do not hide them)
+- The 0.91 retrieval number is contaminated (queries written by the building agent, kind given, best-of-five gate); trust only the held-out kind-less test.
+- Worker-built modules pass their tests but a passing gate only proves the spec was met, not that the spec was right (kind.py).
+- Bundles are structurally valid but generic; the gate cannot judge quality.
+- Every research figure (`docs/SKILL-ACTIVATION.md`, `docs/STACK.md`) is from sources' own reports, small n, not reproduced; two are single-author.
+- Router outputs were mis-routed repeatedly earlier (command picked by keyword); `ask` still makes ~6 LLM calls before work and retrieves twice.
+- Hub/node and Telegram inbound are tested in-process only; Mac<->Oracle path unproven; Oracle VM not re-synced.
+- `langgraph>=0.1.0` is pinned only by lower bound; pin before any build.
