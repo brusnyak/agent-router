@@ -423,3 +423,11 @@ def test_doctor_reports_usable_vs_broken(tmp_path):
     by = {r["name"]: r for r in res["agents"]}
     assert by["qwen"]["usable"] is True and by["gemini"]["usable"] is False and "log in" in by["gemini"]["note"]
     assert by["mystery"]["usable"] is None and _j.load(open(tmp_path / "caps.json"))["agents"]
+
+
+def test_named_persona_beats_command():
+    from backbone.decide import named_persona, validate
+    assert named_persona("act as the Product Manager agent", {"Product Manager": "agent", "review": "skill"}) == "Product Manager"
+    assert named_persona("please review this", {"Product Manager": "agent", "review": "skill"}) == ""  # too short/generic
+    al = {"commands": set(), "projects": set(), "workers": {"nim1"}, "gates": set(), "personas": {"Product Manager": "agent"}}
+    assert validate({"persona": "Invented Bot"}, al)["persona"] == ""

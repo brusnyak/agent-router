@@ -273,10 +273,21 @@ class Backbone:
 
     def ask(self, text: str, **opts) -> dict:
         """Free-text front door: NIM1 decides (validated), router runs, critic reviews opinion-type results."""
-        from .decide import decide
-        plan = decide(lambda m: self.chat(m, max_tokens=500), text, self.allowed(), self.rag.search(text, k=6))
+        from .decide import decide, named_persona
+        al = self.allowed()
+        hits = self.rag.search(text, k=6)
+        al["personas"] = {r["name"]: r["kind"] for r in self.con.execute("SELECT name, kind FROM library WHERE kind IN ('agent','skill')")}
+        plan = decide(lambda m: self.chat(m, max_tokens=500), text, al, hits)
+        named = named_persona(text, al["personas"])  # owner named it: beats the model's guess
+        if named:
+            plan["persona"], plan["command"], plan["decided_by"] = named, "", "named"
         t = parse(text)
-        res = self.run(text if t.command else (f"/{plan['command']} " + text if plan["command"] else text),
+        body = text
+        if plan["persona"] and not t.command:
+            row = library.get(self.con, al["personas"][plan["persona"]], plan["persona"])
+            if row and row["body"].strip():
+                body = f"### Persona: {plan['persona']} (act in this role)\n{row['body'].strip()[:2500]}\n\n### Request\n{text}"
+        res = self.run(body if (t.command or plan["persona"]) else (f"/{plan['command']} " + text if plan["command"] else text),
                        project=opts.get("project") or plan["project"], worker=opts.get("worker") or plan["worker"],
                        gate=opts.get("gate") or (self.named_gate(plan["gate"]) if plan["gate"] else None),
                        read_only=opts.get("read_only", plan["read_only"]), cwd=opts.get("cwd"))
