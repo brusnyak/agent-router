@@ -94,9 +94,10 @@ def main(argv=None) -> None:
     if a.cmd == "telegram-pair":
         import os as _os
         from . import pairing
-        tok = _os.environ.get("ROUTER_BOT_TOKEN", "")
+        from .notify import _cred
+        tok = _os.environ.get("ROUTER_BOT_TOKEN", "") or _cred("TELEGRAM_BOT_TOKEN")
         if not tok:
-            raise SystemExit("export ROUTER_BOT_TOKEN (token from @BotFather) first; it is never printed")
+            raise SystemExit("no bot token: set it in the router secrets file or export ROUTER_BOT_TOKEN; it is never printed")
         root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
         print(json.dumps(pairing.pair(tok, _os.path.join(root, ".env.local"), a.wait)))
         return

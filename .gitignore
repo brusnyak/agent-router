@@ -66,3 +66,4 @@ data/
 
 *.db-shm
 *.db-wal
+eval/heldout/
