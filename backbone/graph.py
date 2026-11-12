@@ -99,7 +99,9 @@ def build(bb, db_path: str):
         st = bb.cfg.get("style", {}).get("texts", {}).get(style, "")
         if st:
             pinned = (pinned + "\n" if pinned else "") + "Output style: " + st
-        packet = bb.sessions.pack(sid, prompt, pinned=pinned, library_notes=notes, use_vault=o.get("use_vault", True))
+        # Private vault notes only go to workers the owner is logged into themselves (config `vault_to`); never to free API tiers.
+        vault_ok = spec.split(":")[0] in bb.cfg.get("vault_to", ["claude", "codex"])
+        packet = bb.sessions.pack(sid, prompt, pinned=pinned, library_notes=notes, use_vault=bool(o.get("use_vault", True)) and vault_ok)
         rid = s["rid"]
         bb.runs.create(sid, task.project, task.command, task.prompt, spec, {"gate": gate, "esc": esc, "sources": sources}, rid=rid)
         cb = bb._on_start.pop(rid, None)
