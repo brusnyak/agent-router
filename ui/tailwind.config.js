@@ -7,16 +7,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#007ACC',
-        secondary: '#CCA700',
-        tertiary: '#89D185',
-        neutral: '#1E1E1E',
-        sidebar: '#252526',
-        card: '#181818',
-        border: '#2B2B2B',
-        text: '#CCCCCC',
-        textSecondary: '#858585',
-        textTertiary: '#5A5A5A',
+        primary: 'var(--accent-primary)',
+        secondary: 'var(--accent-secondary)',
+        tertiary: 'var(--accent-tertiary)',
+        neutral: 'var(--bg-window)',
+        sidebar: 'var(--bg-sidebar)',
+        card: 'var(--bg-card)',
+        border: 'var(--border-subtle)',
+        text: 'var(--fg-primary)',
+        textSecondary: 'var(--fg-secondary)',
+        textTertiary: 'var(--fg-tertiary)',
+        danger: 'var(--danger)',
       },
       fontFamily: {
         sans: ['Geist', 'system-ui', 'sans-serif'],

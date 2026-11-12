@@ -13,7 +13,7 @@ export function ProjectPicker({ projects, selectedProject, onSelect }: ProjectPi
     <div className="p-3 border-b border-[var(--border-subtle)]">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-2 bg-[#1E1E1E] rounded hover:bg-[#2A2E3A] transition-colors"
+        className="w-full flex items-center justify-between p-2 bg-[var(--bg-card)] rounded hover:bg-[var(--border-active)] transition-colors"
       >
         <span className="text-[var(--fg-primary)] text-xs">
           {selectedProject ? `Project: {selectedProject}` : 'Global'}
