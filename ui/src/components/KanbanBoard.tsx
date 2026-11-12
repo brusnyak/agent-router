@@ -26,7 +26,7 @@ const LANE_CONFIG: Record<string, { label: string; color: string; badge: string 
   running: { label: 'Running', color: '#007ACC', badge: 'status-running' },
   review: { label: 'Review', color: '#007ACC', badge: 'status-review' },
   done: { label: 'Done', color: '#89D185', badge: 'status-done' },
-  blocked: { label: 'Blocked', color: '#EF4444', badge: 'status-blocked' },
+  blocked: { label: 'Blocked', color: 'var(--danger)', badge: 'status-blocked' },
 }
 
 export function KanbanBoard({ cards, columnOrder, columnLabels, onCardClick, onStatusChange }: KanbanBoardProps) {
@@ -49,7 +49,7 @@ export function KanbanBoard({ cards, columnOrder, columnLabels, onCardClick, onS
                   {config.label}
                 </span>
               </div>
-              <span className="text-[var(--fg-tertiary)] text-xs bg-[#1E1E1E] border border-[var(--border-subtle)] px-2 py-0.5 rounded">
+              <span className="text-[var(--fg-tertiary)] text-xs bg-[var(--bg-card)] border border-[var(--border-subtle)] px-2 py-0.5 rounded">
                 {laneCards.length}
               </span>
             </div>

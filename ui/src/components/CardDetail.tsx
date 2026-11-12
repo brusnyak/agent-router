@@ -12,7 +12,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   running: { label: 'Running', color: '#007ACC' },
   review: { label: 'Review', color: '#007ACC' },
   done: { label: 'Done', color: '#89D185' },
-  blocked: { label: 'Blocked', color: '#EF4444' },
+  blocked: { label: 'Blocked', color: 'var(--danger)' },
   backlog: { label: 'Backlog', color: '#646B78' },
 }
 

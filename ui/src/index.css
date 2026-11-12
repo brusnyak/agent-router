@@ -21,11 +21,12 @@
     --badge-bg: #242018;
     --badge-border: #4E3E26;
     --selection: #264F78;
+    --danger: #EF4444;
   }
 
   * {
     selection-background-color: var(--selection);
-    selection-color: #ffffff;
+    selection-color: var(--fg-primary);
   }
 
   body {
@@ -62,7 +63,7 @@
   }
   
   .input-box {
-    @apply bg-[#1E1E1E] border border-[var(--border-subtle)] rounded-lg px-4 py-2.5 text-[var(--fg-primary)] focus:outline-none focus:border-[var(--accent-primary)] w-full transition-colors;
+    @apply bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg px-4 py-2.5 text-[var(--fg-primary)] focus:outline-none focus:border-[var(--accent-primary)] w-full transition-colors;
   }
   
   .btn-primary {
@@ -70,7 +71,7 @@
   }
   
   .btn-secondary {
-    @apply bg-[#1E1E1E] border border-[var(--border-subtle)] text-[var(--fg-primary)] px-4 py-2 rounded-md hover:bg-[#2A2E3A] transition-colors text-sm;
+    @apply bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--fg-primary)] px-4 py-2 rounded-md hover:bg-[var(--border-active)] transition-colors text-sm;
   }
   
   .btn-ghost {
@@ -94,9 +95,9 @@
   }
   
   .status-blocked {
-    @apply text-[#EF4444];
-    border: 1px color-mix(in srgb, #EF4444 30%, transparent);
-    background-color: color-mix(in srgb, #EF4444 10%, transparent);
+    @apply text-[var(--danger)];
+    border: 1px color-mix(in srgb, var(--danger) 30%, transparent);
+    background-color: color-mix(in srgb, var(--danger) 10%, transparent);
   }
   
   .status-triaging {
