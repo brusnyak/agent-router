@@ -109,7 +109,7 @@ tiers:
   research: nim3
   draft: or
   plan: claude
-  browse: nim1
+  browse: browser
   other: nim1
 
 exclude_refs: [skill-router, gather, router]   # the router's own meta skills must not become references

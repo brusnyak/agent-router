@@ -68,6 +68,8 @@ def norm_worker(w: str) -> str:
         return "pi:NIM_1"
     if w.lower().startswith("host:"):
         return w
+    if w.lower() == "browser":
+        return "browser"
     if w.lower() == "or" or w.lower().startswith("or:"):
         return "or:" + (w.split(":", 1)[1] if ":" in w else "")
     return w
@@ -237,6 +239,12 @@ class Backbone:
         if kind == "or":  # OpenRouter free model: second opinion with different weights, read-only by construction
             model = arg or self.cfg.get("openrouter", {}).get("default_model", "openrouter/free")
             return self.pi.run_fixed(prompt, cwd, "OPENROUTER_API_KEY", "openrouter/" + model, read_only=True)
+        if kind == "browser":  # read the URLs in the request through the Ego browser (space released afterwards), then reason on NIM
+            from . import browser
+            nimcfg = self.cfg["nim"]
+            return browser.run(prompt, uuid.uuid4().hex[:6], lambda full: self.pi.run(
+                full, cwd, self.pool, prefer=arg or nimcfg["default_key"], retries=nimcfg.get("retries", 1),
+                backoff_s=nimcfg.get("backoff_s", 3), read_only=True))
         if kind in ("claude", "codex"):
             with self._expert_lock:
                 return (self.claude if kind == "claude" else self.codex).run(prompt, cwd, read_only=read_only)
@@ -273,6 +281,9 @@ class Backbone:
         if os.path.exists(caps):
             bad = {a["name"] for a in json.load(open(caps)).get("agents", []) if a.get("usable") is False}
             workers -= bad
+        from . import browser as _b
+        if _b.available():
+            workers.add("browser")
         workers |= {f"host:{h}" for h in self.cfg.get("hosts", {})}  # remote hosts run their own cheap workers
         return {"commands": cmds, "projects": set(self.projects), "workers": workers,
                 "gates": set(self.cfg.get("gates", {})), "default_worker": f"nim1"}
