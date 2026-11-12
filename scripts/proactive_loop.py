@@ -37,7 +37,7 @@ sys.path.insert(0, PROJECT_ROOT)
 sys.path.insert(0, os.path.join(HOME, "Developer", "agent-router", "scripts"))
 sys.path.insert(0, os.path.join(HOME, "memory-vault", "scripts"))
 
-from graph.supervisor import RouterSupervisor  # noqa: E402
+from graph.router import RouterSupervisor  # noqa: E402
 import nim_call  # noqa: E402
 
 # ---------------------------------------------------------------------------

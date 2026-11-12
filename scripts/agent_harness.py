@@ -143,11 +143,15 @@ class AgentHarness:
         """Extract code blocks from NIM output and write them to disk with claimed filenames.
 
         Returns list of written file paths.
+
+        Default workdir is the vault sandbox, never the router root, to prevent
+        response-driven writes from overwriting source files.
         """
         import re
         written: List[str] = []
         if not workdir:
-            workdir = _PROJECT_ROOT
+            workdir = VAULT_SANDBOX
+        os.makedirs(workdir, exist_ok=True)
 
         # Extract ```python ... ``` and ``` ... ``` blocks
         blocks = re.findall(r"```(?:\w+)?\n(.*?)\n```", output, re.DOTALL)

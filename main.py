@@ -10,7 +10,7 @@ HOME = os.path.expanduser("~")
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _PROJECT_ROOT)
 
-from graph.supervisor import RouterSupervisor
+from graph.router import RouterSupervisor
 from api.chat import router as chat_router, set_supervisor as set_chat_supervisor
 from api.cards import router as cards_router
 from api.analytics import router as analytics_router
@@ -60,7 +60,6 @@ async def health():
         "status": "healthy",
         "agents_total": len(agents),
         "agents_available": len(available),
-        "supervisor_llm": supervisor.llm is not None,
     }
 
 

@@ -10,17 +10,17 @@ PROJECT_ROOT = os.path.join(HOME, "Developer", "agent-router")
 sys.path.insert(0, PROJECT_ROOT)
 sys.path.insert(0, os.path.join(HOME, "Developer", "agent-router", "scripts"))
 
-from graph.supervisor import RouterSupervisor
+from graph.router import RouterSupervisor
 
 
 def test_supervisor_initializes():
     """RouterSupervisor() initializes without error."""
     s = RouterSupervisor()
     assert s is not None
-    assert hasattr(s, "graph")
-    assert hasattr(s, "agents")
+    assert hasattr(s, "agents_cfg")
+    assert hasattr(s, "models_cfg")
     assert hasattr(s, "drift")
-    assert hasattr(s, "nim_key_available")
+    assert hasattr(s, "trace_id")
 
 
 def test_get_available_agents():
@@ -56,10 +56,12 @@ def test_select_model_for_task_returns_none_when_no_keys():
 
 
 def test_nim_key_available_flag():
-    """nim_key_available reflects whether NIM keys were found."""
+    """NIM availability reflects whether NIM keys were found."""
     s = RouterSupervisor()
-    # Should be a boolean
-    assert isinstance(s.nim_key_available, bool)
+    agents = s.get_available_agents()
+    nim_agents = [a for a in agents if a["provider"] == "nim"]
+    # At least one NIM key env var should be set
+    assert any("NIM_" in (a.get("api_key_env", "")) for a in nim_agents)
 
 
 def test_apply_drift_constraints_blocks_claude():
@@ -115,7 +117,6 @@ def test_run_uses_deterministic_fallback_when_no_nim():
     # Mock get_available_models to return no models, forcing deterministic fallback
     # Mock subprocess.run to avoid real NIM API calls via NIMAgent
     with patch.object(s, "get_available_models", return_value=[]), \
-         patch.object(s, "llm", None), \
          patch("graph.agent_base.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(stdout="Mock NIM response", stderr="", returncode=0)
         result = s.run("build a simple hello world script")
@@ -131,7 +132,6 @@ def test_index_context_populated():
     from unittest.mock import patch
     s = RouterSupervisor()
     with patch.object(s, "get_available_models", return_value=[]), \
-         patch.object(s, "llm", None), \
          patch("graph.agent_base.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(stdout="Mock NIM response", stderr="", returncode=0)
         result = s.run("agent router dispatch kanban")
@@ -145,7 +145,7 @@ def test_token_analytics():
     result = s.get_token_analytics()
     assert isinstance(result, dict)
     # May have error if no DB, but should not crash
-    assert "error" in result or "by_agent_model_lane" in result
+    assert "error" in result or "total_cards" in result or "cards_by_agent" in result
     if "optimization_suggestions" in result:
         assert isinstance(result["optimization_suggestions"], list)
 

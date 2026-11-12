@@ -39,8 +39,8 @@ DB_PATH = os.path.join(PROJECT_ROOT, "kanban.db")
 
 # ── Configuration ──────────────────────────────────────────────────────────
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN", "")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_ID", "")
 AGENT_ROUTER_URL = os.environ.get("AGENT_ROUTER_URL", "http://127.0.0.1:8080")
 POLL_INTERVAL = int(os.environ.get("TELEGRAM_POLL_INTERVAL", "5"))
 
@@ -181,9 +181,9 @@ def cmd_status() -> str:
     agents = []
     try:
         sys.path.insert(0, PROJECT_ROOT)
-        from graph.supervisor import RouterSupervisor
+        from graph.router import RouterSupervisor
         s = RouterSupervisor()
-        agents = s.get_agents()
+        agents = s.get_available_agents()
         models = s.get_available_models()
     except Exception:
         pass

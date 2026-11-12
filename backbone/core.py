@@ -1,0 +1,357 @@
+"""Backbone: parse -> resolve library -> pack context -> dispatch -> router-run gate -> escalate -> ticket.
+
+Grammar (leading tokens only, any order):  [/command] [#project] [@worker] prompt
+  /command  a library row of kind 'command' (data, ingestable); unknown names fall back to library search
+  #project  id from config/projects.yaml
+  @worker   nim1|nim2|nim3 (Pi on that NIM key), claude, codex
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import threading
+import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional
+
+import yaml
+
+from . import library, nim
+from .context import Sessions, est_tokens
+from .db import connect
+from .keys import KeyPool, Transient
+from .runs import Runs
+from .workers import ClaudeWorker, CodexWorker, PiWorker, Result
+from .workspace import IsolationError, Workspace, run_gate
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_TOKEN = re.compile(r"^([/#@])([A-Za-z0-9_.:-]+)\s*")
+
+
+@dataclass
+class Task:
+    prompt: str
+    command: str = ""
+    project: str = ""
+    worker: str = ""
+
+
+def parse(text: str) -> Task:
+    t = Task(prompt=text.strip())
+    while True:
+        m = _TOKEN.match(t.prompt)
+        if not m:
+            break
+        sigil, val = m.groups()
+        if sigil == "/" and not t.command:
+            t.command = val
+        elif sigil == "#" and not t.project:
+            t.project = val
+        elif sigil == "@" and not t.worker:
+            t.worker = val
+        else:
+            break
+        t.prompt = t.prompt[m.end():]
+    return t
+
+
+def norm_worker(w: str) -> str:
+    w = (w or "").strip()
+    m = re.fullmatch(r"nim(\d)?", w, re.I)
+    if m:
+        return f"pi:NIM_{m.group(1) or 1}"
+    if w.lower() == "pi":
+        return "pi:NIM_1"
+    if w.lower().startswith("host:"):
+        return w
+    if w.lower() == "or" or w.lower().startswith("or:"):
+        return "or:" + (w.split(":", 1)[1] if ":" in w else "")
+    return w
+
+
+def load_config(path: Optional[str] = None) -> dict:
+    user = os.path.expanduser("~/.agent-router/backbone.yaml")
+    path = path or (user if os.path.exists(user) else os.path.join(ROOT, "config", "backbone.yaml"))
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+
+class Backbone:
+    def __init__(self, cfg: Optional[dict] = None, env: Optional[dict] = None):
+        self.cfg = cfg or load_config()
+        base = ROOT
+        rel = lambda p: os.path.expanduser(p) if os.path.isabs(os.path.expanduser(p)) else os.path.join(base, p)
+        self.con = connect(rel(self.cfg["db"]))
+        n = self.cfg["nim"]
+        self.pool = KeyPool(n["keys"], max_concurrent=n.get("max_concurrent_per_key", 2),
+                            cooldown_s=n.get("cooldown_s", 20), env=env, wait_s=n.get("wait_s", 120))
+        self.sessions = Sessions(self.con, self.cfg.get("context", {}))
+        self.runs = Runs(self.con, rel(self.cfg["tickets_dir"]), rel(self.cfg.get("runs_dir", "data/runs")))
+        self.work_root = rel(self.cfg.get("work_dir", "data/work"))
+        w = self.cfg.get("workers", {})
+        self.pi = PiWorker(w.get("pi", {}), n["model"])
+        self.claude = ClaudeWorker(w.get("claude", {}))
+        self.codex = CodexWorker(w.get("codex", {}))
+        self.projects = self._load_projects(rel(self.cfg.get("projects_file", "config/projects.yaml")))
+        self._expert_lock = threading.Lock()  # SPEC D5: one expert (own-login) process at a time
+        self._on_start: Dict[str, Callable[[str], None]] = {}
+        from .graph import build
+        self.graph = build(self, rel(self.cfg.get("graph_db", "data/graph.db")))
+        from .rag import Rag
+        self.rag = Rag(self.con, self.pool, n)
+
+    # -- registry -------------------------------------------------------
+    @staticmethod
+    def _load_projects(path: str) -> Dict[str, dict]:
+        try:
+            d = yaml.safe_load(open(path)) or {}
+        except OSError:
+            return {}
+        return {p["id"]: p for p in d.get("projects", []) if p.get("id")}
+
+    def project_path(self, project: str, cwd: Optional[str]) -> str:
+        if cwd:
+            return os.path.expanduser(cwd)
+        p = self.projects.get(project or "")
+        return os.path.expanduser(p["path"]) if p and p.get("path") else os.getcwd()
+
+    def _hook(self, event: str, rid: str, **kv) -> None:
+        """config `hooks: {pre_run: [cmd,...], post_run: [...]}`: trusted owner config, run with RUN_ID/EVENT/k=v env."""
+        for cmd in self.cfg.get("hooks", {}).get(event, []) or []:
+            try:
+                env = {**os.environ, "RUN_ID": rid, "EVENT": event, **{k.upper(): str(v) for k, v in kv.items()}}
+                subprocess.run(cmd, shell=True, env=env, timeout=30, capture_output=True, stdin=subprocess.DEVNULL)
+            except Exception:
+                pass  # hooks never break a run
+
+    def watch_once(self, repos: Optional[List[str]] = None, base: str = "~/Developer/refs") -> dict:
+        """Poll GitHub for new commits; pull the local clone, re-ingest and embed what changed."""
+        from .watch import changed
+        out = {}
+        for repo in repos or self.cfg.get("watch", {}).get("repos", []):
+            if changed(self.con._c, repo):
+                d = os.path.join(os.path.expanduser(base), repo.replace("/", "_"))
+                if os.path.isdir(d):
+                    subprocess.run(["git", "-C", d, "pull", "-q", "--ff-only"], timeout=120, capture_output=True)
+                out[repo] = "changed"
+        if out:
+            self.ingest()
+            self.rag.embed_missing()
+        return out
+
+    def allowed_roots(self) -> List[str]:
+        roots = [os.path.realpath(os.path.expanduser(p["path"])) for p in self.projects.values() if p.get("path")]
+        roots += [os.path.realpath(os.path.expanduser(r)) for r in self.cfg.get("allowed_roots", [])]
+        return roots
+
+    def check_cwd(self, cwd: str) -> str:
+        """Model-supplied cwd must live under a registered project or an allowed root."""
+        real = os.path.realpath(os.path.expanduser(cwd))
+        if not any(real == r or real.startswith(r + os.sep) for r in self.allowed_roots()):
+            raise PermissionError(f"cwd {real} is outside registered projects/allowed_roots")
+        return real
+
+    def named_gate(self, name: str) -> str:
+        """Model-supplied gates are names from config `gates:`; raw shell strings are CLI-only."""
+        g = self.cfg.get("gates", {}).get(name)
+        if not g:
+            raise PermissionError(f"unknown gate '{name}'; known: {sorted(self.cfg.get('gates', {}))}")
+        return g
+
+    def ingest(self) -> Dict[str, int]:
+        out: Dict[str, int] = {}
+        for src in self.cfg.get("library", {}).get("sources", []):
+            out[src["path"]] = library.ingest_dir(self.con, src["path"], src["kind"])
+        return out
+
+    # -- llm helpers ----------------------------------------------------
+    def chat(self, messages: List[dict], max_tokens: int = 1500, prefer: str = "NIM_1") -> str:
+        n = self.cfg["nim"]
+        return nim.chat(self.pool, messages, base_url=n["base_url"], model=n["model"], max_tokens=max_tokens,
+                        prefer=prefer, retries=n.get("retries", 1), backoff_s=n.get("backoff_s", 3))
+
+    def summarize(self, text: str) -> str:
+        return self.chat([{"role": "user", "content": text}], max_tokens=800)
+
+    # -- library resolution --------------------------------------------
+    def resolve(self, task: Task) -> tuple[str, dict, str, list]:
+        """Return (prompt_with_template, command_meta, library_notes)."""
+        meta: dict = {}
+        sources: list = []  # provenance: which library rows shaped this prompt (id, kind, name, how)
+        prompt = task.prompt
+        if task.command:
+            row = library.get(self.con, "command", task.command) or library.get(self.con, "skill", task.command)
+            if not row:
+                hits = library.search(self.con, task.command.replace("-", " ") + " " + task.prompt, k=1)
+                row = hits[0] if hits else None
+                if row:
+                    row = library.get(self.con, row["kind"], row["name"])
+            if row:
+                sources.append({"id": row["id"], "kind": row["kind"], "name": row["name"], "how": "command-template"})
+                meta = row["meta"]
+                body = row["body"].strip()
+                prompt = body.replace("$ARGUMENTS", task.prompt).replace("{prompt}", task.prompt) \
+                    if ("$ARGUMENTS" in body or "{prompt}" in body) else f"{body}\n\nTask: {task.prompt}"
+            else:
+                prompt = f"/{task.command} {task.prompt}"
+        hits = self.rag.search(task.prompt, k=8)
+        if self.cfg.get("rerank", True) and len(hits) > 3:
+            from .rerank import rerank
+            hits = rerank(lambda m: self.chat(m, max_tokens=120), task.prompt, hits, k=3)
+        hits = hits[:3]
+        notes = "\n".join(f"- {h['kind']}:{h['name']} - {h['description'][:140]}" for h in hits)
+        # A strong hit (found by both BM25 and embeddings, near the top) contributes its actual instructions, not just a name.
+        inj = self.cfg.get("inject", {})
+        used = {s["id"] for s in sources}
+        for h in hits[: int(inj.get("max_bodies", 1))]:
+            if h["id"] in used or h["kind"] == "command":
+                continue
+            if h["via"] == "both" and h["score"] >= float(inj.get("min_score", 0.028)):
+                row = library.get(self.con, h["kind"], h["name"])
+                if row and row["body"].strip():
+                    clip = row["body"].strip()[: int(inj.get("max_chars", 1500))]
+                    notes += f"\n\n### Instructions from {h['kind']} '{h['name']}' (follow where relevant)\n{clip}"
+                    sources.append({"id": h["id"], "kind": h["kind"], "name": h["name"], "how": "body-injected", "score": h["score"]})
+        for h in hits:
+            if not any(s["id"] == h["id"] for s in sources):
+                sources.append({"id": h["id"], "kind": h["kind"], "name": h["name"], "how": "listed", "score": h["score"]})
+        return prompt, meta, notes, sources
+
+    # -- execution ------------------------------------------------------
+    def _dispatch(self, spec: str, prompt: str, cwd: str, read_only: bool, attempt: int) -> Result:
+        kind, _, arg = spec.partition(":")
+        if kind == "pi":
+            nimcfg = self.cfg["nim"]
+            return self.pi.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
+                               retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
+        if kind == "or":  # OpenRouter free model: second opinion with different weights, read-only by construction
+            model = arg or self.cfg.get("openrouter", {}).get("default_model", "openrouter/free")
+            return self.pi.run_fixed(prompt, cwd, "OPENROUTER_API_KEY", "openrouter/" + model, read_only=True)
+        if kind in ("claude", "codex"):
+            with self._expert_lock:
+                return (self.claude if kind == "claude" else self.codex).run(prompt, cwd, read_only=read_only)
+        return Result(False, f"unknown worker '{spec}'", spec)
+
+    def run(self, text: str, *, session: Optional[str] = None, project: str = "", cwd: Optional[str] = None,
+            gate: Optional[str] = None, isolate: bool = True, worker: str = "", read_only: bool = False,
+            use_vault: bool = True, escalate: Optional[str] = None, on_start: Optional[Callable[[str], None]] = None) -> dict:
+        w = norm_worker(worker or parse(text).worker)
+        if w.startswith("host:"):
+            from . import remote
+            name, _, rworker = w[5:].partition(":")  # host:NAME[:worker]  e.g. host:oracle:nim2
+            h = self.cfg.get("hosts", {}).get(name)
+            if not h:
+                return {"state": "failed", "error": f"unknown host '{name}'; known: {sorted(self.cfg.get('hosts', {}))}"}
+            t = parse(text)
+            body = (f"/{t.command} " if t.command else "") + t.prompt
+            return remote.run(h, body, {"cwd": cwd, "gate_cmd": gate, "read_only": read_only, "project": project,
+                                        "worker": rworker if rworker else ""})
+        rid = uuid.uuid4().hex[:8]
+        if on_start:
+            self._on_start[rid] = on_start
+        opts = {"session": session, "project": project, "cwd": cwd, "gate": gate, "isolate": isolate, "worker": worker,
+                "read_only": read_only, "use_vault": use_vault, "escalate": escalate}
+        return self._invoke({"rid": rid, "text": text, "opts": opts}, rid)
+
+    def allowed(self) -> dict:
+        cmds = {r["name"] for r in self.con.execute("SELECT name FROM library WHERE kind='command'")}
+        workers = {f"nim{i + 1}" for i in range(len(self.pool.names))} | ({"or"} if os.environ.get("OPENROUTER_API_KEY") else set())
+        import shutil
+        if self.cfg.get("decide", {}).get("allow_experts", False):  # experts cost your own subscription: opt-in only
+            workers |= {w for w in ("claude", "codex") if shutil.which(self.cfg.get("workers", {}).get(w, {}).get("cmd", w))}
+        caps = os.path.join(ROOT, "data", "capabilities.json")  # from `backbone doctor`: drop agents that failed their probe
+        if os.path.exists(caps):
+            bad = {a["name"] for a in json.load(open(caps)).get("agents", []) if a.get("usable") is False}
+            workers -= bad
+        workers |= {f"host:{h}" for h in self.cfg.get("hosts", {})}  # remote hosts run their own cheap workers
+        return {"commands": cmds, "projects": set(self.projects), "workers": workers,
+                "gates": set(self.cfg.get("gates", {})), "default_worker": f"nim1"}
+
+    def ask(self, text: str, **opts) -> dict:
+        """Free-text front door: NIM1 decides (validated), router runs, critic reviews opinion-type results."""
+        from .decide import decide
+        plan = decide(lambda m: self.chat(m, max_tokens=500), text, self.allowed(), self.rag.search(text, k=6))
+        t = parse(text)
+        res = self.run(text if t.command else (f"/{plan['command']} " + text if plan["command"] else text),
+                       project=opts.get("project") or plan["project"], worker=opts.get("worker") or plan["worker"],
+                       gate=opts.get("gate") or (self.named_gate(plan["gate"]) if plan["gate"] else None),
+                       read_only=opts.get("read_only", plan["read_only"]), cwd=opts.get("cwd"))
+        res["plan"] = plan
+        if plan["critic"] and res.get("output") and os.environ.get("OPENROUTER_API_KEY"):
+            from . import orchat
+            from .critic import critique
+            res["critic"] = critique(lambda m: orchat.chat(m), text, res["output"])
+        return res
+
+    def resume(self, rid: str) -> dict:
+        """Continue a checkpointed run after a crash: picks up at the node after the last completed one."""
+        return self._invoke(None, rid)
+
+    def _invoke(self, init, rid: str) -> dict:
+        cfg = {"configurable": {"thread_id": rid}}
+        try:
+            final = self.graph.invoke(init, cfg)
+            return final["out"]
+        except Exception as e:  # unexpected: keep the worktree for `resume`, save what the worker did, leave a ticket
+            patch = ""
+            try:
+                st = self.graph.get_state(cfg).values
+                if st.get("ws_path"):
+                    from .workspace import Workspace
+                    d = Workspace.attach(st["proj_path"], st["ws_path"], st.get("ws_base", ""), st.get("isolated", False)).diff()
+                    patch = self.runs.save_patch(rid, d) if d else ""
+            except Exception:
+                pass
+            self.graph.stop_beat(rid)
+            t = self.runs.ticket(rid, f"{type(e).__name__}: {e}", f"rerun `runs resume {rid}` (checkpointed); patch so far: {patch}")
+            self.runs.set(rid, "failed", error=str(e))
+            return {"run": rid, "state": "failed", "error": str(e), "ticket": t, "patch": patch}
+
+    def fanout(self, prompts: List[str], *, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None,
+               session: Optional[str] = None, workers: Optional[List[str]] = None) -> List[dict]:
+        keys = self.pool.names or [self.cfg["nim"]["default_key"]]
+        slots = workers or [f"pi:{keys[i % len(keys)]}" for i in range(len(prompts))]
+        with ThreadPoolExecutor(max_workers=len(prompts)) as ex:
+            futs = [ex.submit(self.run, p, project=project, cwd=cwd, gate=gate, session=session, worker=slots[i], use_vault=False)
+                    for i, p in enumerate(prompts)]
+            return [f.result() for f in futs]
+
+    def swarm(self, goal: str, *, n: int = 3, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None) -> dict:
+        """Planner (NIM1) splits the goal into independent subtasks; workers run them in parallel on separate keys."""
+        raw = self.chat([{"role": "user", "content": (
+            f"Split this goal into at most {n} independent subtasks that touch different files. Do NOT include a "
+            f"summary, write-up or merge subtask: a separate step does that after the others finish. Reply with ONLY a "
+            f"JSON array of strings, each a self-contained instruction.\n\nGoal: {goal}")}], max_tokens=800)
+        m = re.search(r"\[.*\]", raw, re.S)
+        try:
+            subs = [str(s) for s in json.loads(m.group(0))][:n] if m else []
+        except Exception:
+            subs = []
+        if not subs:
+            subs = [goal]
+        results = self.fanout(subs, project=project, cwd=cwd, gate=gate)
+        if len(subs) < 2:
+            return {"plan": subs, "results": results}
+        parts = "\n\n".join(f"### Subtask {i + 1}: {s}\n{str(r.get('output', r.get('error', '')))[:6000]}"
+                            for i, (s, r) in enumerate(zip(subs, results)))
+        final = self.run(f"Goal: {goal}\n\nThe subtasks are finished. Their outputs are below. Use ONLY these outputs "
+                         f"(do not invent facts) to complete the goal.\n\n{parts}",
+                         project=project, cwd=cwd, gate=gate, use_vault=False)
+        return {"plan": subs, "results": results, "final": final}
+
+    def resume_stale(self) -> List[dict]:
+        """Runs whose lease expired (process died): mark failed and write a ticket. Retrying is an explicit rerun."""
+        out = []
+        for r in self.runs.stale():
+            if self.con.execute("SELECT 1 FROM jobs WHERE run_id=? AND state='pending'", (r["id"],)).fetchone():
+                continue  # a pending job will resume it from its checkpoint
+            t = self.runs.ticket(r["id"], "process died or was stopped (lease expired)", "rerun with the same prompt; compare steps first")
+            self.runs.set(r["id"], "blocked", error="lease expired")
+            import shutil
+            shutil.rmtree(os.path.join(self.work_root, r["id"]), ignore_errors=True)
+            out.append({"run": r["id"], "ticket": t})
+        return out

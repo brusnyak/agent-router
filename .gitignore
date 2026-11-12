@@ -60,3 +60,7 @@ Thumbs.db
 # Not part of the router repo
 bp/
 *.bak-*
+data/
+
+*.db-shm
+*.db-wal
