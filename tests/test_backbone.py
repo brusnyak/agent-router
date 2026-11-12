@@ -438,3 +438,22 @@ def test_evidence_flags_missing_paths(tmp_path):
     (tmp_path / "a").mkdir(); (tmp_path / "a" / "real.py").write_text("x")
     txt = "See `a/real.py`, also backbone/pi_worker.py and https://x.io/fake.py and *.py and real.py"
     assert missing_paths(txt, [str(tmp_path)]) == ["backbone/pi_worker.py"]
+
+
+def test_compose_and_tier():
+    from backbone.compose import build, pick_tier
+    an = {"goal": "review spec", "constraints": ["be blunt"], "acceptance": ["cites files"], "output_format": "table"}
+    p, src = build("raw text", an, persona={"id": "agent:pm:1", "kind": "agent", "name": "PM", "body": "You are a PM."})
+    for h in ("## Role", "## Goal", "## Constraints", "## Request", "## Acceptance", "## Output format"):
+        assert h in p
+    assert "raw text" in p and src[0]["name"] == "PM"
+    assert pick_tier("review", {"review": "claude", "other": "nim1"}, {"nim1", "nim2"}) == ("nim1", "tier claude unavailable -> nim1")
+    assert pick_tier("code_edit", {"code_edit": "nim2"}, {"nim1", "nim2"}) == ("nim2", "tier")
+
+
+def test_analyze_validates():
+    from backbone.understand import analyze
+    ok = analyze(lambda m: '{"task_class":"review","goal":"g","constraints":["a"],"acceptance":[],"output_format":"x","needs_code_gate":false}', "q")
+    assert ok["task_class"] == "review" and ok["goal"] == "g"
+    bad = analyze(lambda m: "nonsense", "q")
+    assert bad["task_class"] == "other" and bad["error"] == "analysis_failed"

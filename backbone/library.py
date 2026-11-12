@@ -15,7 +15,7 @@ import sqlite3
 import time
 from typing import Any, Dict, Iterable, List, Optional
 
-_FM = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.S)
+_FM = re.compile(r"^(?:---|<!--)\s*\n(.*?)\n(?:---|-->)\s*\n?", re.S)  # YAML-style or HTML-comment front matter
 
 
 def parse_markdown(text: str) -> tuple[Dict[str, Any], str]:
@@ -67,7 +67,7 @@ def detect_license(root: str) -> str:
     return ""
 
 
-def ingest_dir(con: sqlite3.Connection, root: str, kind: str, max_body: int = 60000) -> int:
+def ingest_dir(con: sqlite3.Connection, root: str, kind: str, max_body: int = 60000, prefix: str = "", match: str = "") -> int:
     """Ingest *.md under root. Skills are <dir>/SKILL.md; commands are <name>.md. Returns rows written."""
     root = os.path.expanduser(root)
     n = 0
@@ -81,7 +81,11 @@ def ingest_dir(con: sqlite3.Connection, root: str, kind: str, max_body: int = 60
                 continue
             if kind == "skill" and fn != "SKILL.md":
                 continue
+            if prefix and not fn.startswith(prefix):
+                continue
             path = os.path.join(dirpath, fn)
+            if match and not re.search(match, path):
+                continue
             try:
                 text = open(path, encoding="utf-8").read()
             except OSError:

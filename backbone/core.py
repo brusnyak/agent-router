@@ -165,7 +165,7 @@ class Backbone:
     def ingest(self) -> Dict[str, int]:
         out: Dict[str, int] = {}
         for src in self.cfg.get("library", {}).get("sources", []):
-            out[src["path"]] = library.ingest_dir(self.con, src["path"], src["kind"])
+            out[src["path"] + (":" + src["prefix"] if src.get("prefix") else "") + (":" + src["match"] if src.get("match") else "")] = library.ingest_dir(self.con, src["path"], src["kind"], prefix=src.get("prefix", ""), match=src.get("match", ""))
         return out
 
     # -- llm helpers ----------------------------------------------------
@@ -278,26 +278,38 @@ class Backbone:
                 "gates": set(self.cfg.get("gates", {})), "default_worker": f"nim1"}
 
     def ask(self, text: str, **opts) -> dict:
-        """Free-text front door: NIM1 decides (validated), router runs, critic reviews opinion-type results."""
+        """Free-text front door: the model analyzes the goal, retrieval picks persona/command/skills, the composer builds the
+        engineered prompt, the tier policy picks the worker, the router runs it, a critic reviews opinion-type results.
+        opts: dry=True returns the engineered prompt and the plan without running anything."""
+        from . import compose, understand
         from .decide import decide, named_persona
         al = self.allowed()
+        llm = lambda m: self.chat(m, max_tokens=500)
+        analysis = understand.analyze(llm, text)
         hits = self.retrieve(text, k=6)
-        al["personas"] = {r["name"]: r["kind"] for r in self.con.execute("SELECT name, kind FROM library WHERE kind IN ('agent','skill')")}
-        plan = decide(lambda m: self.chat(m, max_tokens=500), text, al, hits)
+        al["personas"] = {r["name"]: r["kind"] for r in self.con.execute("SELECT name, kind FROM library WHERE kind IN ('agent','subagent','skill')")}
+        plan = decide(llm, text, al, hits)
         named = named_persona(text, al["personas"])  # owner named it: beats the model's guess
         if named:
             plan["persona"], plan["command"], plan["decided_by"] = named, "", "named"
         t = parse(text)
-        body = text
-        if plan["persona"] and not t.command:
-            row = library.get(self.con, al["personas"][plan["persona"]], plan["persona"])
-            if row and row["body"].strip():
-                body = f"### Persona: {plan['persona']} (act in this role)\n{row['body'].strip()[:2500]}\n\n### Request\n{text}"
-        res = self.run(body if (t.command or plan["persona"]) else (f"/{plan['command']} " + text if plan["command"] else text),
-                       project=opts.get("project") or plan["project"], worker=opts.get("worker") or plan["worker"],
-                       gate=opts.get("gate") or (self.named_gate(plan["gate"]) if plan["gate"] else None),
-                       read_only=opts.get("read_only", plan["read_only"]), cwd=opts.get("cwd"))
-        res["plan"] = plan
+        row = lambda kind, name: library.get(self.con, kind, name) if name else None
+        persona = row(al["personas"].get(plan["persona"], "agent"), plan["persona"]) if plan["persona"] and not t.command else None
+        command = row("command", plan["command"]) if plan["command"] and not t.command else None
+        skills = [r for r in (row(h["kind"], h["name"]) for h in hits if h["kind"] == "skill" and h["name"] != plan["persona"]
+                                                  and h["name"] not in self.cfg.get("exclude_refs", [])) if r][:1]
+        prompt, sources = compose.build(text, analysis, persona, command, skills)
+        worker, why = compose.pick_tier(analysis["task_class"], self.cfg.get("tiers", {}), al["workers"], al["default_worker"])
+        worker = opts.get("worker") or worker
+        plan.update(task_class=analysis["task_class"], tier_reason=why, worker=worker)
+        if opts.get("dry"):
+            return {"state": "dry", "prompt": prompt, "prompt_sources": sources, "analysis": analysis, "plan": plan}
+        gate = opts.get("gate") or (self.named_gate(plan["gate"]) if plan["gate"] else None)
+        res = self.run(text if t.command else prompt, project=opts.get("project") or plan["project"], worker=worker, gate=gate,
+                       read_only=opts.get("read_only", plan["read_only"] or analysis["task_class"] in ("review", "research", "plan", "draft")),
+                       cwd=opts.get("cwd"))
+        res["plan"], res["analysis"] = plan, analysis
+        res["prompt_sources"] = sources + [x for x in res.get("prompt_sources", []) if x["id"] not in {y["id"] for y in sources}]
         if plan["critic"] and res.get("output") and os.environ.get("OPENROUTER_API_KEY"):
             from . import orchat
             from .critic import critique
