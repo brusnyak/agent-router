@@ -431,3 +431,10 @@ def test_named_persona_beats_command():
     assert named_persona("please review this", {"Product Manager": "agent", "review": "skill"}) == ""  # too short/generic
     al = {"commands": set(), "projects": set(), "workers": {"nim1"}, "gates": set(), "personas": {"Product Manager": "agent"}}
     assert validate({"persona": "Invented Bot"}, al)["persona"] == ""
+
+
+def test_evidence_flags_missing_paths(tmp_path):
+    from backbone.evidence import missing_paths
+    (tmp_path / "a").mkdir(); (tmp_path / "a" / "real.py").write_text("x")
+    txt = "See `a/real.py`, also backbone/pi_worker.py and https://x.io/fake.py and *.py and real.py"
+    assert missing_paths(txt, [str(tmp_path)]) == ["backbone/pi_worker.py"]
