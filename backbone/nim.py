@@ -27,7 +27,10 @@ def chat(pool: KeyPool, messages: List[dict], *, base_url: str, model: str, max_
         except urllib.error.HTTPError as e:
             detail = e.read().decode(errors="replace")[:200]
             if e.code == 429 or e.code >= 500:
-                raise Transient(f"http {e.code} on {name}: {detail}")
+                t = Transient(f"http {e.code} on {name}: {detail}")
+                ra = e.headers.get("Retry-After") if e.code == 429 and e.headers else None
+                t.retry_after = float(ra) if ra and ra.replace(".", "", 1).isdigit() else None
+                raise t
             raise RuntimeError(f"http {e.code} on {name}: {detail}")
         except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
             raise Transient(f"{type(e).__name__} on {name}: {e}")

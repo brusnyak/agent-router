@@ -82,6 +82,13 @@ def load_config(path: Optional[str] = None) -> dict:
         return yaml.safe_load(f)
 
 
+def swarm_cap(n, max_workers: int, rpm_limit: int, n_keys: int) -> int:
+    """Worker cap. Explicit numeric n wins; None/'auto' -> max_workers, never above rpm_limit x keys."""
+    if n not in (None, "auto"):
+        return int(n)
+    return max(1, min(max_workers, rpm_limit * n_keys) if n_keys else max_workers)
+
+
 class Backbone:
     def __init__(self, cfg: Optional[dict] = None, env: Optional[dict] = None):
         self.cfg = cfg or load_config()
@@ -89,8 +96,8 @@ class Backbone:
         rel = lambda p: os.path.expanduser(p) if os.path.isabs(os.path.expanduser(p)) else os.path.join(base, p)
         self.con = connect(rel(self.cfg["db"]))
         n = self.cfg["nim"]
-        self.pool = KeyPool(n["keys"], max_concurrent=n.get("max_concurrent_per_key", 2),
-                            cooldown_s=n.get("cooldown_s", 20), env=env, wait_s=n.get("wait_s", 120))
+        self.pool = KeyPool(n["keys"], max_concurrent=n.get("max_concurrent_per_key", 0),
+                            cooldown_s=n.get("cooldown_s", 0), rpm_limit=n.get("rpm_limit", 40), env=env, wait_s=n.get("wait_s", 120))
         self.sessions = Sessions(self.con, self.cfg.get("context", {}))
         self.runs = Runs(self.con, rel(self.cfg["tickets_dir"]), rel(self.cfg.get("runs_dir", "data/runs")))
         self.work_root = rel(self.cfg.get("work_dir", "data/work"))
@@ -360,10 +367,11 @@ class Backbone:
                     for i, p in enumerate(prompts)]
             return [f.result() for f in futs]
 
-    def swarm(self, goal: str, *, n: int = 3, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None) -> dict:
-        """Planner (NIM1) splits the goal into independent subtasks; workers run them in parallel on separate keys."""
+    def swarm(self, goal: str, *, n=None, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None) -> dict:
+        """Planner (NIM1) picks the subtask count (n=None/'auto'), capped; workers run in parallel, depth 1."""
+        n = swarm_cap(n, self.cfg.get("swarm", {}).get("max_workers", 8), self.pool.rpm_limit, len(self.pool.names))
         raw = self.chat([{"role": "user", "content": (
-            f"Split this goal into at most {n} independent subtasks that touch different files. Do NOT include a "
+            f"Split this goal into as many independent subtasks as it needs, at most {n}, that touch different files. Do NOT include a "
             f"summary, write-up or merge subtask: a separate step does that after the others finish. Reply with ONLY a "
             f"JSON array of strings, each a self-contained instruction.\n\nGoal: {goal}")}], max_tokens=800)
         m = re.search(r"\[.*\]", raw, re.S)
