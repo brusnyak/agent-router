@@ -91,9 +91,17 @@ def test_nim_agent_dispatch_without_key():
         "api_key_env": "NIM_NONEXISTENT",
     }
     agent = NIMAgent("nim3", config)
-    assert agent.is_available() is False  # no key + no nim_call.py path check
-    result = agent.dispatch({"goal": "test", "task_id": "t1", "lane": "research"})
-    assert "not set" in result or "Error" in result
+    with patch.dict(os.environ, {}, clear=False) as _:
+        os.environ.pop("NIM_NONEXISTENT", None)
+        assert agent.is_available() is False  # no key
+        # no network: any HTTP attempt fails; dispatch must raise, not return
+        with patch("urllib.request.urlopen", side_effect=OSError("no network")) as m:
+            try:
+                agent.dispatch({"goal": "test", "task_id": "t1", "lane": "research"})
+                raised = False
+            except RuntimeError as e:
+                raised = "nim3" in str(e)
+        assert raised and m.called
 
 
 def test_create_agent_factory():

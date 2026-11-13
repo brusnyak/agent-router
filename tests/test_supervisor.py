@@ -57,11 +57,15 @@ def test_select_model_for_task_returns_none_when_no_keys():
 
 def test_nim_key_available_flag():
     """NIM availability reflects whether NIM keys were found."""
+    fake = [{"id": "nim1", "provider": "nim", "api_key_env": "NIM_TEST_KEY"}]
     s = RouterSupervisor()
-    agents = s.get_available_agents()
-    nim_agents = [a for a in agents if a["provider"] == "nim"]
-    # At least one NIM key env var should be set
-    assert any("NIM_" in (a.get("api_key_env", "")) for a in nim_agents)
+    with patch("graph.router._load_agents", return_value=fake), \
+         patch.dict(os.environ, {"NIM_TEST_KEY": "x"}):
+        assert s.get_available_agents()[0]["available"] is True
+    with patch("graph.router._load_agents", return_value=fake), \
+         patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("NIM_TEST_KEY", None)
+        assert s.get_available_agents()[0]["available"] is False
 
 
 def test_apply_drift_constraints_blocks_claude():
