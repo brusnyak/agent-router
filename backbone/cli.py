@@ -13,6 +13,13 @@ def _j(o) -> None:
     print(json.dumps(o, indent=2, default=str))
 
 
+_EVAL = {
+    "librarian": ("librarian.py", "catalog report (passthrough args)"),
+    "aa-replay": ("backfill_aa.py", "A/A replay (passthrough args)"),
+    "enrich": ("shadow_enrich.py", "enrich shadow receipts (passthrough args)"),
+}
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="backbone")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -23,7 +30,7 @@ def main(argv=None) -> None:
     r.add_argument("--gate", help="acceptance command run by the router (exit 0 = pass)")
     r.add_argument("--worker", default=""); r.add_argument("--no-isolate", action="store_true")
     r.add_argument("--read-only", action="store_true"); r.add_argument("--no-vault", action="store_true")
-    r.add_argument("--escalate", default=None)
+    r.add_argument("--escalate", default=None); r.add_argument("--force-worker", action="store_true")
 
     f = sub.add_parser("fanout", help="run several prompts in parallel, one NIM key each")
     f.add_argument("prompts", nargs="+"); f.add_argument("--cwd"); f.add_argument("--gate"); f.add_argument("--project", default="")
@@ -58,7 +65,32 @@ def main(argv=None) -> None:
     sub.add_parser("init", help="write ~/.agent-router/backbone.yaml from what discover found")
     sub.add_parser("keys")
     sub.add_parser("mcp")
-    a = ap.parse_args(argv)
+    for n, (_f, h) in _EVAL.items():
+        sub.add_parser(n, help=h)
+    rr = sub.add_parser("router-report", help="hook A/B report: treat vs holdout follow rate")
+    rr.add_argument("--json", action="store_true"); rr.add_argument("--receipts"); rr.add_argument("--outcomes")
+    cp = sub.add_parser("compile", help="prompt -> compact card (entities kept verbatim)")
+    cp.add_argument("text"); cp.add_argument("--no-llm", action="store_true")
+    a, rest = ap.parse_known_args(argv)
+    if a.cmd in _EVAL:
+        import importlib.util as _u, os as _os
+        root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        _os.chdir(root)
+        sp = _u.spec_from_file_location(a.cmd, _os.path.join(root, "eval", _EVAL[a.cmd][0]))
+        m = _u.module_from_spec(sp); sp.loader.exec_module(m)
+        raise SystemExit(m.main(rest) or 0)
+    if rest:
+        ap.error("unrecognized arguments: " + " ".join(rest))
+    if a.cmd == "router-report":
+        from . import hook_log
+        hl = ["report"] + (["--json"] if a.json else [])
+        for k in ("receipts", "outcomes"):
+            if getattr(a, k):
+                hl += ["--" + k, getattr(a, k)]
+        raise SystemExit(hook_log.main(hl))
+    if a.cmd == "compile":
+        from . import compile as _c
+        raise SystemExit(_c.main([a.text] + (["--no-llm"] if a.no_llm else [])))
 
     if a.cmd == "mcp":
         from .mcp_server import serve
@@ -88,7 +120,10 @@ def main(argv=None) -> None:
         from .doctor import run as doctor_run
         import tempfile
         out = _os_path = __import__("os").path.join(__import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__))), "data", "capabilities.json")
-        _j(doctor_run(discover()["agents"], tempfile.mkdtemp(prefix="doctor-"), out, a.only))
+        res = doctor_run(discover()["agents"], tempfile.mkdtemp(prefix="doctor-"), out, a.only)
+        from . import health
+        health.save(__import__("os").path.join(__import__("os").path.dirname(out), "doctor.json"), res)
+        _j(res)
         return
     bb = Backbone()
     if a.cmd == "telegram-pair":
@@ -108,9 +143,27 @@ def main(argv=None) -> None:
     if a.cmd == "ask":
         _j(bb.ask(" ".join(a.text), cwd=a.cwd, dry=a.dry))
     elif a.cmd == "run":
-        _j(bb.run(" ".join(a.prompt), session=a.session, project=a.project, cwd=a.cwd, gate=a.gate,
-                  isolate=not a.no_isolate, worker=a.worker, read_only=a.read_only, use_vault=not a.no_vault,
-                  escalate=a.escalate))
+        import os as _o
+        from . import health
+        hp = _o.path.join(_o.path.dirname(_o.path.dirname(_o.path.abspath(__file__))), "data", "doctor.json")
+        worker, esc = a.worker, a.escalate
+        if not a.force_worker:
+            want = worker or next((t[1:] for t in a.prompt if t.startswith("@")), "")
+            if want in ("claude", "codex") and not health.usable(hp, want):
+                alt = health.pick([w for w in ("claude", "codex") if w in bb.cfg.get("workers", {})], lambda w: health.usable(hp, w))
+                if not alt:
+                    print(f"no usable worker per doctor ({want} down); --force-worker to bypass", file=sys.stderr)
+                    raise SystemExit(3)
+                print(f"worker {want} unusable per doctor; using {alt}", file=sys.stderr)
+                worker = alt
+            ex = bb.cfg.get("escalation", {}).get("expert", "") if esc is None else esc
+            if ex and not health.usable(hp, ex):
+                print(f"escalation expert {ex} unusable per doctor; escalation off", file=sys.stderr)
+                esc = ""
+        _j(bb.run(" ".join(a.prompt), session=a.session, project=a.project, cwd=a.cwd,
+                  gate=health.rewrite_gate(a.gate, a.cwd or _o.getcwd()) if a.gate else a.gate,
+                  isolate=not a.no_isolate, worker=worker, read_only=a.read_only, use_vault=not a.no_vault,
+                  escalate=esc))
     elif a.cmd == "fanout":
         _j(bb.fanout(a.prompts, project=a.project, cwd=a.cwd, gate=a.gate))
     elif a.cmd == "swarm":

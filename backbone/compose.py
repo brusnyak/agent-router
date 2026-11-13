@@ -24,6 +24,9 @@ def build(raw: str, analysis: Dict, persona: Optional[Dict] = None, command: Opt
     if analysis.get("constraints"):
         parts.append("## Constraints\n" + "\n".join(f"- {c}" for c in analysis["constraints"]))
     parts.append(f"## Request (verbatim from the owner)\n{raw.strip()}")
+    nt = analysis.get("named_things") or []
+    if nt:
+        parts.append(("Named things (verbatim): " + ", ".join(nt))[:400])
     acc = list(analysis.get("acceptance") or [])
     acc.append("Cite only files, commands and facts you actually checked; mark anything else `unverified:`.")
     parts.append("## Acceptance\n" + "\n".join(f"- {a}" for a in acc))

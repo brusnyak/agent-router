@@ -11,7 +11,7 @@ import sys
 from typing import Iterator, Optional
 
 SECRET = re.compile(r"(nvapi-|sk-[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{16,}|xox[bp]-|AKIA[0-9A-Z]{12,}|\d{8,}:AA[\w-]{30,}|BEGIN [A-Z ]*PRIVATE KEY|password\s*[:=]|api[_-]?key\s*[:=])", re.I)
-NOISE = ("<system-reminder", "<command-", "Caveat:", "<local-command", "[Request interrupted", "<task-notification", "<ide_", "<user-prompt")
+NOISE = ("Another Claude session sent", "[SYSTEM NOTIFICATION", "<system-reminder", "<command-", "Caveat:", "<local-command", "[Request interrupted", "<task-notification", "<ide_", "<user-prompt")
 
 
 def human_text(msg: dict) -> Optional[str]:
@@ -23,9 +23,9 @@ def human_text(msg: dict) -> Optional[str]:
     if not isinstance(c, str):
         return None
     c = c.strip()
-    if len(c) < 25 or len(c) > 3000 or any(n in c[:80] for n in NOISE) or SECRET.search(c):
+    if len(c) < 25 or any(n in c[:80] for n in NOISE) or SECRET.search(c):
         return None
-    return c
+    return c if len(c) <= 3000 else c[:1500] + "\n[TRUNCATED]"  # long dictation kept (head only), not dropped
 
 
 def tool_labels(msg: dict) -> tuple[list, list]:
@@ -43,6 +43,7 @@ def tool_labels(msg: dict) -> tuple[list, list]:
 
 def walk(path: str) -> Iterator[dict]:
     cur: Optional[dict] = None
+    n = 0  # human prompts seen so far in this session file
     for line in open(path, encoding="utf-8", errors="replace"):
         try:
             m = json.loads(line)
@@ -54,7 +55,9 @@ def walk(path: str) -> Iterator[dict]:
             t = human_text(m)
             if cur:
                 yield cur
-            cur = {"prompt": t, "skills": [], "agents": [], "ts": m.get("timestamp", ""), "project": os.path.basename(os.path.dirname(path))} if t else None
+            cur = {"prompt": t, "skills": [], "agents": [], "ts": m.get("timestamp", ""), "project": os.path.basename(os.path.dirname(path)),
+                   "truncated": t.endswith("[TRUNCATED]"), "n_prior_prompts_in_session": n} if t else None
+            n += 1 if t else 0
         elif m.get("type") == "assistant" and cur:
             s, a = tool_labels(m)
             cur["skills"] += s
@@ -68,7 +71,7 @@ def main(out_dir: str = "eval/heldout") -> None:
     seen, rows = set(), []
     for f in sorted(glob.glob(os.path.expanduser("~/.claude/projects/*/*.jsonl"))):
         for r in walk(f):
-            key = re.sub(r"\W+", " ", r["prompt"].lower())[:120]
+            key = re.sub(r"\W+", " ", r["prompt"].lower())
             if key in seen:
                 continue
             seen.add(key)

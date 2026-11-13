@@ -67,3 +67,7 @@ data/
 *.db-shm
 *.db-wal
 eval/heldout/
+eval/heldout_v2/
+
+# run logs hold owner prompt text
+logs/

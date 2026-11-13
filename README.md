@@ -153,3 +153,14 @@ After evaluations accumulate, `scripts/config_drift.py` analyzes PEEM scores and
 ## License
 
 MIT
+
+## Shadow hook, librarian, compiler (2026-11-13)
+
+Shadow-first context hook for Claude Code. It logs what it would suggest and injects nothing.
+
+- `backbone/hook.py`: UserPromptSubmit hook, LLM-free, network-free, fails open. Receipts hold a hash and length, never prompt text. `backbone/hook_log.py` joins outcomes and reports treat vs holdout (`python3 -m backbone.hook_log report`).
+- `scripts/shadow_hook.py status|install|uninstall`: edits `~/.claude/settings.json` (backup first, removes only its own entries). `scripts/outcome_hook.py` logs Skill/Agent/Task outcomes.
+- `backbone/compile.py`: turns a dictation into a short fact card (entities copied verbatim; falls back to rules without an LLM).
+- `eval/librarian.py`: propose-only catalog report (usage, duplicates, staleness); never moves files. `scripts/nightly.sh` chains catalog, enrich, librarian, report (`NIGHTLY_DRY=1` prints only).
+- Measured (silver labels are LLM-made, unverified): 517 of 1,011 prompts labelled; dense retrieval top-1 25% / top-3 46% vs 14% guess floor. Not an auto-picker.
+- Invariants and tests: `docs/INVARIANTS.md`. Status and next steps: `HANDOFF.md`. Oracle/Hermes: `docs/ORACLE-HERMES.md`.
