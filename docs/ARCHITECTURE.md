@@ -29,20 +29,20 @@ The hook assigns an arm from the session id: FNV-1a of the id modulo 100, below 
 
 ```mermaid
 sequenceDiagram
-    participant U as "Owner"
-    participant C as "Claude Code"
-    participant H as "hook.py"
-    participant L as "Receipt log"
-    participant O as "outcome_hook.py"
-    U->>C: "dictated prompt"
-    C->>H: "UserPromptSubmit payload"
-    H->>H: "bypass checks"
-    H->>H: "arm = FNV-1a of session id mod 100 under 20 is holdout"
-    H->>L: "append hash, length, arm, ids"
-    H-->>C: "empty stdout, exit 0"
-    C->>C: "model works on the unmodified prompt"
-    C->>O: "PostToolUse for Skill, Agent or Task"
-    O->>L: "append outcome row"
+    participant U as Owner
+    participant C as Claude Code
+    participant H as hook.py
+    participant L as Receipt log
+    participant O as outcome_hook.py
+    U->>C: dictated prompt
+    C->>H: UserPromptSubmit payload
+    H->>H: bypass checks
+    H->>H: arm = FNV-1a of session id mod 100 under 20 is holdout
+    H->>L: append hash, length, arm, ids
+    H-->>C: empty stdout, exit 0
+    C->>C: model works on the unmodified prompt
+    C->>O: PostToolUse for Skill, Agent or Task
+    O->>L: append outcome row
 ```
 
 ## 3. Evaluation pipeline
