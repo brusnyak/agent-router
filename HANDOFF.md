@@ -1,6 +1,6 @@
 # HANDOFF: Agent Router (2026-11-13, end of day). Old handoff: `docs/archive/HANDOFF-2026-11-12-pre-shadow.md`
 
-Repo `~/Developer/agent-router`, branch `dev/backbone`, private, nothing pushed. Oracle/Hermes: `docs/ORACLE-HERMES.md`.
+Repo `~/Developer/agent-router`, branch `dev/backbone`, PRIVATE at https://github.com/brusnyak/agent-router (pushed 2026-11-13, commit 432cfb1; `main` not touched). Isolated router workers now see this committed state. Oracle/Hermes: `docs/ORACLE-HERMES.md`.
 Labels: proven = a command was run this session; reported = claim from a worker or the owner's brief, not re-run.
 
 ## (a) NEXT SESSION: paste this prompt
@@ -15,8 +15,8 @@ End with: what changed, the gate output, what is next. Keep it under 8 lines.
 
 ## (b) State in 10 lines
 1. Exists: a shadow UserPromptSubmit hook, an outcome hook, a receipt/outcome log with treat-vs-holdout report, a dictation compiler, an offline librarian, a nightly script.
-2. Modules (new, uncommitted, see `git status`): `backbone/{hook,hook_log,compile,health}.py`, `scripts/{shadow_hook,outcome_hook,nightly}`, `eval/{librarian,shadow_eval,shadow_enrich,spotcheck_cards,backfill_aa,build_catalog,...}`.
-3. Merged: `kind.py` and its test deleted (staged, not committed). Everything else is on `dev/backbone`, not on main.
+2. Modules (committed): `backbone/{hook,hook_log,compile,health}.py`, `scripts/{shadow_hook,outcome_hook,nightly}`, `eval/{librarian,shadow_eval,shadow_enrich,spotcheck_cards,backfill_aa,build_catalog,...}`; `third_party/` holds Apache-2.0 study copies of meta-router and agent-router files (see its NOTICE.md).
+3. `kind.py` and its test deleted (in the commit). Everything is on `dev/backbone`, not on main. Private data (`eval/heldout*`, `data/`, `logs/`, `.env`) is gitignored and was never committed.
 4. Silver labels (2 of 3 LLM judges agree): 517 of 1,011 real prompts, 124 in the frozen test split. Unverified by a human.
 5. Retrieval vs silver: dense NIM embed top-1 25.0% / top-3 46.0%; always-guess floor 14.1%.
 6. On the test split dense top-1 is 17.7%, below the always-"research" guess (25.8%).
