@@ -9,14 +9,19 @@ projects_file: config/projects.yaml
 nim:
   base_url: https://integrate.api.nvidia.com/v1
   model: nvidia/nemotron-3.5-super-vl-120b-a12b   # direct NIM id; Pi uses nim<N>/<this>
+  # Hermes keeps its own key outside this list; list only the keys the router may use
   keys: [NIM_1, NIM_2, NIM_3]      # env var names; values never stored here
   default_key: NIM_1
   embed_model: nvidia/nemotron-3.5-embed-1b   # dense retrieval; BM25-only if unavailable
-  max_concurrent_per_key: 2        # measured: cold node 41 s, warm 0.6 s
+  rpm_limit: 40                    # requests/min per key, sliding 60 s window
+  max_concurrent_per_key: 0        # 0 = unlimited
   retries: 1
   backoff_s: 3
-  cooldown_s: 20
+  cooldown_s: 0                    # 0 = fail over at once; 429 Retry-After still cools that key
   wait_s: 120
+
+swarm:
+  max_workers: 8                   # cap when -n is auto; also capped by rpm_limit x keys
 
 workers:
   pi:     {cmd: pi,     timeout_s: 600}

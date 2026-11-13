@@ -36,7 +36,7 @@ def main(argv=None) -> None:
     f.add_argument("prompts", nargs="+"); f.add_argument("--cwd"); f.add_argument("--gate"); f.add_argument("--project", default="")
 
     s = sub.add_parser("swarm", help="planner splits a goal, workers run subtasks in parallel")
-    s.add_argument("goal"); s.add_argument("-n", type=int, default=3); s.add_argument("--cwd"); s.add_argument("--gate"); s.add_argument("--project", default="")
+    s.add_argument("goal"); s.add_argument("-n", default="auto", help="worker count or auto"); s.add_argument("--cwd"); s.add_argument("--gate"); s.add_argument("--project", default="")
 
     lib = sub.add_parser("library"); ls = lib.add_subparsers(dest="lcmd", required=True)
     ls.add_parser("ingest"); ls.add_parser("counts"); ls.add_parser("embed")
@@ -167,7 +167,7 @@ def main(argv=None) -> None:
     elif a.cmd == "fanout":
         _j(bb.fanout(a.prompts, project=a.project, cwd=a.cwd, gate=a.gate))
     elif a.cmd == "swarm":
-        _j(bb.swarm(a.goal, n=a.n, project=a.project, cwd=a.cwd, gate=a.gate))
+        _j(bb.swarm(a.goal, n=None if a.n == "auto" else int(a.n), project=a.project, cwd=a.cwd, gate=a.gate))
     elif a.cmd == "library":
         if a.lcmd == "ingest":
             _j(bb.ingest())
