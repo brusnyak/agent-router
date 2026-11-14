@@ -33,6 +33,7 @@ class KeyPool:
         self._cool: Dict[str, float] = {n: 0.0 for n in self.names}
         self.stats: Dict[str, Dict[str, int]] = {n: {"ok": 0, "fail": 0} for n in self.names}
         self._mu = threading.Lock()
+        self._inflight: Dict[str, int] = {}  # leases currently held (a long agent run holds its key for minutes)
 
     def value(self, name: str) -> str:
         return self.env.get(name, "")
@@ -54,7 +55,7 @@ class KeyPool:
         if prefer in order:
             order.remove(prefer)
             order.insert(0, prefer)
-        order.sort(key=lambda n: (self._cool[n] > now, n == avoid, self._count(n, now)))  # cooled/avoided last, then fewest in window
+        order.sort(key=lambda n: (self._cool[n] > now, n == avoid, self._inflight.get(n, 0), self._count(n, now)))  # cooled/avoided last, then fewest in-flight (long agent runs), then fewest in window
         return order
 
     @contextlib.contextmanager
@@ -72,6 +73,7 @@ class KeyPool:
                     if n in self._sem and not self._sem[n].acquire(blocking=False):
                         continue
                     self._win[n].append(now)
+                    self._inflight[n] = self._inflight.get(n, 0) + 1
                     got = n
                     break
             if got is None:
@@ -81,6 +83,8 @@ class KeyPool:
         try:
             yield got
         finally:
+            with self._mu:
+                self._inflight[got] = max(0, self._inflight.get(got, 1) - 1)
             if got in self._sem:
                 self._sem[got].release()
 
