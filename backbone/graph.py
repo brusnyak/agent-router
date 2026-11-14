@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
+from .runs import StaleLease
 from .workers import Result
 from .workspace import IsolationError, Workspace, run_gate
 
@@ -56,16 +57,19 @@ def build(bb, db_path: str):
     gcon.execute("PRAGMA busy_timeout=30000")
     saver = SqliteSaver(gcon)
     beats: Dict[str, threading.Event] = {}
+    fences: Dict[str, int] = {}  # epoch this process owns for each run
 
     def start_beat(rid: str) -> None:
         if rid in beats:
             return
         ev = threading.Event()
         beats[rid] = ev
+        fences[rid] = bb.runs.fence(rid)
 
         def beat():
             while not ev.wait(20):
-                bb.runs.heartbeat(rid)
+                if not bb.runs.heartbeat(rid, fences[rid]):
+                    break  # reaped: stop reviving the lease
 
         threading.Thread(target=beat, daemon=True).start()
 
@@ -126,8 +130,9 @@ def build(bb, db_path: str):
         prompt = s["packet"] + (f"\n\n## Previous attempt failed the acceptance check\n{s['feedback']}\nFix it."
                                 if s.get("feedback") else "")
         r = bb._dispatch(s["plan"][n], prompt, s["ws_path"], s["read_only"], n + 1)
-        bb.runs.step(rid, n + 1, "work", r.worker, r.key_slot, r.ok, r.latency_ms, r.text)
-        bb.runs.set(rid, "running", worker=r.worker, attempt=n + 1)
+        bb.runs.step(rid, n + 1, "work", r.worker, r.key_slot, r.ok, r.latency_ms, r.text, fence=fences.get(rid))
+        if not bb.runs.set(rid, "running", worker=r.worker, attempt=n + 1, fence=fences.get(rid)):
+            raise StaleLease(f"run {rid}: lease was reaped; stale worker write rejected")
         return {"last": dataclasses.asdict(r)}
 
     def check(s: S) -> dict:
@@ -136,7 +141,7 @@ def build(bb, db_path: str):
             return {"accepted": False, "feedback": f"worker error: {last['text'][:500]}", "n": n + 1}
         if s.get("gate"):
             ok, out = run_gate(s["gate"], s["ws_path"])
-            bb.runs.step(rid, n + 1, "gate", "router", "", ok, 0, out)
+            bb.runs.step(rid, n + 1, "gate", "router", "", ok, 0, out, fence=fences.get(rid))
             if ok:
                 return {"accepted": True, "verified": True, "gate_out": out, "n": n + 1}
             return {"accepted": False, "feedback": out[-800:], "gate_out": out, "n": n + 1}
@@ -153,11 +158,13 @@ def build(bb, db_path: str):
         patch = bb.runs.save_patch(rid, diff) if diff else ""
         ticket = ""
         if success:
-            bb.runs.set(rid, "done")
+            if not bb.runs.set(rid, "done", fence=fences.get(rid)):
+                raise StaleLease(f"run {rid}: lease was reaped; 'done' from a stale worker rejected")
         else:
             reason = (s.get("gate_out") or last["text"])[:400]
             ticket = bb.runs.ticket(rid, reason, "retry with a smaller scope or a different worker/key; read the last steps first")
-            bb.runs.set(rid, "blocked", error=reason)
+            if not bb.runs.set(rid, "blocked", error=reason, fence=fences.get(rid)):
+                raise StaleLease(f"run {rid}: lease was reaped; 'blocked' from a stale worker rejected")
         bb.sessions.add_turn(s["sid"], "assistant", last["text"][:4000])
         try:
             bb.sessions.maybe_fold(s["sid"], bb.summarize)

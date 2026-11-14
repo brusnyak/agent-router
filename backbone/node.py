@@ -25,6 +25,8 @@ def local_opts(bb, opts: dict) -> dict:
     for k in ("project", "worker", "read_only"):
         if opts.get(k):
             out[k] = opts[k]
+    if os.environ.get("NODE_ALLOW_WRITE") != "1":  # default: a hub job can never write on this machine
+        out["read_only"] = True
     return out
 
 

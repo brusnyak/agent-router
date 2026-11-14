@@ -17,7 +17,8 @@ def build_command(host: Dict, text: str, opts: Dict) -> list:
     pre = f"cd {host.get('dir', '~/agent-router')}"
     if host.get("env"):
         pre += f" && set -a && . {host['env']} && set +a"
-    pp = f"PYTHONPATH={host['pythonpath']} " if host.get("pythonpath") else ""
+    # BACKBONE_SCRUB_PP: __main__ drops PYTHONPATH again so child agents (hermes, pi) do not inherit it
+    pp = f"BACKBONE_SCRUB_PP=1 PYTHONPATH={host['pythonpath']} " if host.get("pythonpath") else ""
     return ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host["ssh"], f"{pre} && {pp}{shlex.join(parts)}"]
 
 

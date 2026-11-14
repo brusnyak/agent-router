@@ -39,6 +39,9 @@ def make_handler(bb, token: str):
             u = urlparse(self.path)
             if u.path == "/nodes":
                 return self._send(200, jobs.nodes())
+            if u.path.startswith("/jobs/"):
+                j = jobs.get(u.path.split("/")[2])
+                return self._send(200 if j else 404, j or {"error": "not found"})
             if u.path == "/jobs":
                 return self._send(200, jobs.list())
             if u.path.startswith("/runs/"):

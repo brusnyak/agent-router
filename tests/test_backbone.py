@@ -385,7 +385,7 @@ def test_remote_command_and_host_dispatch(bb):
     from backbone import remote
     host = {"ssh": "box", "dir": "~/agent-router", "env": "~/.config/agent-router/env", "pythonpath": ".deps"}
     cmd = remote.build_command(host, "do 'x'; rm", {"cwd": "/tmp/r", "gate_cmd": "true", "read_only": True})
-    assert cmd[0] == "ssh" and cmd[5] == "box" and "PYTHONPATH=.deps" in cmd[-1] and "'do '\"'\"'x'\"'\"'; rm'" in cmd[-1]
+    assert cmd[0] == "ssh" and cmd[5] == "box" and "BACKBONE_SCRUB_PP=1 PYTHONPATH=.deps" in cmd[-1] and "'do '\"'\"'x'\"'\"'; rm'" in cmd[-1]
     import subprocess
     out = remote.run(host, "hi", {}, runner=lambda c, **k: subprocess.CompletedProcess(c, 0, 'noise\n{"state":"done","run":"r1"}', ""))
     assert out["state"] == "done" and out["host"] == "box"
@@ -540,3 +540,81 @@ def test_telegram_pairing(tmp_path):
     # a bot owned by another service (webhook set) is refused
     r2 = pairing.pair("1:x", str(tmp_path / "x"), 1, api=lambda m, p, t=35: {"ok": True, "result": {"url": "https://x"}})
     assert not r2["ok"] and "webhook" in r2["reason"]
+
+
+def test_node_local_opts_forces_read_only(monkeypatch):
+    from backbone import node
+    monkeypatch.delenv("NODE_ALLOW_WRITE", raising=False)
+    assert node.local_opts(None, {"worker": "claude"})["read_only"] is True
+    monkeypatch.setenv("NODE_ALLOW_WRITE", "1")
+    assert "read_only" not in node.local_opts(None, {"worker": "claude"})
+
+
+def test_hook_nudges_only_heavy_treat_prompts():
+    from backbone import hook
+    heavy = "refactor the whole module and write tests for every file in the repo, then audit it"
+    assert hook.is_heavy(heavy) and not hook.is_heavy("fix the typo in README")
+    arms = {}
+    for i in range(200):
+        r = hook.decide({"prompt": heavy, "session_id": f"s{i}", "prompt_id": "p"})
+        arms.setdefault(r["arm"], []).append(bool(r["selected"]))
+    assert all(arms["treat"]) and not any(arms["holdout"])
+    assert not hook.decide({"prompt": "fix the typo in README", "session_id": "x1"})["selected"]
+
+
+def test_main_scrubs_pythonpath_for_children(tmp_path):
+    import subprocess, sys, os
+    env = dict(os.environ, BACKBONE_SCRUB_PP="1", PYTHONPATH=str(tmp_path))
+    code = "import runpy,os,sys;sys.argv=['x','--help'];\ntry: runpy.run_module('backbone',run_name='__main__')\nexcept SystemExit: pass\nprint('PP=',os.environ.get('PYTHONPATH'))"
+    out = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(__file__))).stdout
+    assert "PP= None" in out
+
+
+def test_build_command_without_pythonpath():
+    from backbone import remote
+    cmd = remote.build_command({"ssh": "box"}, "hi", {})
+    assert "PYTHONPATH" not in cmd[-1] and "BACKBONE_SCRUB_PP" not in cmd[-1]
+
+
+def _runs(tmp_path):
+    from backbone import db, runs
+    con = db.connect(str(tmp_path / "t.db"))
+    return con, runs.Runs(con, str(tmp_path / "t"), str(tmp_path / "r")), runs
+
+
+def test_zombie_write_rejected_after_reap(tmp_path):
+    import time
+    con, R, runs = _runs(tmp_path)
+    rid = R.create("s", "p", "run", "task", "A")
+    f = R.fence(rid)
+    con.execute("UPDATE runs SET lease_until=? WHERE id=?", (time.time() - 5, rid)); con.commit()
+    assert [r["id"] for r in R.stale()] == [rid]
+    assert R.reap(rid, "lease expired") and R.fence(rid) == f + 1
+    assert not R.set(rid, "done", worker="A", fence=f)                 # stale 'done' rejected
+    assert not R.heartbeat(rid, fence=f)                               # lease not revived
+    import pytest
+    with pytest.raises(runs.StaleLease):
+        R.step(rid, 1, "work", "A", "k", True, 1, "zombie", fence=f)
+    r = R.get(rid)
+    assert r["state"] == "blocked" and r["error"] == "lease expired" and r["lease_until"] < time.time()
+    assert R.steps(rid) == []
+
+
+def test_current_owner_still_writes_and_unfenced_compat(tmp_path):
+    con, R, runs = _runs(tmp_path)
+    rid = R.create("s", "p", "run", "task", "A")
+    f = R.fence(rid)
+    assert R.heartbeat(rid, fence=f) and R.set(rid, "done", fence=f)
+    assert R.set(rid, "done")                                           # old callers without a fence keep working
+    assert not R.reap(rid, "x")                                         # only 'running' runs can be reaped
+
+
+def test_fence_column_migrates_old_db(tmp_path):
+    import sqlite3
+    from backbone import db
+    p = tmp_path / "old.db"
+    c = sqlite3.connect(p)
+    c.execute("CREATE TABLE runs(id TEXT PRIMARY KEY, state TEXT NOT NULL, lease_until REAL DEFAULT 0)")
+    c.commit(); c.close()
+    con = db.connect(str(p))
+    assert "fence" in {r[1] for r in con.execute("PRAGMA table_info(runs)")}

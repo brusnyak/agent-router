@@ -77,8 +77,20 @@ class Rag:
         done = 0
         for i in range(0, len(rows), self.batch):
             chunk = rows[i:i + self.batch]
-            vecs = _post(self.pool, self.base_url, self.model, [self._doc(r) for r in chunk], "passage")
+            try:
+                vecs = _post(self.pool, self.base_url, self.model, [self._doc(r) for r in chunk], "passage")
+            except RuntimeError as e:
+                if "422" not in str(e):  # content-safety rejection of one input: embed row by row, skip the rejected ones
+                    raise
+                vecs = []
+                for r in chunk:
+                    try:
+                        vecs.append(_post(self.pool, self.base_url, self.model, [self._doc(r)], "passage")[0])
+                    except RuntimeError:
+                        vecs.append(None)
             for r, v in zip(chunk, vecs):
+                if v is None:
+                    continue
                 self.con.execute("INSERT OR REPLACE INTO embeddings(id,model,dim,vec,ts) VALUES (?,?,?,?,?)",
                                  (r["id"], self.model, len(v), _pack(v), time.time()))
             self.con.commit()
