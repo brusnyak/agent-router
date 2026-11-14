@@ -569,8 +569,8 @@ class Backbone:
         skills = [r for r in (row(h["kind"], h["name"]) for h in hits if h["kind"] == "skill" and h["name"] != plan["persona"]
                                                   and h["name"] not in self.cfg.get("exclude_refs", [])) if r][:1]
         prompt, sources = compose.build(text, analysis, persona, command, skills)
-        worker, why = compose.pick_tier(analysis["task_class"], self.cfg.get("tiers", {}), al["workers"], al["default_worker"])
-        worker = opts.get("worker") or worker
+        worker, why = compose.pick_tier(analysis["task_class"], self.cfg.get("tiers", {}), al["workers"],
+                                        al["default_worker"], plan.get("tier", "auto"))
         plan.update(task_class=analysis["task_class"], tier_reason=why, worker=worker)
         if opts.get("dry"):
             return {"state": "dry", "prompt": prompt, "prompt_sources": sources, "analysis": analysis, "plan": plan}
