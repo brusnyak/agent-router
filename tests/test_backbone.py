@@ -639,3 +639,12 @@ def test_remote_run_hostname_and_timeout():
     def boom(*a, **k): raise subprocess.TimeoutExpired("ssh", 1)
     t = remote.run({"ssh": "box", "timeout_s": 5}, "t", {}, runner=boom)
     assert t["state"] == "timeout" and "may still be running" in t["error"]
+
+
+def test_keypool_spreads_concurrent_long_leases():
+    from backbone.keys import KeyPool
+    p = KeyPool(["NIM_1", "NIM_2", "NIM_3"], env={"NIM_1": "a", "NIM_2": "b", "NIM_3": "c"})
+    with p.lease(prefer="NIM_1") as a, p.lease(prefer="NIM_1") as b, p.lease(prefer="NIM_1") as c:
+        assert {a, b, c} == {"NIM_1", "NIM_2", "NIM_3"}      # held concurrently: one key each, not all on the preferred one
+    with p.lease(prefer="NIM_2") as d:
+        assert d == "NIM_2"                                    # released: preference wins again
