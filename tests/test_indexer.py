@@ -78,14 +78,18 @@ def test_search_empty_query():
     assert results == []
 
 
-def test_search_known_document():
-    """search() can find the agent-router README."""
-    docs = discover_corpus()
-    build_index(docs)
-    results = search("LangGraph multi-agent router Kanban", top_k=10)
-    # Should find the agent-router README
-    readme_found = any("agent-router" in r.get("id", "") and "README.md" in r.get("id", "") and "node_modules" not in r.get("id", "") for r in results)
-    assert readme_found, f"agent-router README not found in top 10: {[r['id'] for r in results]}"
+def test_search_known_document(tmp_path, monkeypatch):
+    """search() ranks the agent-router README for its own topic. Hermetic: tiny fixed corpus and a temp index, not the live vault."""
+    from scripts import index_vault
+    monkeypatch.setattr(index_vault, "INDEX_DB", str(tmp_path / "index.db"))
+    mk = lambda i, t: {"id": i, "path": i, "kind": "doc", "text": t}
+    docs = [mk("doc:/p/agent-router/README.md", "agent-router: LangGraph multi-agent router with a Kanban board and worker gates"),
+            mk("doc:/p/notes/cooking.md", "pasta recipe with tomatoes and basil"),
+            mk("doc:/p/notes/trading.md", "futures risk sizing and stop losses"),
+            mk("doc:/p/notes/design.md", "color palette contrast and typography scale")]
+    index_vault.build_index(docs)
+    results = index_vault.search("LangGraph multi-agent router Kanban", top_k=3)
+    assert results and results[0]["id"] == "doc:/p/agent-router/README.md", [r["id"] for r in results]
 
 
 if __name__ == "__main__":

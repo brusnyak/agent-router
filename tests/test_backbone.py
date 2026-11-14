@@ -648,3 +648,16 @@ def test_keypool_spreads_concurrent_long_leases():
         assert {a, b, c} == {"NIM_1", "NIM_2", "NIM_3"}      # held concurrently: one key each, not all on the preferred one
     with p.lease(prefer="NIM_2") as d:
         assert d == "NIM_2"                                    # released: preference wins again
+
+
+def test_pi_timeout_is_not_retried_on_other_keys(monkeypatch):
+    import subprocess
+    from backbone import workers
+    from backbone.keys import KeyPool
+    calls = []
+    def boom(cmd, cwd, env, timeout):
+        calls.append(1); raise subprocess.TimeoutExpired("pi", timeout)
+    monkeypatch.setattr(workers, "_run", boom)
+    pool = KeyPool(["NIM_1", "NIM_2", "NIM_3"], env={"NIM_1": "a", "NIM_2": "b", "NIM_3": "c"})
+    r = workers.PiWorker({"cmd": "pi", "timeout_s": 5}, "nvidia/x").run("task", ".", pool, retries=2, backoff_s=0)
+    assert not r.ok and "not retried" in r.text and len(calls) == 1
