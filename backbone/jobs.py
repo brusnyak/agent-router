@@ -39,7 +39,11 @@ class Jobs:
 
     def list(self, limit: int = 20) -> List[dict]:
         return [dict(r) for r in self.con.execute(
-            "SELECT id,state,attempts,run_id,substr(text,1,60) AS text FROM jobs ORDER BY created DESC LIMIT ?", (limit,))]
+            "SELECT id,state,attempts,run_id,substr(text,1,90) AS text,node,created,updated,substr(coalesce(result,''),1,160) AS result FROM jobs ORDER BY created DESC LIMIT ?", (limit,))]
+
+    def get(self, jid: str) -> dict | None:
+        r = self.con.execute("SELECT id,state,attempts,run_id,text,result FROM jobs WHERE id=?", (jid,)).fetchone()
+        return dict(r) if r else None
 
     # -- hub side of hub/node: nodes connect OUTBOUND, claim jobs addressed to them, post results ------------------
     def node_seen(self, name: str, caps: dict | None = None) -> None:

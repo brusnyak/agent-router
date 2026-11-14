@@ -24,7 +24,7 @@ from . import library, nim
 from .context import Sessions, est_tokens
 from .db import connect
 from .keys import KeyPool, Transient
-from .runs import Runs
+from .runs import Runs, StaleLease
 from .workers import ClaudeWorker, CodexWorker, PiWorker, Result
 from .workspace import IsolationError, Workspace, run_gate
 
@@ -343,6 +343,9 @@ class Backbone:
         try:
             final = self.graph.invoke(init, cfg)
             return final["out"]
+        except StaleLease as e:  # this process was reaped: its writes are rejected; the reaper's ticket is the record
+            self.graph.stop_beat(rid)
+            return {"run": rid, "state": "fenced", "error": str(e), "ticket": "", "patch": ""}
         except Exception as e:  # unexpected: keep the worktree for `resume`, save what the worker did, leave a ticket
             patch = ""
             try:
@@ -398,7 +401,7 @@ class Backbone:
             if self.con.execute("SELECT 1 FROM jobs WHERE run_id=? AND state='pending'", (r["id"],)).fetchone():
                 continue  # a pending job will resume it from its checkpoint
             t = self.runs.ticket(r["id"], "process died or was stopped (lease expired)", "rerun with the same prompt; compare steps first")
-            self.runs.set(r["id"], "blocked", error="lease expired")
+            self.runs.reap(r["id"], "lease expired")
             import shutil
             shutil.rmtree(os.path.join(self.work_root, r["id"]), ignore_errors=True)
             out.append({"run": r["id"], "ticket": t})

@@ -13,6 +13,10 @@ from typing import List, Optional
 LEASE_S = 90
 
 
+class StaleLease(RuntimeError):
+    """A worker wrote to a run whose lease was reaped (fence moved on): its write is rejected."""
+
+
 class Runs:
     def __init__(self, con: sqlite3.Connection, tickets_dir: str, runs_dir: str):
         self.con = con
@@ -30,26 +34,51 @@ class Runs:
         self.con.commit()
         return rid
 
-    def heartbeat(self, rid: str) -> None:
+    def fence(self, rid: str) -> int:
+        r = self.con.execute("SELECT fence FROM runs WHERE id=?", (rid,)).fetchone()
+        return int(r["fence"] or 0) if r else 0
+
+    def heartbeat(self, rid: str, fence: Optional[int] = None) -> bool:
+        """Extend the lease. With a fence, a reaped run (fence moved on) is not revived: returns False."""
         now = time.time()
-        self.con.execute("UPDATE runs SET lease_until=?, updated=? WHERE id=?", (now + LEASE_S, now, rid))
+        q, a = "UPDATE runs SET lease_until=?, updated=? WHERE id=?", [now + LEASE_S, now, rid]
+        if fence is not None:
+            q += " AND fence=?"; a.append(fence)
+        n = self.con.execute(q, tuple(a)).rowcount
         self.con.commit()
+        return n > 0
+
+    def reap(self, rid: str, reason: str) -> bool:
+        """Declare an expired run dead and bump the fence so the zombie's later writes are rejected."""
+        n = self.con.execute("UPDATE runs SET state='blocked', error=?, fence=fence+1, updated=? WHERE id=? AND state='running'",
+                             (reason[:2000], time.time(), rid)).rowcount
+        self.con.commit()
+        return n > 0
 
     def step(self, rid: str, n: int, kind: str, worker: str, key_slot: str, ok: bool, latency_ms: int,
-             output: str, note: str = "") -> None:
+             output: str, note: str = "", fence: Optional[int] = None) -> None:
+        if fence is not None and fence != self.fence(rid):
+            raise StaleLease(f"run {rid}: lease was reaped (fence {fence} != {self.fence(rid)}); step rejected")
         self.con.execute("INSERT INTO steps(run_id,n,kind,worker,key_slot,ok,latency_ms,output,note,ts) VALUES (?,?,?,?,?,?,?,?,?,?)",
                          (rid, n, kind, worker, key_slot, int(ok), latency_ms, output[:20000], note, time.time()))
         self.con.commit()
-        self.heartbeat(rid)
+        self.heartbeat(rid, fence)
 
-    def set(self, rid: str, state: str, error: str = "", worker: Optional[str] = None, attempt: Optional[int] = None) -> None:
+    def set(self, rid: str, state: str, error: str = "", worker: Optional[str] = None, attempt: Optional[int] = None,
+            fence: Optional[int] = None) -> bool:
         sets, args = ["state=?", "error=?", "updated=?"], [state, error[:2000], time.time()]
         if worker is not None:
             sets.append("worker=?"); args.append(worker)
         if attempt is not None:
             sets.append("attempt=?"); args.append(attempt)
-        self.con.execute(f"UPDATE runs SET {', '.join(sets)} WHERE id=?", (*args, rid))
+        q = f"UPDATE runs SET {', '.join(sets)} WHERE id=?"
+        if fence is not None:  # fenced write: only the owner of the current epoch may change the run
+            q += " AND fence=?"; args = [*args, rid, fence]
+        else:
+            args = [*args, rid]
+        n = self.con.execute(q, tuple(args)).rowcount
         self.con.commit()
+        return n > 0
 
     def get(self, rid: str) -> Optional[dict]:
         r = self.con.execute("SELECT * FROM runs WHERE id=?", (rid,)).fetchone()

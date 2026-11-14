@@ -100,5 +100,8 @@ def connect(path: str) -> DB:
     for c in ("target", "node", "result"):  # hub/node: which node must run a job, who ran it, what it returned
         if c not in cols:
             con.execute(f"ALTER TABLE jobs ADD COLUMN {c} TEXT DEFAULT ''")
+    rcols = {r[1] for r in con.execute("PRAGMA table_info(runs)")}
+    if "fence" not in rcols:  # epoch bumped by the reaper; worker writes carry the epoch they started with (fencing token)
+        con.execute("ALTER TABLE runs ADD COLUMN fence INTEGER DEFAULT 0")
     con.commit()
     return DB(con)
