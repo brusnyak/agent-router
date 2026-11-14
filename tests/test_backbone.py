@@ -618,3 +618,24 @@ def test_fence_column_migrates_old_db(tmp_path):
     c.commit(); c.close()
     con = db.connect(str(p))
     assert "fence" in {r[1] for r in con.execute("PRAGMA table_info(runs)")}
+
+
+def test_resolve_worker_host_flag_combo():
+    from backbone.core import resolve_worker
+    assert resolve_worker("host:oracle-vm", "nim2") == ("host:oracle-vm:nim2", "")      # flag = remote worker, not an override
+    assert resolve_worker("host:oracle-vm:nim2", "nim2") == ("host:oracle-vm:nim2", "")
+    w, err = resolve_worker("host:oracle-vm:nim1", "nim2"); assert w == "" and "conflict" in err
+    assert resolve_worker("", "nim3") == ("pi:NIM_3", "")
+    assert resolve_worker("", "") == ("", "")
+
+
+def test_remote_run_hostname_and_timeout():
+    import subprocess
+    from backbone import remote
+    class P:  # fake ssh result
+        returncode = 0; stderr = ""; stdout = 'BBHOST=vmbox\n{"state": "done", "output": "x"}'
+    out = remote.run({"ssh": "box"}, "t", {}, runner=lambda *a, **k: P)
+    assert out["hostname"] == "vmbox" and out["host"] == "box" and out["state"] == "done"
+    def boom(*a, **k): raise subprocess.TimeoutExpired("ssh", 1)
+    t = remote.run({"ssh": "box", "timeout_s": 5}, "t", {}, runner=boom)
+    assert t["state"] == "timeout" and "may still be running" in t["error"]

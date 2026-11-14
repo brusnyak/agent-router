@@ -75,6 +75,17 @@ def norm_worker(w: str) -> str:
     return w
 
 
+def resolve_worker(text_worker: str, flag_worker: str) -> tuple:
+    """(worker spec, error). `--worker X` with `@host:H` in the text means: run X on H; a different remote worker is a conflict."""
+    tw, fw = norm_worker(text_worker), norm_worker(flag_worker)
+    if tw.lower().startswith("host:") and fw and not fw.lower().startswith("host:"):
+        name, _, rw = tw[5:].partition(":")
+        if rw and norm_worker(rw) != fw:
+            return "", f"conflict: text says {tw} but --worker says {flag_worker}; give one"
+        return f"host:{name}:{flag_worker}", ""
+    return (fw or tw), ""
+
+
 def load_config(path: Optional[str] = None) -> dict:
     user = os.path.expanduser("~/.agent-router/backbone.yaml")
     path = path or (user if os.path.exists(user) else os.path.join(ROOT, "config", "backbone.yaml"))
@@ -260,7 +271,9 @@ class Backbone:
     def run(self, text: str, *, session: Optional[str] = None, project: str = "", cwd: Optional[str] = None,
             gate: Optional[str] = None, isolate: bool = True, worker: str = "", read_only: bool = False,
             use_vault: bool = True, escalate: Optional[str] = None, on_start: Optional[Callable[[str], None]] = None) -> dict:
-        w = norm_worker(worker or parse(text).worker)
+        w, werr = resolve_worker(parse(text).worker, worker)
+        if werr:
+            return {"state": "failed", "error": werr}
         if w.startswith("host:"):
             from . import remote
             name, _, rworker = w[5:].partition(":")  # host:NAME[:worker]  e.g. host:oracle:nim2
