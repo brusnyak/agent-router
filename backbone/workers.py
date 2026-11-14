@@ -76,7 +76,8 @@ class PiWorker:
             try:
                 p = _run(cmd, cwd, env, self.timeout)
             except subprocess.TimeoutExpired:
-                raise Transient(f"pi timeout on {name}")
+                # not transient: another key would burn the same budget again (3 keys x timeout_s = 30 min for one stuck task)
+                return Result(False, f"pi timeout after {self.timeout}s on {name}: not retried; give it a smaller scope or raise pi.timeout_s", f"pi:{name}", name)
             out = (p.stdout or "").strip()
             err = (p.stderr or "").strip()
             if p.returncode != 0 or not out:
