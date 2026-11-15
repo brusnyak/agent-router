@@ -331,6 +331,120 @@ class ClineWorker:
                       meta={"cost_usd": j.get("total_cost_usd"), "turns": j.get("num_turns"), "key": key})
 
 
+class OpenHandsWorker:
+    """OpenHands agent-server over HTTP (no Docker). Communicates with a running
+    agent-server instance via REST API: POST /api/conversations -> /{id}/run ->
+    poll /{id}/execution_status -> GET /{id} for results.
+
+    Server must be running separately (systemd openhands.service on Oracle).
+    Config: openhands { base_url: http://127.0.0.1:8000, timeout_s: 600 }
+    NIM key is configured on the server side (LLM_API_KEY env), not here.
+    """
+
+    def __init__(self, cfg: dict):
+        self.base_url = cfg.get("base_url", "http://127.0.0.1:8000").rstrip("/")
+        self.timeout = int(cfg.get("timeout_s", 600))
+
+    def run(self, prompt: str, cwd: str, read_only: bool = False, **_) -> Result:
+        import urllib.request
+        import urllib.error
+
+        t0 = time.time()
+
+        def _req(method: str, path: str, data: dict | None = None, timeout: int = 10):
+            url = f"{self.base_url}{path}"
+            body = None
+            headers = {"Content-Type": "application/json"}
+            if data is not None:
+                body = json.dumps(data).encode()
+            req = urllib.request.Request(url, data=body, headers=headers, method=method)
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    return r.status, r.read().decode()
+            except urllib.error.HTTPError as e:
+                return e.code, e.read().decode(errors="replace")[:500]
+            except (urllib.error.URLError, ConnectionError, OSError) as e:
+                return 0, str(e)
+
+        def _poll(conv_id: str, max_poll_s: int = 300):
+            """Poll execution_status until done or timeout."""
+            import time as _t
+            deadline = _t.time() + max_poll_s
+            while _t.time() < deadline:
+                status, body = _req("GET", f"/api/conversations/{conv_id}/execution_status", timeout=10)
+                if status == 200:
+                    try:
+                        j = json.loads(body)
+                        state = j.get("state", "")
+                        if state in ("finished", "completed", "done"):
+                            return "done", j
+                        if state in ("failed", "error", "rejected"):
+                            return "error", j
+                        if state in ("running", "pending", "started"):
+                            _t.sleep(3)
+                            continue
+                    except Exception:
+                        pass
+                _t.sleep(3)
+            return "timeout", {}
+
+        try:
+            # 1. Create conversation
+            status, body = _req("POST", "/api/conversations", {
+                "message": prompt,
+                "metadata": {"source": "backbone", "cwd": cwd},
+            }, timeout=15)
+            if status not in (200, 201):
+                return Result(False, f"openhands create failed: rc={status} {body[:300]}", "openhands", latency_ms=int((time.time()-t0)*1000))
+
+            try:
+                conv = json.loads(body)
+                conv_id = conv.get("id") or conv.get("conversation_id")
+            except Exception:
+                return Result(False, f"openhands create: cannot parse id from {body[:200]}", "openhands", latency_ms=int((time.time()-t0)*1000))
+
+            if not conv_id:
+                return Result(False, f"openhands create: no id in {body[:200]}", "openhands", latency_ms=int((time.time()-t0)*1000))
+
+            # 2. Run the conversation
+            status, body = _req("POST", f"/api/conversations/{conv_id}/run", timeout=15)
+            if status not in (200, 202):
+                return Result(False, f"openhands run failed: rc={status} {body[:300]}", f"openhands:{conv_id}", latency_ms=int((time.time()-t0)*1000))
+
+            # 3. Poll for completion
+            poll_state, poll_data = _poll(conv_id, max_poll_s=self.timeout - 30)
+            if poll_state != "done":
+                return Result(False, f"openhands poll: {poll_state} for {conv_id}", f"openhands:{conv_id}", latency_ms=int((time.time()-t0)*1000))
+
+            # 4. Fetch results
+            status, body = _req("GET", f"/api/conversations/{conv_id}", timeout=15)
+            if status != 200:
+                return Result(False, f"openhands fetch failed: rc={status} {body[:300]}", f"openhands:{conv_id}", latency_ms=int((time.time()-t0)*1000))
+
+            try:
+                conv_data = json.loads(body)
+            except Exception:
+                conv_data = {}
+
+            # Extract the assistant's final response
+            output = ""
+            messages = conv_data.get("messages", [])
+            if isinstance(messages, list):
+                for m in reversed(messages):
+                    if isinstance(m, dict) and m.get("role") == "assistant":
+                        output = m.get("content", "") or m.get("text", "") or ""
+                        break
+            if not output:
+                output = str(conv_data.get("output", "") or conv_data.get("result", "") or body[:500])
+
+            ok = bool(output) and "Error" not in output[:50]
+            return Result(ok, output[:5000], f"openhands:{conv_id}", latency_ms=int((time.time()-t0)*1000),
+                         meta={"conversation_id": conv_id})
+
+        except Exception as e:
+            return Result(False, f"openhands error: {str(e)[:300]}", "openhands", latency_ms=int((time.time()-t0)*1000))
+
+
 class AgyWorker:
     """Antigravity CLI print mode with a read-only allow-list (config/agy-allow.json): headless mode cannot prompt, so unlisted tools are denied.
     Read-only on purpose; Google quota, not NIM."""
