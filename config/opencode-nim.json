@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "instructions": [],
+  "plugin": [],
+  "provider": {
+    "nim1": {"npm": "@ai-sdk/openai-compatible", "name": "NIM 1", "options": {"baseURL": "http://127.0.0.1:8787/nim1/v1", "apiKey": "local-proxy"}, "models": {"nvidia/nemotron-3.5-super-vl-120b-a12b": {"name": "nemotron"}}},
+    "nim2": {"npm": "@ai-sdk/openai-compatible", "name": "NIM 2", "options": {"baseURL": "http://127.0.0.1:8787/nim2/v1", "apiKey": "local-proxy"}, "models": {"nvidia/nemotron-3.5-super-vl-120b-a12b": {"name": "nemotron"}}},
+    "nim3": {"npm": "@ai-sdk/openai-compatible", "name": "NIM 3", "options": {"baseURL": "http://127.0.0.1:8787/nim3/v1", "apiKey": "local-proxy"}, "models": {"nvidia/nemotron-3.5-super-vl-120b-a12b": {"name": "nemotron"}}}
+  }
+}

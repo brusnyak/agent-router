@@ -27,6 +27,8 @@ workers:
   pi:     {cmd: pi,     timeout_s: 600}
   claude: {cmd: claude, timeout_s: 900}   # owner's own binary + login; see SPEC D5
   codex:  {cmd: codex,  timeout_s: 900}
+  opencode: {cmd: opencode, timeout_s: 600}   # via local NIM proxy on :8787 (launchd local.nim-proxy)
+  agy:    {cmd: agy,    timeout_s: 300}   # read-only allow-list in config/agy-allow.json
   jcode:  {cmd: jcode,  timeout_s: 600}   # ~29k input tokens per call (measured); earns its place via the bandit or not at all
 
 escalation:
