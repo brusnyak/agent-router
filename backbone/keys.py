@@ -13,22 +13,26 @@ from typing import Callable, Dict, List, Optional, TypeVar
 T = TypeVar("T")
 
 
-def load_named(names: List[str], path: str = "~/.env") -> Dict[str, str]:
-    """Only the named keys from the owner's env file (same contract as ~/.claude/scripts/with-env), so the router needs no wrapper.
-    Values go into the in-process pool only; never logged."""
+ENV_FILES = ("~/.env", "~/.config/agent-router/env")  # owner's dev machine, then the hub's systemd EnvironmentFile
+
+
+def load_named(names: List[str], paths=ENV_FILES) -> Dict[str, str]:
+    """Only the named keys from the owner's env files (same contract as ~/.claude/scripts/with-env), so the router needs no wrapper.
+    Values go into the in-process pool only; never logged. First file that has a key wins."""
     out: Dict[str, str] = {}
-    try:
-        with open(os.path.expanduser(path), encoding="utf-8") as fh:
-            for raw in fh:
-                line = raw.strip()
-                if line.startswith("export "):
-                    line = line[7:]
-                k, sep, v = line.partition("=")
-                k, v = k.strip(), v.strip()
-                if sep and k in names and v:
-                    out[k] = v[1:-1] if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'" else v
-    except OSError:
-        pass
+    for path in ([paths] if isinstance(paths, str) else paths):
+        try:
+            with open(os.path.expanduser(path), encoding="utf-8") as fh:
+                for raw in fh:
+                    line = raw.strip()
+                    if line.startswith("export "):
+                        line = line[7:]
+                    k, sep, v = line.partition("=")
+                    k, v = k.strip(), v.strip()
+                    if sep and k in names and v and k not in out:
+                        out[k] = v[1:-1] if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'" else v
+        except OSError:
+            pass
     return out
 
 
