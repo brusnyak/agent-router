@@ -87,3 +87,26 @@ def test_jobs_submit_persists_across_instances(tmp_path):
     rows = Jobs(types.SimpleNamespace(con=con)).list()
     assert len(rows) == 1
     assert rows[0]["text"] == "first job"
+
+
+def test_hub_run_accepts_named_gate_job(tmp_path):
+    """A job submitted with a named gate carries gate_name for nodes; the hub's own bb.run must not receive it (it raised TypeError,
+    the job went 'blocked' with no error: Nina's `router vm --gate pytest` never ran)."""
+    con = connect(str(tmp_path / "jobs.db"))
+    seen = {}
+
+    class BB:
+        def __init__(self):
+            self.con = con
+            self.runs = types.SimpleNamespace(get=lambda r: None)
+
+        def run(self, text, on_start=None, gate=None, **kw):  # real signature has no gate_name
+            seen.update(text=text, gate=gate, kw=kw)
+            return {"state": "done", "run": "r1"}
+
+    jobs = Jobs(BB())
+    jid = jobs.submit("do it", gate="true", gate_name="noop")
+    job = jobs._claim()
+    jobs._execute(job)
+    row = [r for r in jobs.list() if r["id"] == jid][0]
+    assert row["state"] == "done" and seen["gate"] == "true" and "gate_name" not in seen["kw"]

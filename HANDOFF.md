@@ -9,12 +9,15 @@ Repo `~/Developer/agent-router` (PRIVATE, github brusnyak/agent-router). Work br
 - Bandit state: `~/.agent-router/data/bandit.db`; inspect with `python3 -m backbone plan --table`.
 - Skill for future agents: `~/.claude/skills/harvest-then-improve`. Retro: `docs/RETRO-2026-11-15.md`. Build prompt: `docs/BUILD-PROMPT-2026-11-15.md`.
 
-## Release gate for main
+## Release gate for main (met 2026-11-15; main pushed, Oracle on main)
 1. `pytest -q tests` green. 2. Executor benchmark table in `docs/BENCH-2026-11-15.md`. 3. Oracle: pull main, restart `agent-router*.service`, one gated run on a NIM worker. 4. No secrets in the diff.
+
+## Watching
+`~/.agent-router/digest/latest.json` (hourly). Read it after 2-3 days: `enforce.redirects` vs `sessions_redirected`, `nina.router_calls`, `runs` per worker, `bandit` means. Nina side: `~/.hermes-nina/state/router-default.jsonl`, `~/.agent-router/router-calls.jsonl` on Oracle.
 
 ## Traps
 - Gates need absolute python paths. Isolated worktrees see committed files only.
 - jcode costs ~29k input tokens per call; opencode run took ~39 s wall for a one-word task; keep both for parallel or special cases, let the bandit decide.
 - agy headless denies unlisted tools: allow-list in `config/agy-allow.json`; its persistent settings path is unknown (only `--settings` works).
 - Oracle has no pi/opencode/codex/claude on PATH; only NIM via pi once installed under `.tools/`.
-- Untracked leftovers from the legacy app may remain in `api/ db/ graph/` (ignored by git); delete by hand.
+- Fixed 2026-11-15: hub jobs with a named gate crashed silently (`gate_name` leaked into `bb.run`); crashes now land in the job `result`.

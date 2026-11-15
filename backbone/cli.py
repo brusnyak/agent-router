@@ -69,6 +69,8 @@ def main(argv=None) -> None:
         sub.add_parser(n, help=h)
     rr = sub.add_parser("router-report", help="hook A/B report: treat vs holdout follow rate")
     rr.add_argument("--json", action="store_true"); rr.add_argument("--receipts"); rr.add_argument("--outcomes")
+    dg = sub.add_parser("digest", help="watcher snapshot: enforcement, Nina router calls, runs, bandit (logs only, no prompts)")
+    dg.add_argument("--hours", type=float, default=24.0); dg.add_argument("--write", action="store_true")
     pl = sub.add_parser("plan", help="deterministic plan for a prompt: class, worker pick (bandit), compiled command; --table shows learned cells")
     pl.add_argument("text", nargs="*"); pl.add_argument("--table", action="store_true")
     cp = sub.add_parser("compile", help="prompt -> compact card (entities kept verbatim)")
@@ -90,6 +92,9 @@ def main(argv=None) -> None:
             if getattr(a, k):
                 hl += ["--" + k, getattr(a, k)]
         raise SystemExit(hook_log.main(hl))
+    if a.cmd == "digest":
+        from . import digest as _d
+        raise SystemExit(_d.main(["--hours", str(a.hours)] + (["--write"] if a.write else [])))
     if a.cmd == "plan":
         from . import plan as _p
         from .bandit import Bandit

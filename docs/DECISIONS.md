@@ -15,3 +15,5 @@ Tests pass, no entry above is reversed, the diff is small, and the claimed effec
 - The bandit learns only from gate results; no gate, no update. Cap decays instead of freezing. (2026-11-15)
 - opencode runs through the local NIM proxy (launchd `local.nim-proxy`, :8787); agy runs read-only through `config/agy-allow.json`. (2026-11-15)
 - Push to main only after the full test run, an executor benchmark and an Oracle smoke run. (owner, 2026-11-15)
+- Watcher: `backbone digest` snapshots logs hourly (launchd local, cron on Oracle); logs hold hashes and counts, never prompt text. A few days of `~/.agent-router/digest/*.json` answer "is delegation happening". (2026-11-15)
+- Nina's delegation: `~/bin/router vm [--gate NAME] [--worker W]` logs each call; her pre_tool_call hook (`router-default.py`) now expires its state after 30 min (before, one router job ever disabled it for good) and blocks the second long command with the exact command to run. Backups `*.bak-20261115`. (2026-11-15)

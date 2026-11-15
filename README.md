@@ -76,8 +76,10 @@ python3 scripts/shadow_hook.py uninstall
 | `backbone router-report` | Treat vs holdout follow rate from live receipts |
 | `backbone enrich` | Fill `would_surface` on receipts (NIM embeddings) |
 | `backbone aa-replay` | A/A replay of the measurement pipeline |
-| `backbone librarian` | Propose-only catalog report written to `research/` |
+| `backbone librarian` | Propose-only catalog report written to `docs/archive/research/` |
 | `backbone doctor` | Probe every detected worker with one tiny call |
+| `backbone plan "<prompt>"`, `plan --table` | Deterministic plan (class, worker, compiled command); what the bandit learned |
+| `backbone digest [--write]` | Watcher snapshot of enforcement, Nina's router calls, runs and bandit; written hourly to `~/.agent-router/digest/` (launchd locally, cron on Oracle) |
 | `backbone submit`, `jobs`, `daemon`, `runs` | Queued jobs and run history |
 | `backbone serve`, `node` | Loopback hub API and an outbound-only node |
 | `backbone discover`, `init`, `keys`, `mcp`, `watch`, `telegram-pair` | Setup and integrations |
