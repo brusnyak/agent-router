@@ -393,7 +393,7 @@ class OpenHandsWorker:
             status, body = _req("POST", "/api/conversations", {
                 "message": prompt,
                 "metadata": {"source": "backbone", "cwd": cwd},
-                "workspace": cwd,
+                "workspace": {"working_dir": cwd, "kind": "LocalWorkspace"},
             }, timeout=15)
             if status not in (200, 201):
                 return Result(False, f"openhands create failed: rc={status} {body[:300]}", "openhands", latency_ms=int((time.time()-t0)*1000))
