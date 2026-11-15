@@ -18,6 +18,6 @@ Repo `~/Developer/agent-router` (PRIVATE, github brusnyak/agent-router). Work br
 ## Traps
 - Gates need absolute python paths. Isolated worktrees see committed files only.
 - jcode costs ~29k input tokens per call; opencode run took ~39 s wall for a one-word task; keep both for parallel or special cases, let the bandit decide.
-- agy headless denies unlisted tools: allow-list in `config/agy-allow.json`; its persistent settings path is unknown (only `--settings` works).
+- agy: headless mode denies unlisted tools. Persistent allow-list = `~/.gemini/config/settings.json` (`permissions.allow`; verified 2026-11-15, copy of `config/agy-allow.json`). The app's own mode is in `~/.gemini/config/config.json` userSettings (preset TURBO, eager auto-exec, already permissive). To approve more tools, append rules like `read_file(*)` to that file; the router worker also passes `--settings config/agy-allow.json`.
 - Oracle has no pi/opencode/codex/claude on PATH; only NIM via pi once installed under `.tools/`.
 - Fixed 2026-11-15: hub jobs with a named gate crashed silently (`gate_name` leaked into `bb.run`); crashes now land in the job `result`.
