@@ -195,3 +195,88 @@ class JcodeWorker:
         except Exception:
             return Result(False, (p.stderr or p.stdout)[:400], f"jcode:{key}", key, lat)
         return Result(p.returncode == 0 and bool(text), text, f"jcode:{key}", key, lat, meta={"usage": j.get("usage")})
+
+
+def _opencode_bin(cmd: str) -> str:
+    """`opencode` on PATH, else the CLI bundled in the OpenCode desktop app (newest version dir)."""
+    import glob
+    import shutil
+    if shutil.which(cmd):
+        return cmd
+    hits = sorted(glob.glob(os.path.expanduser("~/Library/Application Support/ai.opencode.desktop/cli/*/opencode-cli")))
+    return hits[-1] if hits else cmd
+
+
+def _main_repo(cwd: str) -> str:
+    """Top of the main checkout when cwd is a linked git worktree, else ''."""
+    try:
+        r = subprocess.run(["git", "-C", cwd, "rev-parse", "--git-common-dir", "--git-dir"], capture_output=True, text=True, timeout=5)
+        common, gdir = (r.stdout.split() + ["", ""])[:2]
+        if not common or os.path.realpath(os.path.join(cwd, common)) == os.path.realpath(os.path.join(cwd, gdir)):
+            return ""
+        return os.path.dirname(os.path.realpath(os.path.join(cwd, common)))
+    except Exception:
+        return ""
+
+
+def _porcelain(repo: str) -> str:
+    try:
+        return subprocess.run(["git", "-C", repo, "status", "--porcelain"], capture_output=True, text=True, timeout=10).stdout
+    except Exception:
+        return ""
+
+
+class OpencodeWorker:
+    """opencode headless through the local NIM proxy (launchd `local.nim-proxy`, 127.0.0.1:8787, holds the keys, so none are handled here).
+    The router's own config/opencode-nim.json replaces the owner's global one (no plugins, no forced agent)."""
+
+    def __init__(self, cfg: dict, nim_model: str, root: str):
+        self.cmd = cfg.get("cmd", "opencode")
+        self.timeout = int(cfg.get("timeout_s", 600))
+        self.model = nim_model
+        self.conf = os.path.join(root, "config", "opencode-nim.json")
+
+    def run(self, prompt: str, cwd: str, key: str = "NIM_1", read_only: bool = False, **_) -> Result:
+        t0 = time.time()
+        n = key_index(key)
+        env = os.environ.copy()
+        env["OPENCODE_CONFIG"] = self.conf
+        # opencode resolves a git worktree to its MAIN repo and wrote there (benchmark 2026-11-15: files landed outside the isolated
+        # workspace, the gate saw nothing). Pin every path to cwd in the prompt, and fail the run if the main repo's status changed.
+        prompt = f"WORKSPACE: {cwd}\nUse absolute paths under {cwd} only. Never read or write outside it.\n\n{prompt}"
+        main = _main_repo(cwd)
+        before = _porcelain(main) if main else None
+        cmd = [_opencode_bin(self.cmd), "--standalone", "run", "--agent", "plan" if read_only else "build", "--auto",
+               "-m", f"nim{n}/{self.model}", prompt]
+        try:
+            p = _run(cmd, cwd, env, self.timeout)
+        except subprocess.TimeoutExpired:
+            return Result(False, f"opencode timeout after {self.timeout}s", f"opencode:{key}", key, self.timeout * 1000)
+        lat = int((time.time() - t0) * 1000)
+        text = re.sub(r"\x1b\[[0-9;]*m", "", p.stdout or "")
+        text = "\n".join(l for l in text.splitlines() if not l.startswith("> ")).strip()  # drop the '> agent · model' banner
+        if main and _porcelain(main) != before:
+            return Result(False, f"opencode escaped its workspace and changed {main}; inspect `git -C {main} status`", f"opencode:{key}", key, lat)
+        ok = p.returncode == 0 and bool(text) and "Error:" not in text[:40]
+        return Result(ok, text or (p.stderr or "")[:400], f"opencode:{key}", key, lat)
+
+
+class AgyWorker:
+    """Antigravity CLI print mode with a read-only allow-list (config/agy-allow.json): headless mode cannot prompt, so unlisted tools are denied.
+    Read-only on purpose; Google quota, not NIM."""
+
+    def __init__(self, cfg: dict, root: str):
+        self.cmd = cfg.get("cmd", "agy")
+        self.timeout = int(cfg.get("timeout_s", 300))
+        self.conf = os.path.join(root, "config", "agy-allow.json")
+
+    def run(self, prompt: str, cwd: str, **_) -> Result:
+        t0 = time.time()
+        try:
+            p = _run([self.cmd, "--settings", self.conf, f"-p={prompt}"], cwd, os.environ.copy(), self.timeout)
+        except subprocess.TimeoutExpired:
+            return Result(False, f"agy timeout after {self.timeout}s", "agy", latency_ms=self.timeout * 1000)
+        lat = int((time.time() - t0) * 1000)
+        out = (p.stdout or "").strip()
+        ok = p.returncode == 0 and bool(out) and not out.startswith("jetski:")
+        return Result(ok, out or (p.stderr or "")[:400], "agy", latency_ms=lat)

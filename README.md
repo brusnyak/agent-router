@@ -85,15 +85,29 @@ python3 scripts/shadow_hook.py uninstall
 ## Repository layout
 
 ```
-backbone/    hook, hook_log, compile, health, cli, worker dispatch
-scripts/     shadow_hook.py (install), outcome_hook.py, nightly.sh
+backbone/    plan, bandit, rules, enforce (decision layer); hook, hook_log, compile, health, cli; workers (pi, claude, codex, jcode, opencode, agy)
+scripts/     shadow_hook.py (installs the hooks), outcome_hook.py, nightly.sh
 eval/        miner, judges, baselines, librarian, shadow_enrich, A/A replay
-config/      backbone.yaml (env var names only), projects.yaml
-docs/        architecture, roadmap, invariants, decision records
-tests/       33 files; invariants in tests/test_invariants.py
-third_party/ Apache-2.0 study copies with NOTICE.md; never imported
-api/ library/ legacy modules from the earlier kanban router; not in the hook path
+config/      backbone.yaml (env var names only), routes.yaml (conditional rules), opencode-nim.json, agy-allow.json
+library/     bundles = persona + command + hook + loop + gate (checked by eval/check_bundle.py)
+docs/        architecture, roadmap, invariants, decisions, retro; archive/ holds old specs and research
+tests/       invariants in tests/test_invariants.py
+third_party/ MIT/Apache sources we take from, pinned in NOTICE.md (LiteLLM adaptive router, Portkey conditional router, jcode bench)
 ```
+
+## Decision layer (what the router adds)
+
+Take the best of what exists, add one measured thing of our own (skill: `harvest-then-improve`).
+
+| Step | From | Ours |
+|---|---|---|
+| `classify` task class and size | LiteLLM complexity router idea | deterministic keywords, no LLM |
+| `rules.resolve` conditions to targets and fallbacks | Portkey conditional router | `config/routes.yaml` |
+| `bandit.pick` Thompson sampling per (class, worker) | LiteLLM adaptive router | reward is the hard gate result; decays at the cap instead of freezing; no gate, no learning |
+| `plan` compiles command and a worker-shaped prompt | none | `backbone plan "<prompt>"`, `--table` shows what was learned |
+| `enforce` PreToolUse on Agent/Task | none | blocks a heavy call once with the exact router command; repeat, `model: haiku/sonnet`, `ROUTER-OK`, light tasks and a 20% holdout go through |
+
+Executors: `claude`, `codex`, `pi` on NIM_1..3, `jcode`, `opencode` (via the local NIM proxy on :8787), `agy` (read-only allow-list). The router loads only the NIM keys it needs; no wrapper.
 
 ## Safety and invariants
 

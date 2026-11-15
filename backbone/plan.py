@@ -16,6 +16,8 @@ WORKERS = {
     "nim1": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_1"}, "nim2": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_2"},
     "nim3": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_3"},
     "codex": {"tier": 3, "cost": 0.6, "bin": "codex"}, "claude": {"tier": 3, "cost": 0.8, "bin": "claude"},
+    "opencode": {"tier": 2, "cost": 0.0, "bin": None, "key": None},  # proxy holds the keys; availability = proxy up
+    "agy": {"tier": 3, "cost": 0.5, "bin": "agy"},  # read-only, Google quota
     "jcode": {"tier": 2, "cost": 0.2, "bin": "jcode", "key": "NIM_1"},  # ~29k input tokens per call measured: not free
 }
 CLASS_WORDS = (
@@ -32,12 +34,23 @@ def classify(prompt: str) -> dict:
     return {"task_class": cls, "size": "small" if n < 400 else "medium" if n < 1500 else "large"}
 
 
+def _proxy_up(port: int = 8787) -> bool:
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+            return True
+    except OSError:
+        return False
+
+
 def available(env=None) -> set:
     if env is None:
         from .keys import load_named
         env = {**load_named(["NIM_1", "NIM_2", "NIM_3"]), **os.environ}
     out = set()
     for w, m in WORKERS.items():
+        if w == "opencode" and not _proxy_up():
+            continue
         if (m["bin"] is None or shutil.which(m["bin"])) and (not m.get("key") or env.get(m["key"])):
             out.add(w)
     return out

@@ -9,3 +9,9 @@
 - Mac outreach and posting are on HOLD until the owner lifts it.
 ## Patch acceptance
 Tests pass, no entry above is reversed, the diff is small, and the claimed effect is measured (eval/ or a failing test first). Unmeasured features wait.
+- Third party is raw material, not reading: take apart, copy files (pinned, licensed), port, then add one measured improvement. (2026-11-15, owner; skill `harvest-then-improve`)
+- Enforcement is redirect-once with the compiled command (PreToolUse Agent|Task); no hard deny; 20% holdout; escape `ROUTER-OK`; cheap model (haiku/sonnet) passes. (2026-11-15)
+- Planning/review leader models: modern haiku, sonnet or a codex model. Opus/fable are not used for planning (owner, tested). (2026-11-15)
+- The bandit learns only from gate results; no gate, no update. Cap decays instead of freezing. (2026-11-15)
+- opencode runs through the local NIM proxy (launchd `local.nim-proxy`, :8787); agy runs read-only through `config/agy-allow.json`. (2026-11-15)
+- Push to main only after the full test run, an executor benchmark and an Oracle smoke run. (owner, 2026-11-15)

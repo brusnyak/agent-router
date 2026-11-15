@@ -25,7 +25,7 @@ from .context import Sessions, est_tokens
 from .db import connect
 from .keys import KeyPool, Transient
 from .runs import Runs, StaleLease
-from .workers import ClaudeWorker, CodexWorker, JcodeWorker, PiWorker, Result
+from .workers import ClaudeWorker, AgyWorker, CodexWorker, JcodeWorker, OpencodeWorker, PiWorker, Result
 from .workspace import IsolationError, Workspace, run_gate
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -70,9 +70,11 @@ def norm_worker(w: str) -> str:
         return w
     if w.lower() == "browser":
         return "browser"
-    m = re.fullmatch(r"jcode(?::?(?:nim|NIM_)(\d))?", w, re.I)
+    m = re.fullmatch(r"(jcode|opencode)(?::?(?:nim|NIM_)(\d))?", w, re.I)
     if m:
-        return f"jcode:NIM_{m.group(1) or 1}"
+        return f"{m.group(1).lower()}:NIM_{m.group(2) or 1}"
+    if w.lower() == "agy":
+        return "agy"
     if w.lower() == "or" or w.lower().startswith("or:"):
         return "or:" + (w.split(":", 1)[1] if ":" in w else "")
     return w
@@ -124,6 +126,8 @@ class Backbone:
         self.claude = ClaudeWorker(w.get("claude", {}))
         self.codex = CodexWorker(w.get("codex", {}))
         self.jcode = JcodeWorker(w.get("jcode", {}), n["model"])
+        self.opencode = OpencodeWorker(w.get("opencode", {}), n["model"], ROOT)
+        self.agy = AgyWorker(w.get("agy", {}), ROOT)
         self.projects = self._load_projects(rel(self.cfg.get("projects_file", "config/projects.yaml")))
         self._expert_lock = threading.Lock()  # SPEC D5: one expert (own-login) process at a time
         self._on_start: Dict[str, Callable[[str], None]] = {}
@@ -271,6 +275,10 @@ class Backbone:
             return browser.run(prompt, uuid.uuid4().hex[:6], lambda full: self.pi.run(
                 full, cwd, self.pool, prefer=arg or nimcfg["default_key"], retries=nimcfg.get("retries", 1),
                 backoff_s=nimcfg.get("backoff_s", 3), read_only=True))
+        if kind == "opencode":
+            return self.opencode.run(prompt, cwd, key=arg or nimcfg_default(self), read_only=read_only)
+        if kind == "agy":
+            return self.agy.run(prompt, cwd)
         if kind == "jcode":
             k = arg or nimcfg_default(self)
             return self.jcode.run(prompt, cwd, key=k, token=self.pool.value(k), read_only=read_only)
