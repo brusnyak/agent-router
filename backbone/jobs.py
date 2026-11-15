@@ -128,13 +128,13 @@ class Jobs:
             if prior and prior["state"] in ("running", "failed", "blocked"):
                 res = self.bb.resume(job["run_id"])  # checkpointed: continues, never repeats completed steps
             else:
-                res = self.bb.run(job["text"], on_start=link, **opts)
+                res = self.bb.run(job["text"], on_start=link, **{k: v for k, v in opts.items() if k != "gate_name"})  # gate_name is for nodes
             state = "done" if res.get("state") == "done" else "blocked"
             self.con.execute("UPDATE jobs SET state=?, run_id=?, updated=? WHERE id=?",
                              (state, res.get("run", ""), time.time(), job["id"]))
         except Exception as e:  # the Backbone already tickets; never leave the job 'running'
             state = "blocked"
-            self.con.execute("UPDATE jobs SET state='blocked', updated=? WHERE id=?", (time.time(), job["id"]))
+            self.con.execute("UPDATE jobs SET state='blocked', result=?, updated=? WHERE id=?", (f"job crashed: {type(e).__name__}: {e}"[:500], time.time(), job["id"]))
         self.con.commit()
         notify(tg.report(job, state, locals().get("res")))
 
