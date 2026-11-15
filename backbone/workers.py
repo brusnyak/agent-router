@@ -279,7 +279,7 @@ class GooseWorker:
         def once(name: str, key: str) -> Result:
             env = os.environ.copy()
             env["NVIDIA_API_KEY"] = key
-            cmd = [self.cmd, "run", "--no-session", "--max-turns", "10", prompt]
+            cmd = [self.cmd, "run", "--no-session", "--max-turns", "10", "-t", prompt]
             try:
                 p = _run(cmd, cwd, env, self.timeout)
             except subprocess.TimeoutExpired:
