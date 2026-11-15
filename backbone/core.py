@@ -25,7 +25,7 @@ from .context import Sessions, est_tokens
 from .db import connect
 from .keys import KeyPool, Transient
 from .runs import Runs, StaleLease
-from .workers import ClaudeWorker, AgyWorker, CodexWorker, JcodeWorker, OpencodeWorker, PiWorker, Result
+from .workers import ClaudeWorker, AgyWorker, CodexWorker, GooseWorker, JcodeWorker, OpencodeWorker, PiWorker, Result
 from .workspace import IsolationError, Workspace, run_gate
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -123,6 +123,7 @@ class Backbone:
         self.work_root = rel(self.cfg.get("work_dir", "data/work"))
         w = self.cfg.get("workers", {})
         self.pi = PiWorker(w.get("pi", {}), n["model"])
+        self.goose = GooseWorker(w.get("goose", {}), n["model"])
         self.claude = ClaudeWorker(w.get("claude", {}))
         self.codex = CodexWorker(w.get("codex", {}))
         self.jcode = JcodeWorker(w.get("jcode", {}), n["model"])
@@ -270,6 +271,10 @@ class Backbone:
                 nimcfg = self.cfg["nim"]
                 return self.pi.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
                                    retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
+            if kind == "goose":
+                nimcfg = self.cfg["nim"]
+                return self.goose.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
+                                      retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
             if kind == "or":  # OpenRouter free model: second opinion with different weights, read-only by construction
                 model = arg or self.cfg.get("openrouter", {}).get("default_model", "openrouter/free")
                 return self.pi.run_fixed(prompt, cwd, "OPENROUTER_API_KEY", "openrouter/" + model, read_only=True)
@@ -325,6 +330,8 @@ class Backbone:
         import shutil
         if self.cfg.get("decide", {}).get("allow_experts", False):  # experts cost your own subscription: opt-in only
             workers |= {w for w in ("claude", "codex") if shutil.which(self.cfg.get("workers", {}).get(w, {}).get("cmd", w))}
+        if shutil.which(self.cfg.get("workers", {}).get("goose", {}).get("cmd", "goose")):
+            workers.add("goose")
         caps = os.path.join(ROOT, "data", "capabilities.json")  # from `backbone doctor`: drop agents that failed their probe
         if os.path.exists(caps):
             bad = {a["name"] for a in json.load(open(caps)).get("agents", []) if a.get("usable") is False}
