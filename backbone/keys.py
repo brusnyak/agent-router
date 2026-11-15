@@ -43,9 +43,10 @@ class Transient(Exception):
 
 class KeyPool:
     def __init__(self, names: List[str], max_concurrent: int = 0, cooldown_s: float = 0.0,
-                 env: Optional[dict] = None, wait_s: float = 120.0, rpm_limit: int = 40,
+                 env: Optional[dict] = None, wait_s: float = 120.0, rpm_limit: int = 30,
                  clock: Callable[[], float] = time.time, sleep: Callable[[float], None] = time.sleep):
         self.clock, self.sleep, self.rpm_limit = clock, sleep, rpm_limit
+        self._rr: int = 0  # round-robin cursor for fair key distribution
         if env is None:  # default: process env, topped up with the named keys the shell did not export
             env = {**load_named([n for n in names if not os.environ.get(n)]), **os.environ}
         self.env = env
@@ -80,8 +81,11 @@ class KeyPool:
         if prefer in order:
             order.remove(prefer)
             order.insert(0, prefer)
-        order.sort(key=lambda n: (self._cool[n] > now, n == avoid, self._inflight.get(n, 0), self._count(n, now)))  # cooled/avoided last, then fewest in-flight (long agent runs), then fewest in window
-        return order
+        # round-robin primary: rotate starting at cursor so keys get even distribution
+        self._rr = (self._rr + 1) % len(order)
+        rr_order = order[self._rr:] + order[:self._rr]
+        rr_order.sort(key=lambda n: (self._cool[n] > now, n == avoid, self._inflight.get(n, 0), self._count(n, now)))  # cooled/avoided last, then fewest in-flight, then fewest in window
+        return rr_order
 
     @contextlib.contextmanager
     def lease(self, prefer: Optional[str] = None, avoid: Optional[str] = None):

@@ -5,10 +5,15 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from . import nim
+from . import otel
 from .jobs import Jobs
+from .keys import Transient
 
 
 def make_handler(bb, token: str):
@@ -54,11 +59,76 @@ def make_handler(bb, token: str):
                 return self._send(200, bb.pool.status())
             self._send(404, {"error": "not found"})
 
+        def _sse(self, obj) -> None:
+            self.wfile.write(f"data: {json.dumps(obj, default=str)}\n\n".encode())
+            self.wfile.flush()
+
+        def _chat_completions(self, d: dict) -> None:
+            model = d.get("model") or bb.cfg["nim"]["model"]
+            messages = d.get("messages") or []
+            if not isinstance(messages, list) or not messages:
+                return self._send(400, {"error": "messages must be a non-empty list"})
+            stream = bool(d.get("stream"))
+            max_tokens = int(d.get("max_tokens") or 1500)
+            temperature = float(d.get("temperature") or 0.2)
+            prefer = d.get("user")  # carried through as the key preference hint (not used for routing)
+            created = int(time.time())
+            cid = f"chatcmpl-{uuid.uuid4().hex[:16]}"
+
+            n = bb.cfg["nim"]
+            if not stream:
+                try:
+                    text = nim.chat(bb.pool, messages, base_url=n["base_url"], model=n["model"],
+                                    max_tokens=max_tokens, temperature=temperature, prefer=prefer)
+                except Exception as e:
+                    return self._send(502, {"error": f"completion failed: {type(e).__name__}: {e}"})
+                self._send(200, {
+                    "id": cid, "object": "chat.completion", "created": created, "model": model,
+                    "choices": [{"index": 0, "message": {"role": "assistant", "content": text},
+                                 "finish_reason": "stop"}],
+                })
+                return
+
+            def send(obj) -> None:
+                self._sse(obj)
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            try:
+                send({"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
+                      "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]})
+                for text in nim.chat_stream(bb.pool, messages, base_url=bb.cfg["nim"]["base_url"],
+                                            model=model, max_tokens=max_tokens,
+                                            temperature=temperature, prefer=prefer):
+                    send({"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
+                          "choices": [{"index": 0, "delta": {"content": text}, "finish_reason": None}]})
+                send({"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
+                      "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})
+                send({"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
+                      "choices": []})
+            except (BrokenPipeError, ConnectionResetError):
+                return
+            except Transient as e:
+                try:
+                    self._sse({"error": f"stream failed: {e}"})
+                except Exception:
+                    pass
+            except Exception as e:
+                try:
+                    self._sse({"error": f"stream error: {type(e).__name__}: {e}"})
+                except Exception:
+                    pass
+
         def do_POST(self):
             if not self._auth():
                 return
             path = urlparse(self.path).path
-            if path not in ("/submit", "/nodes/claim", "/nodes/result"):
+            allowed = ("/submit", "/nodes/claim", "/nodes/result", "/v1/chat/completions")
+            if path not in allowed:
                 return self._send(404, {"error": "not found"})
             try:
                 d = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
@@ -67,6 +137,8 @@ def make_handler(bb, token: str):
                 if path == "/nodes/result":
                     return self._send(200, {"ok": jobs.finish_from_node(str(d["node"]), str(d["job"]), str(d.get("state", "blocked")),
                                                                         str(d.get("output", "")), str(d.get("run", "")))})
+                if path == "/v1/chat/completions":
+                    return self._chat_completions(d)
                 opts = {}
                 if d.get("gate"):
                     bb.named_gate(d["gate"])  # validate the name against the hub config
