@@ -86,6 +86,10 @@ def build(bb, db_path: str):
         task = parse(s["text"])
         task.project = o.get("project") or task.project
         spec = norm_worker(o.get("worker") or task.worker)
+        # Non-binary workers (e.g. openhands over HTTP) are configured by base_url, not a PATH binary.
+        # Preserve them as-is: never let norm_worker or a fallback swap them for a local binary.
+        if spec and not bb.cfg.get("workers", {}).get(spec, {}).get("base_url"):
+            spec = norm_worker(spec)
         prompt, meta, notes, sources = bb.resolve(task)
         spec = spec or norm_worker(meta.get("worker", "")) or f"pi:{bb.cfg['nim']['default_key']}"
         gate = o.get("gate") or meta.get("gate") or None
