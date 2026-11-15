@@ -410,7 +410,7 @@ class OpenHandsWorker:
 
             # 2. Run the conversation
             status, body = _req("POST", f"/api/conversations/{conv_id}/run", timeout=15)
-            if status not in (200, 202):
+            if status not in (200, 202, 409):  # 409 = already running: proceed to poll
                 return Result(False, f"openhands run failed: rc={status} {body[:300]}", f"openhands:{conv_id}", latency_ms=int((time.time()-t0)*1000))
 
             # 3. Poll for completion
