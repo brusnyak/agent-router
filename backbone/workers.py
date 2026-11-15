@@ -11,6 +11,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -467,3 +468,60 @@ class AgyWorker:
         ok = p.returncode == 0 and bool(out) and not out.startswith("jetski:")
         return Result(ok, out or (p.stderr or "")[:400], "agy", latency_ms=lat)
 
+
+class NimCallWorker:
+    """nim_call.py library lane (read-only chat): NIM chat via nim_call.chat() inside KeyPool.call.
+    Key rotation, 2.5s cross-process throttling, and thinking-mode disable for nemotron are handled by nim_call.
+    This lane never touches cwd/token/file tools — it is a text-in/text-out NIM chat worker only.
+    Selectable via @nim-chat; never used for nim1|nim2|nim3 (those stay on PiWorker)."""
+
+    def __init__(self, cfg: dict, nim_model: str):
+        self.model = nim_model
+        self.timeout = int(cfg.get("timeout_s", 120))
+
+    def run(self, prompt: str, cwd: str, key: str = "NIM_1", token: str = "", read_only: bool = False, pool=None, **_) -> Result:
+        t0 = time.time()
+        try:
+            sys.path.insert(0, os.path.expanduser("~/Developer/agent-router/scripts"))
+            from nim_call import chat
+        except Exception as e:
+            return Result(False, f"nim_call import failed: {e}", "nim-chat", latency_ms=int((time.time() - t0) * 1000))
+
+        def _chat(kname: str, kval: str):
+            # explicit preferred key first, then nim_call's own rotation on 429
+            key_order = [kname] + [k for k in ("NIM_3", "NIM_2", "NIM_1") if k != kname]
+            try:
+                msg = chat(self.model, [{"role": "user", "content": prompt}], timeout=self.timeout, max_tokens=1500, key_order=key_order)
+            except RuntimeError as e:
+                text = str(e)
+                if _TRANSIENT.search(text):
+                    raise Transient(text)
+                raise
+            out = (msg.get("content") or "").strip()
+            if not out:
+                raise Transient("empty NIM response")
+            return out
+
+        try:
+            if pool is not None:
+                text = pool.call(_chat, prefer=key, retries=1, backoff_s=3.0)
+            else:
+                # fallback: direct call without pool
+                kname = key
+                kval = os.environ.get(kname, "")
+                env = os.environ.copy()
+                env[kname] = kval
+                try:
+                    msg = chat(self.model, [{"role": "user", "content": prompt}], timeout=self.timeout, max_tokens=1500)
+                except RuntimeError as e:
+                    text = str(e)
+                    if _TRANSIENT.search(text):
+                        raise Transient(text)
+                    return Result(False, text, "nim-chat", kname, int((time.time() - t0) * 1000))
+                text = (msg.get("content") or "").strip()
+                if not text:
+                    return Result(False, "empty NIM response", "nim-chat", kname, int((time.time() - t0) * 1000))
+        except Transient as e:
+            return Result(False, str(e), "nim-chat", key, int((time.time() - t0) * 1000))
+        lat = int((time.time() - t0) * 1000)
+        return Result(bool(text), text, "nim-chat", key, lat)

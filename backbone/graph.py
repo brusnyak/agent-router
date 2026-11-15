@@ -151,8 +151,38 @@ def build(bb, db_path: str):
             return {"accepted": False, "feedback": out[-800:], "gate_out": out, "n": n + 1}
         return {"accepted": True, "verified": False, "n": n + 1}
 
+    def critic(s: S) -> dict:
+        """Skepticism layer: a free OpenRouter model re-reviews accepted output against the task.
+        verified=false blocks done; config-driven via `critic.when` (always|gate|opinion, default gate).
+        Skipped when OPENROUTER_API_KEY is not set (leaves verified unchanged)."""
+        from .critic import critique
+        import os
+        when = str(bb.cfg.get("critic", {}).get("when", "gate")).lower()
+        gate_present = bool(s.get("gate"))
+        read_only = bool(s.get("read_only"))
+        run = (when == "always") or (when == "gate" and gate_present) or (when == "opinion" and read_only)
+        if not run or not os.environ.get("OPENROUTER_API_KEY"):
+            return {"verified": bool(s.get("verified"))}
+        task = s.get("task_prompt") or s["text"]
+        last = s["last"]
+        c = critique(lambda m: bb.chat(m, max_tokens=600), task, last.get("text", ""),
+                     diff=s.get("patch", "") or "", gate_out=s.get("gate_out", ""))
+        verdict = c.get("verdict", "unknown")
+        verified = bool(s.get("verified")) and verdict == "pass"
+        issues = c.get("issues", [])
+        feedback = "; ".join(i.get("claim", "") for i in issues[:3]) if issues else ""
+        return {"verified": verified, "feedback": (s.get("feedback", "") + ("\nCritic: " + feedback if feedback else "")).strip(),
+                "critic_verdict": verdict, "critic_issues": issues}
+
     def after_check(s: S) -> str:
-        return "finish" if s["accepted"] or s["n"] >= len(s["plan"]) else "work"
+        if s.get("accepted"):
+            return "critic"
+        return "work" if s["n"] < len(s["plan"]) else "finish"
+
+    def after_critic(s: S) -> str:
+        if s.get("verified"):
+            return "finish"
+        return "work" if s["n"] < len(s["plan"]) else "finish"
 
     def finish(s: S) -> dict:
         rid, last = s["rid"], s["last"]
@@ -195,11 +225,13 @@ def build(bb, db_path: str):
     g.add_node("prepare", prepare)
     g.add_node("work", work)
     g.add_node("check", check)
+    g.add_node("critic", critic)
     g.add_node("finish", finish)
     g.add_edge(START, "prepare")
     g.add_conditional_edges("prepare", lambda s: END if s.get("abort") else "work", {END: END, "work": "work"})
     g.add_edge("work", "check")
-    g.add_conditional_edges("check", after_check, {"finish": "finish", "work": "work"})
+    g.add_conditional_edges("check", after_check, {"finish": "finish", "work": "work", "critic": "critic"})
+    g.add_conditional_edges("critic", after_critic, {"finish": "finish", "work": "work"})
     g.add_edge("finish", END)
     compiled = g.compile(checkpointer=saver)
     compiled.stop_beat = stop_beat  # type: ignore[attr-defined]
