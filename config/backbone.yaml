@@ -27,6 +27,7 @@ workers:
   pi:     {cmd: pi,     timeout_s: 600}
   claude: {cmd: claude, timeout_s: 900}   # owner's own binary + login; see SPEC D5
   codex:  {cmd: codex,  timeout_s: 900}
+  jcode:  {cmd: jcode,  timeout_s: 600}   # ~29k input tokens per call (measured); earns its place via the bandit or not at all
 
 escalation:
   expert: codex                    # used after two failed attempts; "" disables

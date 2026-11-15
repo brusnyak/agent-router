@@ -1,0 +1,45 @@
+rules:
+  - when:
+      task_class: review
+      size: small
+    then:
+      worker: nim1
+      fallbacks: [nim2]
+      gate_hint: pytest
+  - when:
+      task_class: review
+      size: large
+    then:
+      worker: claude
+      fallbacks: [nim2, nim3]
+      gate_hint: pytest
+  - when:
+      task_class: code_edit
+      size: small
+    then:
+      worker: nim1
+      fallbacks: [nim2]
+      gate_hint: pytest -q
+  - when:
+      task_class: code_edit
+      size: large
+    then:
+      worker: claude
+      fallbacks: [nim2]
+      gate_hint: pytest -q
+  - when:
+      task_class: other
+      $or:
+        - size: small
+        - size: medium
+    then:
+      worker: nim1
+      fallbacks: [nim2]
+      gate_hint: true
+  - when:
+      task_class: other
+      size: large
+    then:
+      worker: claude
+      fallbacks: [nim1, nim2]
+      gate_hint: true

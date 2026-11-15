@@ -7,18 +7,20 @@ import argparse, json, os, shutil, sys, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OWN_MARK = "agent-router/"  # every command we add contains this path fragment plus one of the two script names
-SCRIPTS = ("backbone/hook.py", "scripts/outcome_hook.py")
+SCRIPTS = ("backbone/hook.py", "scripts/outcome_hook.py", "backbone/enforce.py")
 
 
 def entries(py):
     return {
         "UserPromptSubmit": {"hooks": [{"type": "command", "command": f"{py} {ROOT}/backbone/hook.py"}]},
         "PostToolUse": {"matcher": "Skill|Agent|Task", "hooks": [{"type": "command", "command": f"{py} {ROOT}/scripts/outcome_hook.py"}]},
+        # redirect-once enforcement: blocks a heavy sub-agent call once with the exact router command, then lets the repeat through
+        "PreToolUse": {"matcher": "Agent|Task", "hooks": [{"type": "command", "command": f"PYTHONPATH={ROOT}/ {py} -m backbone.enforce"}]},
     }
 
 
 def owned(cmd):
-    return OWN_MARK in cmd and any(s in cmd for s in SCRIPTS)
+    return OWN_MARK in cmd and any(s in cmd or s[:-3].replace("/", ".") in cmd for s in SCRIPTS)  # second form: `-m backbone.enforce`
 
 
 def strip_ours(hooks):
