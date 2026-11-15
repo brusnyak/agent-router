@@ -177,6 +177,8 @@ def build(bb, db_path: str):
         miss = missing_paths(last["text"], [s["ws_path"], s["proj_path"]]) if last["ok"] else []  # before cleanup: the worktree still holds files the worker just wrote
         ws.cleanup()
         verified = gate_passed and not miss
+        from .plan import learn
+        learn(s.get("task_prompt") or s["text"], last["worker"], bool(s.get("gate")), gate_passed, last["latency_ms"])
         reason = "" if verified else (f"cites_missing_file: {', '.join(miss[:5])}" if miss else ("no gate" if not s.get("gate") else "gate failed"))
         return {"out": {"run": rid, "session": s["sid"], "state": "done" if success else "blocked", "worker": last["worker"],
                         "mode": s["mode"], "style": s["style"], "verified": verified,

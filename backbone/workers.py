@@ -164,3 +164,34 @@ class CodexWorker:
                 pass
         ok = p.returncode == 0 and bool(text)
         return Result(ok, text or (p.stderr or p.stdout)[:400], "codex", latency_ms=lat)
+
+
+class JcodeWorker:
+    """jcode headless (`jcode run --json`) on a NIM key. Measured 2026-11-15: ~29k input tokens for a one-word task, so keep it for
+    parallel-session RAM savings, not for token-cheap work. Bandit decides if it earns its place."""
+
+    def __init__(self, cfg: dict, nim_model: str):
+        self.cmd = cfg.get("cmd", "jcode")
+        self.timeout = int(cfg.get("timeout_s", 600))
+        self.model = nim_model
+
+    def run(self, prompt: str, cwd: str, key: str = "NIM_1", token: str = "", read_only: bool = False, **_) -> Result:
+        t0 = time.time()
+        tok = token or os.environ.get(key, "")
+        if not tok:
+            return Result(False, f"{key} not set", f"jcode:{key}")
+        env = os.environ.copy()
+        env["NVIDIA_API_KEY"] = tok
+        if read_only:
+            prompt = "READ-ONLY: do not edit files or run mutating commands.\n" + prompt
+        try:
+            p = _run([self.cmd, "run", "-p", "nvidia-nim", "-m", self.model, "--json", prompt], cwd, env, self.timeout)
+        except subprocess.TimeoutExpired:
+            return Result(False, f"jcode timeout after {self.timeout}s", f"jcode:{key}", key, self.timeout * 1000)
+        lat = int((time.time() - t0) * 1000)
+        try:
+            j = json.loads(p.stdout)
+            text = str(j.get("text", "")).strip()
+        except Exception:
+            return Result(False, (p.stderr or p.stdout)[:400], f"jcode:{key}", key, lat)
+        return Result(p.returncode == 0 and bool(text), text, f"jcode:{key}", key, lat, meta={"usage": j.get("usage")})

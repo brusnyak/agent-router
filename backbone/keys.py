@@ -13,6 +13,25 @@ from typing import Callable, Dict, List, Optional, TypeVar
 T = TypeVar("T")
 
 
+def load_named(names: List[str], path: str = "~/.env") -> Dict[str, str]:
+    """Only the named keys from the owner's env file (same contract as ~/.claude/scripts/with-env), so the router needs no wrapper.
+    Values go into the in-process pool only; never logged."""
+    out: Dict[str, str] = {}
+    try:
+        with open(os.path.expanduser(path), encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if line.startswith("export "):
+                    line = line[7:]
+                k, sep, v = line.partition("=")
+                k, v = k.strip(), v.strip()
+                if sep and k in names and v:
+                    out[k] = v[1:-1] if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'" else v
+    except OSError:
+        pass
+    return out
+
+
 class Transient(Exception):
     """Worth retrying, ideally on another key: 429, 5xx, timeouts, queue/safety-screen errors."""
     retry_after: Optional[float] = None  # seconds, from an HTTP 429 Retry-After header
@@ -23,7 +42,9 @@ class KeyPool:
                  env: Optional[dict] = None, wait_s: float = 120.0, rpm_limit: int = 40,
                  clock: Callable[[], float] = time.time, sleep: Callable[[float], None] = time.sleep):
         self.clock, self.sleep, self.rpm_limit = clock, sleep, rpm_limit
-        self.env = env if env is not None else os.environ
+        if env is None:  # default: process env, topped up with the named keys the shell did not export
+            env = {**load_named([n for n in names if not os.environ.get(n)]), **os.environ}
+        self.env = env
         self.names = [n for n in names if self.env.get(n)]
         self.all_names = list(names)
         self.cooldown_s = cooldown_s

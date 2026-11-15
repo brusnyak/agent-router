@@ -69,6 +69,8 @@ def main(argv=None) -> None:
         sub.add_parser(n, help=h)
     rr = sub.add_parser("router-report", help="hook A/B report: treat vs holdout follow rate")
     rr.add_argument("--json", action="store_true"); rr.add_argument("--receipts"); rr.add_argument("--outcomes")
+    pl = sub.add_parser("plan", help="deterministic plan for a prompt: class, worker pick (bandit), compiled command; --table shows learned cells")
+    pl.add_argument("text", nargs="*"); pl.add_argument("--table", action="store_true")
     cp = sub.add_parser("compile", help="prompt -> compact card (entities kept verbatim)")
     cp.add_argument("text"); cp.add_argument("--no-llm", action="store_true")
     a, rest = ap.parse_known_args(argv)
@@ -88,6 +90,12 @@ def main(argv=None) -> None:
             if getattr(a, k):
                 hl += ["--" + k, getattr(a, k)]
         raise SystemExit(hook_log.main(hl))
+    if a.cmd == "plan":
+        from . import plan as _p
+        from .bandit import Bandit
+        b = Bandit(_p.bandit_path())
+        print(json.dumps(b.table() if a.table else _p.plan(" ".join(a.text), bandit=b), indent=1))
+        return
     if a.cmd == "compile":
         from . import compile as _c
         raise SystemExit(_c.main([a.text] + (["--no-llm"] if a.no_llm else [])))
