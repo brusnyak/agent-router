@@ -391,7 +391,7 @@ class OpenHandsWorker:
         try:
             # 1. Create conversation
             status, body = _req("POST", "/api/conversations", {
-                "message": prompt,
+                "initial_message": {"role": "user", "content": [{"type": "text", "text": prompt}]},
                 "metadata": {"source": "backbone", "cwd": cwd},
                 "workspace": {"working_dir": cwd, "kind": "LocalWorkspace"},
                 "agent_settings": {"agent_kind": "openhands"},
@@ -466,3 +466,4 @@ class AgyWorker:
         out = (p.stdout or "").strip()
         ok = p.returncode == 0 and bool(out) and not out.startswith("jetski:")
         return Result(ok, out or (p.stderr or "")[:400], "agy", latency_ms=lat)
+
