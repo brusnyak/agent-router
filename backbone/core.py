@@ -335,7 +335,8 @@ class Backbone:
             workers |= {w for w in ("claude", "codex") if shutil.which(self.cfg.get("workers", {}).get(w, {}).get("cmd", w))}
         if shutil.which(self.cfg.get("workers", {}).get("goose", {}).get("cmd", "goose")):
             workers.add("goose")
-        if shutil.which(self.cfg.get("workers", {}).get("openhands", {}).get("cmd", "openhands")):
+        oh = self.cfg.get("workers", {}).get("openhands", {})
+        if oh.get("base_url"):
             workers.add("openhands")
         caps = os.path.join(ROOT, "data", "capabilities.json")  # from `backbone doctor`: drop agents that failed their probe
         if os.path.exists(caps):
