@@ -261,6 +261,49 @@ class OpencodeWorker:
         return Result(ok, text or (p.stderr or "")[:400], f"opencode:{key}", key, lat)
 
 
+class GooseWorker:
+    """goose headless (`goose run --no-session --max-turns N`) on a NIM key.
+    Key failover through KeyPool. ACP over HTTP (`goose serve`) available for custom UI routing on 127.0.0.1:3284.
+    Oracle fit: single Rust binary, zero runtime deps, ~0.11s cold start, headless by design.
+    """
+
+    def __init__(self, cfg: dict, nim_model: str):
+        self.cmd = cfg.get("cmd", "goose")
+        self.timeout = int(cfg.get("timeout_s", 600))
+        self.model_id = nim_model.removeprefix("nvidia/") if nim_model.startswith("nvidia/nvidia/") else nim_model
+
+    def run(self, prompt: str, cwd: str, pool: KeyPool, prefer: Optional[str] = None, system: str = "",
+            retries: int = 1, backoff_s: float = 3.0, read_only: bool = False) -> Result:
+        t0 = time.time()
+
+        def once(name: str, key: str) -> Result:
+            env = os.environ.copy()
+            env["NVIDIA_API_KEY"] = key
+            cmd = [self.cmd, "run", "--no-session", "--max-turns", "10"]
+            if system:
+                prompt = f"{system}\n\n{prompt}"
+            cmd += [prompt]
+            try:
+                p = _run(cmd, cwd, env, self.timeout)
+            except subprocess.TimeoutExpired:
+                return Result(False, f"goose timeout after {self.timeout}s on {name}: not retried", f"goose:{name}", name)
+            out = (p.stdout or "").strip()
+            err = (p.stderr or "").strip()
+            if p.returncode != 0 or not out:
+                blob = (err or out)[:300]
+                if _TRANSIENT.search(blob) or not out:
+                    raise Transient(f"goose on {name}: rc={p.returncode} {blob}")
+                return Result(False, blob, f"goose:{name}", name)
+            return Result(True, out, f"goose:{name}", name)
+
+        try:
+            r = pool.call(once, prefer=prefer, retries=retries, backoff_s=backoff_s)
+        except Transient as e:
+            return Result(False, str(e), "goose", "", int((time.time() - t0) * 1000))
+        r.latency_ms = int((time.time() - t0) * 1000)
+        return r
+
+
 class ClineWorker:
     """cline headless (`cline -p`) with the owner's own installed binary and login.
     Supports NIM key selection via NIM_1 / NIM_2 env vars for model routing."""
