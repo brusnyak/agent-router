@@ -56,7 +56,7 @@ class PiWorker:
     def __init__(self, cfg: dict, nim_model: str):
         self.cmd = cfg.get("cmd", "pi")
         self.timeout = int(cfg.get("timeout_s", 600))
-        self.model_id = nim_model.removeprefix("nvidia/") if nim_model.startswith("nvidia/nvidia/") else nim_model
+        self.model_id = nim_model
 
     def run(self, prompt: str, cwd: str, pool: KeyPool, prefer: Optional[str] = None, system: str = "",
             retries: int = 1, backoff_s: float = 3.0, read_only: bool = False) -> Result:
@@ -64,8 +64,8 @@ class PiWorker:
 
         def once(name: str, key: str) -> Result:
             env = os.environ.copy()
-            env[name] = key
-            model = f"nim{key_index(name)}/{self.model_id}"
+            env["NVIDIA_API_KEY"] = key
+            model = self.model_id
             cmd = [self.cmd, "-p", "--no-session", "--no-extensions", "--no-mcp", "--no-skills",
                    "--no-prompt-templates", "--model", model]
             if read_only:
@@ -270,7 +270,7 @@ class GooseWorker:
     def __init__(self, cfg: dict, nim_model: str):
         self.cmd = cfg.get("cmd", "goose")
         self.timeout = int(cfg.get("timeout_s", 600))
-        self.model_id = nim_model.removeprefix("nvidia/") if nim_model.startswith("nvidia/nvidia/") else nim_model
+        self.model_id = nim_model
 
     def run(self, prompt: str, cwd: str, pool: KeyPool, prefer: Optional[str] = None, system: str = "",
             retries: int = 1, backoff_s: float = 3.0, read_only: bool = False) -> Result:
@@ -393,6 +393,7 @@ class OpenHandsWorker:
             status, body = _req("POST", "/api/conversations", {
                 "message": prompt,
                 "metadata": {"source": "backbone", "cwd": cwd},
+                "workspace": cwd,
             }, timeout=15)
             if status not in (200, 201):
                 return Result(False, f"openhands create failed: rc={status} {body[:300]}", "openhands", latency_ms=int((time.time()-t0)*1000))
