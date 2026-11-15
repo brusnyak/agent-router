@@ -20,7 +20,7 @@ from typing import Callable, Dict, List, Optional
 
 import yaml
 
-from . import library, nim
+from . import library, nim, otel
 from .context import Sessions, est_tokens
 from .db import connect
 from .keys import KeyPool, Transient
@@ -262,30 +262,34 @@ class Backbone:
     # -- execution ------------------------------------------------------
     def _dispatch(self, spec: str, prompt: str, cwd: str, read_only: bool, attempt: int) -> Result:
         kind, _, arg = spec.partition(":")
-        if kind == "pi":
-            nimcfg = self.cfg["nim"]
-            return self.pi.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
-                               retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
-        if kind == "or":  # OpenRouter free model: second opinion with different weights, read-only by construction
-            model = arg or self.cfg.get("openrouter", {}).get("default_model", "openrouter/free")
-            return self.pi.run_fixed(prompt, cwd, "OPENROUTER_API_KEY", "openrouter/" + model, read_only=True)
-        if kind == "browser":  # read the URLs in the request through the Ego browser (space released afterwards), then reason on NIM
-            from . import browser
-            nimcfg = self.cfg["nim"]
-            return browser.run(prompt, uuid.uuid4().hex[:6], lambda full: self.pi.run(
-                full, cwd, self.pool, prefer=arg or nimcfg["default_key"], retries=nimcfg.get("retries", 1),
-                backoff_s=nimcfg.get("backoff_s", 3), read_only=True))
-        if kind == "opencode":
-            return self.opencode.run(prompt, cwd, key=arg or nimcfg_default(self), read_only=read_only)
-        if kind == "agy":
-            return self.agy.run(prompt, cwd)
-        if kind == "jcode":
-            k = arg or nimcfg_default(self)
-            return self.jcode.run(prompt, cwd, key=k, token=self.pool.value(k), read_only=read_only)
-        if kind in ("claude", "codex"):
-            with self._expert_lock:
-                return (self.claude if kind == "claude" else self.codex).run(prompt, cwd, read_only=read_only)
-        return Result(False, f"unknown worker '{spec}'", spec)
+        with otel.span(
+            "router.dispatch",
+            {"router.worker": kind, "router.worker_arg": arg or "", "router.read_only": read_only},
+        ):
+            if kind == "pi":
+                nimcfg = self.cfg["nim"]
+                return self.pi.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
+                                   retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
+            if kind == "or":  # OpenRouter free model: second opinion with different weights, read-only by construction
+                model = arg or self.cfg.get("openrouter", {}).get("default_model", "openrouter/free")
+                return self.pi.run_fixed(prompt, cwd, "OPENROUTER_API_KEY", "openrouter/" + model, read_only=True)
+            if kind == "browser":  # read the URLs in the request through the Ego browser (space released afterwards), then reason on NIM
+                from . import browser
+                nimcfg = self.cfg["nim"]
+                return browser.run(prompt, uuid.uuid4().hex[:6], lambda full: self.pi.run(
+                    full, cwd, self.pool, prefer=arg or nimcfg["default_key"], retries=nimcfg.get("retries", 1),
+                    backoff_s=nimcfg.get("backoff_s", 3), read_only=True))
+            if kind == "opencode":
+                return self.opencode.run(prompt, cwd, key=arg or nimcfg_default(self), read_only=read_only)
+            if kind == "agy":
+                return self.agy.run(prompt, cwd)
+            if kind == "jcode":
+                k = arg or nimcfg_default(self)
+                return self.jcode.run(prompt, cwd, key=k, token=self.pool.value(k), read_only=read_only)
+            if kind in ("claude", "codex"):
+                with self._expert_lock:
+                    return (self.claude if kind == "claude" else self.codex).run(prompt, cwd, read_only=read_only)
+            return Result(False, f"unknown worker '{spec}'", spec)
 
     def run(self, text: str, *, session: Optional[str] = None, project: str = "", cwd: Optional[str] = None,
             gate: Optional[str] = None, isolate: bool = True, worker: str = "", read_only: bool = False,
@@ -308,7 +312,12 @@ class Backbone:
             self._on_start[rid] = on_start
         opts = {"session": session, "project": project, "cwd": cwd, "gate": gate, "isolate": isolate, "worker": worker,
                 "read_only": read_only, "use_vault": use_vault, "escalate": escalate}
-        return self._invoke({"rid": rid, "text": text, "opts": opts}, rid)
+        with otel.span(
+            "router.run",
+            {"router.rid": rid, "router.text": text[:300], "router.project": project,
+             "router.worker": w or "", "router.session": session or "", "router.read_only": read_only},
+        ):
+            return self._invoke({"rid": rid, "text": text, "opts": opts}, rid)
 
     def allowed(self) -> dict:
         cmds = {r["name"] for r in self.con.execute("SELECT name FROM library WHERE kind='command'")}

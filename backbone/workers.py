@@ -261,6 +261,36 @@ class OpencodeWorker:
         return Result(ok, text or (p.stderr or "")[:400], f"opencode:{key}", key, lat)
 
 
+class ClineWorker:
+    """cline headless (`cline -p`) with the owner's own installed binary and login.
+    Supports NIM key selection via NIM_1 / NIM_2 env vars for model routing."""
+
+    def __init__(self, cfg: dict):
+        self.cmd = cfg.get("cmd", "cline")
+        self.timeout = int(cfg.get("timeout_s", 900))
+
+    def run(self, prompt: str, cwd: str, key: str = "NIM_1", read_only: bool = False, **_) -> Result:
+        t0 = time.time()
+        tok = os.environ.get(key, "")
+        env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY")}
+        if tok:
+            env["NVIDIA_API_KEY"] = tok
+        cmd = [self.cmd, "-p", prompt, "--output-format", "json", "--no-session-persistence",
+               "--permission-mode", "plan" if read_only else "acceptEdits"]
+        try:
+            p = _run(cmd, cwd, env, self.timeout)
+        except subprocess.TimeoutExpired:
+            return Result(False, "cline timeout", "cline", latency_ms=self.timeout * 1000)
+        lat = int((time.time() - t0) * 1000)
+        try:
+            j = json.loads(p.stdout)
+        except Exception:
+            return Result(False, (p.stderr or p.stdout)[:400], "cline", latency_ms=lat)
+        ok = not j.get("is_error") and p.returncode == 0
+        return Result(ok, str(j.get("result", "")), "cline", latency_ms=lat,
+                      meta={"cost_usd": j.get("total_cost_usd"), "turns": j.get("num_turns"), "key": key})
+
+
 class AgyWorker:
     """Antigravity CLI print mode with a read-only allow-list (config/agy-allow.json): headless mode cannot prompt, so unlisted tools are denied.
     Read-only on purpose; Google quota, not NIM."""

@@ -9,6 +9,7 @@ import subprocess
 import time
 from typing import List
 
+from . import otel
 from .workers import Result
 
 _URL = re.compile(r"https?://[^\s)>\]\"'`]+")
@@ -43,7 +44,8 @@ def urls_in(text: str, limit: int = 3) -> List[str]:
 
 def read(urls: List[str], space: str, cap: int = 20000, timeout: int = 180) -> List[dict]:
     script = _JS % (json.dumps(urls), json.dumps(space), cap)
-    p = subprocess.run(["ego-browser", "nodejs"], input=script, capture_output=True, text=True, timeout=timeout)
+    with otel.span("router.browser.read", {"browser.urls": ",".join(urls), "browser.space": space}):
+        p = subprocess.run(["ego-browser", "nodejs"], input=script, capture_output=True, text=True, timeout=timeout)
     both = p.stdout + "\n" + p.stderr  # ego-browser prints script output on stderr
     m = re.search(r"@@JSON@@(.*)", both)
     if not m:
