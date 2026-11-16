@@ -15,7 +15,11 @@ Current worker set on Oracle hub + Mac node. `backbone run --worker X` routes th
 
 Hermes config: `config/backbone.yaml` → `hermes { enabled: true, base_url: http://127.0.0.1:3033, delegate_to_backbone: true, backbone_serve_url: http://127.0.0.1:8799, backbone_token_env: BACKBONE_TOKEN }`. OpenHands worker block removed from both Mac and Oracle configs.
 
-Hermes delegates tasks to the backbone router via `POST /submit` on `backbone serve` (loopback `:8799`, bearer `BACKBONE_TOKEN`). The daemon (`agent-router.service`) claims pending jobs and runs them through the graph. Verified: goose job submitted via `/submit` reached state `done`.
+Hermes delegates tasks to the backbone router via `~/bin/router vm` (which POSTs to `POST /submit` on `backbone serve`, loopback `:8799`, bearer `BACKBONE_TOKEN`). The daemon (`agent-router.service`) claims pending jobs and runs them through the graph. Verified: `router vm --gate noop --worker goose 'Say ROUTER_VM_OK'` → `DONE` in ~25s.
+
+## Hermes router-delegate skill
+
+Installed at `~/.hermes-nina/skills/router-delegate/SKILL.md` on Oracle. Ranked #1 by the `skill-hint.py` pre_llm_call hook for delegation messages (score 6/6), so Hermes is proactively told to delegate long builds/tests/research to the router. The `router-default.py` pre_tool_call hook prompts router use for second long build/test in a task.
 
 ## Graph
 
@@ -35,7 +39,7 @@ No 4th key needed at this time. If Hermes needs dedicated rate-limit isolation l
 
 ## Open notes
 
-- Delegation path proven: `POST /submit` on backbone serve creates a job, the daemon claims and executes it, state transitions to `done`/`blocked`. Hermes can use this path for task delegation.
-- Hermes gateway source is at `~/hermes-source` on Oracle; its API contract for accepting tasks from backbone needs to be wired (gateway currently returns `{"error": "not found"}` for generic paths — it's a messaging gateway, not a task API).
+- Delegation path fully wired: `~/bin/router vm` → `POST /submit` on backbone serve → daemon claims job → runs through LangGraph → state `done`/`blocked`. Hermes skill `router-delegate` teaches Hermes when/how to delegate; `router-default.py` hook prompts router use for second long build/test.
+- Hermes gateway source is at `~/hermes-source` on Oracle; its API contract for accepting tasks from backbone needs to be wired (gateway currently returns `{"error": "not found"}` for generic paths — it's a messaging gateway, not a task API). Delegation works from Hermes→router via `router vm`, not yet from router→Hermes.
 - OMP (can1357/oh-my-pi): not in DataCamp top-10 harnesses, worse benchmarks than Pi, not installed on Oracle, own provider model — not a viable substitute. Not pursued.
 - agent-router.service fix: `WorkingDirectory=%h/agent-router` pointed to nonexistent dir; changed to `%h/Developer/agent-router`; daemon now active.
