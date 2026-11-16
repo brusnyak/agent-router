@@ -492,11 +492,11 @@ class NimCallWorker:
             key_order = [kname] + [k for k in ("NIM_3", "NIM_2", "NIM_1") if k != kname]
             try:
                 msg = chat(self.model, [{"role": "user", "content": prompt}], timeout=self.timeout, max_tokens=1500, key_order=key_order)
-            except RuntimeError as e:
+            except Exception as e:
                 text = str(e)
                 if _TRANSIENT.search(text):
                     raise Transient(text)
-                raise
+                raise Transient(f"nim chat failed: {text}")
             out = (msg.get("content") or "").strip()
             if not out:
                 raise Transient("empty NIM response")
@@ -524,6 +524,7 @@ class NimCallWorker:
         except Transient as e:
             return Result(False, str(e), "nim-chat", key, int((time.time() - t0) * 1000))
         lat = int((time.time() - t0) * 1000)
+        return Result(True, text, "nim-chat", key, lat)
 
 class PersonaWorker:
     """ECC persona / agency agent lane: reads a persona .md file, injects it as system
