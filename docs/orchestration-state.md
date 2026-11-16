@@ -42,7 +42,9 @@ Oracle = always-on hub (hermes gateway `:3033` + API server `:8642`, backbone se
 
 ## NVIDIA API key status — RESOLVED
 
-All three Oracle NIM keys were stale (HTTP 403). Copied the working Mac keys (`~/.env` NIM_1/NIM_2/NIM_3) to Oracle's `backbone.service` EnvironmentFile and restarted `backbone.service`. All three now return HTTP 200 from `https://integrate.api.nvidia.com/v1/chat/completions`, and `backbone serve /v1/chat/completions` returns completions (verified: "KEYS_OK").
+All three Oracle NIM keys were stale (HTTP 403). Copied the working Mac keys (`~/.env` NIM_1/NIM_2/NIM_3) to Oracle's `backbone.service` EnvironmentFile and restarted `backbone.service`. All three now return HTTP 200 from `https://integrate.api.nvidia.com/v1/chat/completions`.
+
+Hermes-nina (`~/.hermes-nina/.env`) also had stale `NVIDIA_API_KEY` and `OPENROUTER_API_KEY` — replaced with the working Mac keys. Verified end-to-end: Hermes API server `/v1/runs` completed "HERMES_KEYS_FIXED" successfully; browser chat UI at `https://hermes.run.place/nina/` responds to messages through Nina with full terminal + file analysis.
 
 No 4th key needed at this time. If Hermes needs dedicated rate-limit isolation later, add NIM_4 to `config/backbone.yaml` → `nim.keys` and the Oracle `backbone.service` EnvironmentFile.
 
