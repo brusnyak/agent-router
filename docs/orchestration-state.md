@@ -10,7 +10,7 @@ Current worker set on Oracle hub + Mac node. `backbone run --worker X` routes th
 | goose | Oracle + Mac | headless CLI on NIM key | KEEP — lightweight tasks |
 | codex | Mac only | local binary | fallback/escalation expert |
 | claude | Mac only | local binary | fallback/escalation expert |
-| pi / jcode / opencode | Oracle + Mac | NIM-key CLI workers | available |
+| pi / jcode / opencode | Mac only | NIM-key CLI workers (not on Oracle) | available |
 | openhands | removed | was agent-server `:8000` | REMOVED — too slow, wrong tool |
 
 Hermes config: `config/backbone.yaml` → `hermes { enabled: true, base_url: http://127.0.0.1:3033, delegate_to_backbone: true, backbone_serve_url: http://127.0.0.1:8799, backbone_token_env: BACKBONE_TOKEN }`. OpenHands worker block removed from both Mac and Oracle configs.
@@ -27,17 +27,11 @@ Hermes delegates tasks to the backbone router via `POST /submit` on `backbone se
 
 Oracle = always-on hub (hermes gateway `:3033`, backbone serve `:8799` loopback, backbone daemon). Mac = dev node, outbound SSH tunnel only to hub port 8799; nothing on Mac listens for Oracle. Cross-host: `backbone run --worker host:oracle-vm:X` runs X on Oracle.
 
-## NVIDIA API key status — ACTION REQUIRED
+## NVIDIA API key status — RESOLVED
 
-All three Oracle NIM keys return HTTP 403 Forbidden from `https://integrate.api.nvidia.com/v1/chat/completions` (verified directly with curl, not just via backbone). This breaks:
-- `backbone serve /v1/chat/completions` (completion failed: http 403 on NIM_2)
-- RAG embeddings ("embed http 403")
-- Any NIM-backed worker (pi, goose, jcode, opencode)
+All three Oracle NIM keys were stale (HTTP 403). Copied the working Mac keys (`~/.env` NIM_1/NIM_2/NIM_3) to Oracle's `backbone.service` EnvironmentFile and restarted `backbone.service`. All three now return HTTP 200 from `https://integrate.api.nvidia.com/v1/chat/completions`, and `backbone serve /v1/chat/completions` returns completions (verified: "KEYS_OK").
 
-Keys on Oracle (from `backbone.service` EnvironmentFile): NIM_1, NIM_2, NIM_3 — all dead.
-Mac has different keys in `~/.env` (NIM_1, NIM_2, NIM_3) — not yet tested on Oracle.
-
-**Recommendation:** Create a 4th NVIDIA API key (NIM_4) dedicated to Hermes on Oracle for reliability and multi-agent delegation. Add it to `config/backbone.yaml` → `nim.keys` and to the Oracle `backbone.service` EnvironmentFile. Until keys are valid, Hermes reasoning and all NIM workers are non-functional on Oracle.
+No 4th key needed at this time. If Hermes needs dedicated rate-limit isolation later, add NIM_4 to `config/backbone.yaml` → `nim.keys` and the Oracle `backbone.service` EnvironmentFile.
 
 ## Open notes
 
