@@ -4,6 +4,7 @@ Grammar (leading tokens only, any order):  [/command] [#project] [@worker] promp
   /command  a library row of kind 'command' (data, ingestable); unknown names fall back to library search
   #project  id from config/projects.yaml
   @worker   nim1|nim2|nim3 (Pi on that NIM key), claude, codex
+  workflow   <id> (run a workflow DAG from config/workflows.yaml)
 """
 from __future__ import annotations
 
@@ -21,11 +22,12 @@ from typing import Callable, Dict, List, Optional
 import yaml
 
 from . import library, nim, otel
+from .workflow import run_workflow
 from .context import Sessions, est_tokens
 from .db import connect
 from .keys import KeyPool, Transient
 from .runs import Runs, StaleLease
-from .workers import ClaudeWorker, AgyWorker, CodexWorker, GooseWorker, JcodeWorker, OpenHandsWorker, OpencodeWorker, PiWorker, Result
+from .workers import ClaudeWorker, AgyWorker, CodexWorker, GooseWorker, JcodeWorker, NimCallWorker, OpenHandsWorker, OpencodeWorker, PersonaWorker, PiWorker, Result
 from .workspace import IsolationError, Workspace, run_gate
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -124,13 +126,15 @@ class Backbone:
         w = self.cfg.get("workers", {})
         self.pi = PiWorker(w.get("pi", {}), n["model"])
         self.goose = GooseWorker(w.get("goose", {}), n["model"])
+        self.nim = NimCallWorker(w.get("nim-chat", {}), n["model"])
         self.openhands = OpenHandsWorker(w.get("openhands", {}))
         self.claude = ClaudeWorker(w.get("claude", {}))
         self.codex = CodexWorker(w.get("codex", {}))
         self.jcode = JcodeWorker(w.get("jcode", {}), n["model"])
         self.opencode = OpencodeWorker(w.get("opencode", {}), n["model"], ROOT)
-        self.agy = AgyWorker(w.get("agy", {}), ROOT)
+        self.persona = PersonaWorker(w.get("persona", {}), n["model"])
         self.projects = self._load_projects(rel(self.cfg.get("projects_file", "config/projects.yaml")))
+
         self._expert_lock = threading.Lock()  # SPEC D5: one expert (own-login) process at a time
         self._on_start: Dict[str, Callable[[str], None]] = {}
         from .graph import build
@@ -268,12 +272,13 @@ class Backbone:
             "router.dispatch",
             {"router.worker": kind, "router.worker_arg": arg or "", "router.read_only": read_only},
         ):
+            nimcfg = self.cfg["nim"]
             if kind == "pi":
-                nimcfg = self.cfg["nim"]
                 return self.pi.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
                                    retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
+            if kind == "nim-chat":
+                return self.nim.run(prompt, cwd, key=arg or nimcfg["default_key"], read_only=True, pool=self.pool)
             if kind == "goose":
-                nimcfg = self.cfg["nim"]
                 return self.goose.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
                                       retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
             if kind == "openhands":
@@ -291,9 +296,22 @@ class Backbone:
                 return self.opencode.run(prompt, cwd, key=arg or nimcfg_default(self), read_only=read_only)
             if kind == "agy":
                 return self.agy.run(prompt, cwd)
+            if kind.startswith("ecc-") or kind.startswith("agency-"):
+                from . import library as _lib
+                row = _lib.get(self.con, "skill", kind) or _lib.get(self.con, "command", kind)
+                persona_path = ""
+                if row and row.get("meta"):
+                    persona_path = row["meta"].get("persona_file", "") or row["meta"].get("path", "")
+                k = arg or nimcfg_default(self)
+                return self.persona.run(prompt, cwd, key=k, token=self.pool.value(k),
+                                        read_only=read_only, pool=self.pool,
+                                        persona_path=persona_path)
+
             if kind == "jcode":
                 k = arg or nimcfg_default(self)
                 return self.jcode.run(prompt, cwd, key=k, token=self.pool.value(k), read_only=read_only)
+            if kind == "workflow":
+                return run_workflow(self, arg, prompt, cwd, read_only=read_only)
             if kind in ("claude", "codex"):
                 with self._expert_lock:
                     return (self.claude if kind == "claude" else self.codex).run(prompt, cwd, read_only=read_only)
@@ -329,7 +347,7 @@ class Backbone:
 
     def allowed(self) -> dict:
         cmds = {r["name"] for r in self.con.execute("SELECT name FROM library WHERE kind='command'")}
-        workers = {f"nim{i + 1}" for i in range(len(self.pool.names))} | ({"or"} if os.environ.get("OPENROUTER_API_KEY") else set())
+        workers = {f"nim{i + 1}" for i in range(len(self.pool.names))} | ({"or"} if os.environ.get("OPENROUTER_API_KEY") else set()) | {"workflow"}
         import shutil
         if self.cfg.get("decide", {}).get("allow_experts", False):  # experts cost your own subscription: opt-in only
             workers |= {w for w in ("claude", "codex") if shutil.which(self.cfg.get("workers", {}).get(w, {}).get("cmd", w))}

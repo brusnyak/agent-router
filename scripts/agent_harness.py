@@ -263,7 +263,6 @@ class AgentHarness:
             # NIM agents can't write files directly — extract code blocks and write them
             if lane == "build" and not output.startswith("Error:"):
                 written_files = self._write_code_blocks(output)
-        elif provider in ("claude", "codex", "gemini"):
             output = self._dispatch_cli(agent, task, lane, project, agent_cfg)
         else:
             output = f"Error: unknown provider {provider}"
@@ -354,7 +353,7 @@ class AgentHarness:
                     return aid
             # Then CLI
             for aid, acfg in self._agents.items():
-                if acfg.get("provider") in ("claude", "codex", "gemini"):
+                if acfg.get("provider") in ("claude", "codex"):
                     return aid
 
         return "nim3"

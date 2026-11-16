@@ -524,4 +524,77 @@ class NimCallWorker:
         except Transient as e:
             return Result(False, str(e), "nim-chat", key, int((time.time() - t0) * 1000))
         lat = int((time.time() - t0) * 1000)
-        return Result(bool(text), text, "nim-chat", key, lat)
+
+class PersonaWorker:
+    """ECC persona / agency agent lane: reads a persona .md file, injects it as system
+    context, and runs the task through NIM chat inside KeyPool call.
+    Selectable via @ecc-<persona> or @agency-<agent>; falls back to available NIM key
+    when a specific key is down."""
+
+    def __init__(self, cfg: dict, nim_model: str):
+        self.model = nim_model
+        self.timeout = int(cfg.get("timeout_s", 120))
+
+    def run(self, prompt: str, cwd: str, key: str = "NIM_1", token: str = "",
+            read_only: bool = False, pool=None, persona_path: str = "", **_) -> Result:
+        t0 = time.time()
+        try:
+            sys.path.insert(0, os.path.expanduser("~/Developer/agent-router/scripts"))
+            from nim_call import chat
+        except Exception as e:
+            return Result(False, f"nim_call import failed: {e}", "persona", latency_ms=int((time.time() - t0) * 1000))
+
+        persona_ctx = ""
+        if persona_path:
+            try:
+                with open(os.path.expanduser(persona_path), encoding="utf-8", errors="ignore") as fh:
+                    persona_ctx = fh.read()[:3000]
+            except OSError:
+                persona_ctx = ""
+
+        full_prompt = prompt
+        if persona_ctx:
+            full_prompt = (
+                f"## Persona context (follow this role definition)\n{persona_ctx}\n\n"
+                f"## Task\n{prompt}"
+            )
+
+        def _chat(kname: str, kval: str):
+            key_order = [kname] + [k for k in ("NIM_3", "NIM_2", "NIM_1") if k != kname]
+            try:
+                msg = chat(self.model, [{"role": "user", "content": full_prompt}],
+                           timeout=self.timeout, max_tokens=1500, key_order=key_order)
+            except RuntimeError as e:
+                text = str(e)
+                if _TRANSIENT.search(text):
+                    raise Transient(text)
+                raise
+            out = (msg.get("content") or "").strip()
+            if not out:
+                raise Transient("empty NIM response")
+            return out
+
+        try:
+            if pool is not None:
+                text = pool.call(_chat, prefer=key, retries=1, backoff_s=3.0)
+            else:
+                kname = key
+                kval = os.environ.get(kname, "")
+                env = os.environ.copy()
+                env[kname] = kval
+                try:
+                    msg = chat(self.model, [{"role": "user", "content": full_prompt}],
+                               timeout=self.timeout, max_tokens=1500)
+                except RuntimeError as e:
+                    text = str(e)
+                    if _TRANSIENT.search(text):
+                        return Result(False, text, "persona", kname, int((time.time() - t0) * 1000))
+                    raise
+                text = (msg.get("content") or "").strip()
+                if not text:
+                    return Result(False, "empty NIM response", "persona", kname, int((time.time() - t0) * 1000))
+        except Transient as e:
+            return Result(False, str(e), "persona", key, int((time.time() - t0) * 1000))
+        lat = int((time.time() - t0) * 1000)
+        return Result(bool(text), text, "persona", key, lat)
+

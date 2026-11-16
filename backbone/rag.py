@@ -139,3 +139,49 @@ class Rag:
                 out.append(dict(r) | {"meta": json.loads(r["meta"] or "{}"), "score": round(s, 4),
                                       "via": ("both" if i in lex and i in den else "dense" if i in den else "bm25")})
         return out
+
+    def index_vault(self, vault_dir: str = "~/memory-vault/pages", limit: int = 5000) -> int:
+        """Index .md files under vault_dir as library rows with kind='vault'."""
+        import os
+        import re
+        from pathlib import Path
+
+        pages = Path(os.path.expanduser(vault_dir))
+        if not pages.exists():
+            return 0
+
+        count = 0
+        files = sorted(pages.glob("*.md"))[:limit]
+        for f in files:
+            text = f.read_text(encoding="utf-8", errors="ignore")
+            title = f.stem
+            desc = ""
+            m = re.search(r"^#\s+(.+)", text, re.M)
+            if m:
+                title = m.group(1).strip()
+            body_lines = [l for l in text.splitlines() if l.strip()]
+            start = 0
+            if body_lines and body_lines[0].strip() in ("---", "<!--"):
+                start = 1
+            for l in body_lines[start:]:
+                if l.strip() and not l.startswith(("#", "-", "*", ">", "|", "```", "![")):
+                    desc = l.strip()[:220]
+                    break
+            area = ""
+            ma = re.search(r"^area::\s*\[\[(.+)\]\]", text, re.M)
+            if ma:
+                area = ma.group(1)
+            links = re.findall(r"\[\[(.+?)\]\]", text)
+            library.upsert(
+                self.con, "vault", f.stem, desc, text[:1500],
+                meta={"area": area, "links": links, "path": str(f)}, source="vault",
+            )
+            count += 1
+        self.con.commit()
+        self._cache = None
+        return count
+
+    def search_vault(self, query: str, k: int = 5) -> List[dict]:
+        """Search vault pages in RAG (kind='vault' filter)."""
+        return self.search(query, kind="vault", k=k)
+
