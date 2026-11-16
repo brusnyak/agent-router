@@ -33,6 +33,15 @@ workers:
 escalation:
   expert: codex
 
+# Hermes is the primary reasoning agent on Oracle; it delegates tasks to the backbone router
+# via `backbone serve` /submit. Hermes does not run on the Mac.
+hermes:
+  enabled: true
+  base_url: http://127.0.0.1:3033
+  delegate_to_backbone: true
+  backbone_serve_url: http://127.0.0.1:8799
+  backbone_token_env: BACKBONE_TOKEN
+
 context:
   budget_tokens: 24000
   summarize_over_tokens: 12000
