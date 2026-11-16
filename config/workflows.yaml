@@ -1,0 +1,43 @@
+version: 1
+workflows:
+  - id: research-and-write
+    description: Research a topic with cited sources, then write a report.
+    steps:
+      - id: research
+        worker: nim-chat
+        gate: "grep -qE 'http' <output-file>"
+        depends_on: []
+      - id: write
+        worker: claude
+        gate: "test -s <output-file>"
+        depends_on: [research]
+    fan_out: [research]
+    synthesize: claude
+
+  - id: build-and-review
+    description: Implement a small change, then review it.
+    steps:
+      - id: build
+        worker: nim-chat
+        gate: "true"
+        depends_on: []
+      - id: review
+        worker: nim-chat
+        gate: "true"
+        depends_on: [build]
+    fan_out: []
+    synthesize: nim-chat
+
+  - id: lead-qualify-and-outreach
+    description: Qualify leads by ICP, then draft outreach messages.
+    steps:
+      - id: qualify
+        worker: nim-chat
+        gate: "true"
+        depends_on: []
+      - id: draft
+        worker: nim-chat
+        gate: "true"
+        depends_on: [qualify]
+    fan_out: []
+    synthesize: nim-chat

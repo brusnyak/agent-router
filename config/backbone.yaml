@@ -3,7 +3,7 @@ tickets_dir: ~/.agent-router/data/tickets
 runs_dir: ~/.agent-router/data/runs
 graph_db: ~/.agent-router/data/graph.db
 work_dir: ~/.agent-router/data/work
-projects_file: /home/ubuntu/.agent-router/projects.yaml
+projects_file: ~/.agent-router/projects.yaml
 
 nim:
   base_url: https://integrate.api.nvidia.com/v1
@@ -23,7 +23,7 @@ swarm:
 
 workers:
   pi:     {cmd: pi, timeout_s: 600}
-  goose:  {cmd: /home/ubuntu/bin/goose, timeout_s: 600}
+  goose: {cmd: goose, timeout_s: 600}
   jcode:  {cmd: jcode, timeout_s: 600}
   claude: {cmd: claude, timeout_s: 900}
   codex:  {cmd: codex, timeout_s: 900}
@@ -41,12 +41,11 @@ hermes:
   delegate_to_backbone: true
   backbone_serve_url: http://127.0.0.1:8799
   backbone_token_env: BACKBONE_TOKEN
-
 context:
   budget_tokens: 24000
   summarize_over_tokens: 12000
   keep_recent_turns: 6
-  vault_query: ~/memory-vault/scripts/vector_memory/query.py
+  vault_query: ${VAULT_QUERY_PATH:-~/memory-vault/scripts/vector_memory/query.py}
 
 library:
   sources:

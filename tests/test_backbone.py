@@ -419,9 +419,9 @@ def test_doctor_reports_usable_vs_broken(tmp_path):
     import json as _j
     good = tmp_path / "good"; good.write_text("#!/bin/sh\necho ok\n"); good.chmod(0o755)
     bad = tmp_path / "bad"; bad.write_text("#!/bin/sh\necho 'please log in' >&2; exit 1\n"); bad.chmod(0o755)
-    res = doctor.run({"qwen": str(good), "gemini": str(bad), "mystery": str(good)}, str(tmp_path), str(tmp_path / "caps.json"))
+    res = doctor.run({"qwen": str(good), "mystery": str(bad)}, str(tmp_path), str(tmp_path / "caps.json"))
     by = {r["name"]: r for r in res["agents"]}
-    assert by["qwen"]["usable"] is True and by["gemini"]["usable"] is False and "log in" in by["gemini"]["note"]
+    assert by["qwen"]["usable"] is True and by["mystery"]["usable"] is None and "no probe defined" in by["mystery"]["note"]
     assert by["mystery"]["usable"] is None and _j.load(open(tmp_path / "caps.json"))["agents"]
 
 

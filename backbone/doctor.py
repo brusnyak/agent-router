@@ -16,7 +16,6 @@ PROBES = {
     "claude": lambda b: [b, "-p", PROBE, "--output-format", "text", "--no-session-persistence", "--setting-sources", "project", "--permission-mode", "plan"],
     "codex": lambda b: [b, "exec", "--ephemeral", "-s", "read-only", "--skip-git-repo-check", PROBE],
     "qwen": lambda b: [b, "-p", PROBE],
-    "gemini": lambda b: [b, "-p", PROBE],
     "kilo": lambda b: [b, "run", "--auto", PROBE],
     "opencode": lambda b: [b, "run", PROBE],
     "pi": lambda b: [b, "-p", "--no-session", "--no-extensions", "--no-mcp", "--no-skills", "--model", "openrouter/openrouter/free", "--", PROBE],

@@ -34,7 +34,6 @@ KNOWN_CLI_AGENTS = [
     {"id": "cline", "cli": "cline", "config_home": os.path.join(HOME, ".vscode", "cline")},
     {"id": "kilo", "cli": "kilo", "config_home": os.path.join(HOME, ".kilo")},
     {"id": "hermes", "cli": "hermes", "config_home": os.path.join(HOME, ".hermes")},
-    {"id": "gemini", "cli": "gemini", "config_home": os.path.join(HOME, ".gemini")},
 ]
 
 

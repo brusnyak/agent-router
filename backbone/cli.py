@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
 from . import library
@@ -38,9 +39,26 @@ def main(argv=None) -> None:
     s = sub.add_parser("swarm", help="planner splits a goal, workers run subtasks in parallel")
     s.add_argument("goal"); s.add_argument("-n", default="auto", help="worker count or auto"); s.add_argument("--cwd"); s.add_argument("--gate"); s.add_argument("--project", default="")
 
+    wf = sub.add_parser("workflow", help="run a workflow DAG: workflow <id> <prompt>")
+    wf.add_argument("workflow_id")
+    wf.add_argument("prompt", nargs="+")
+    wf.add_argument("--cwd"); wf.add_argument("--project", default=""); wf.add_argument("--gate")
+    wf.add_argument("--read-only", action="store_true"); wf.add_argument("--no-vault", action="store_true")
+
     lib = sub.add_parser("library"); ls = lib.add_subparsers(dest="lcmd", required=True)
     ls.add_parser("ingest"); ls.add_parser("counts"); ls.add_parser("embed")
     q = ls.add_parser("search"); q.add_argument("query"); q.add_argument("--kind"); q.add_argument("-k", type=int, default=5)
+
+    cat = sub.add_parser("catalog", help="catalog operations: catalog ingest")
+    ccat = cat.add_subparsers(dest="ccmd")
+    ccat.add_parser("ingest", help="ingest ECC personas + agency agents into catalog skills")
+
+    rag = sub.add_parser("rag", help="RAG operations: rag index-vault / search-vault")
+    rrag = rag.add_subparsers(dest="rcmd2", required=True)
+    rag_idx = rrag.add_parser("index-vault", help="index vault pages into RAG library")
+    rag_idx.add_argument("--dir", default="~/memory-vault/pages"); rag_idx.add_argument("--limit", type=int, default=5000)
+    rag_s = rrag.add_parser("search-vault", help="search vault pages in RAG")
+    rag_s.add_argument("query"); rag_s.add_argument("-k", type=int, default=5)
 
     rn = sub.add_parser("runs"); rs = rn.add_subparsers(dest="rcmd", required=True)
     rs.add_parser("list"); rsm = rs.add_parser("resume"); rsm.add_argument("id"); sh = rs.add_parser("show"); sh.add_argument("id"); rs.add_parser("recover")
@@ -77,10 +95,11 @@ def main(argv=None) -> None:
     cp.add_argument("text"); cp.add_argument("--no-llm", action="store_true")
     a, rest = ap.parse_known_args(argv)
     if a.cmd in _EVAL:
-        import importlib.util as _u, os as _os
-        root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-        _os.chdir(root)
-        sp = _u.spec_from_file_location(a.cmd, _os.path.join(root, "eval", _EVAL[a.cmd][0]))
+        import importlib.util as _u
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        _os_chdir = os.chdir
+        _os_chdir(root)
+        sp = _u.spec_from_file_location(a.cmd, os.path.join(root, "eval", _EVAL[a.cmd][0]))
         m = _u.module_from_spec(sp); sp.loader.exec_module(m)
         raise SystemExit(m.main(rest) or 0)
     if rest:
@@ -104,7 +123,6 @@ def main(argv=None) -> None:
     if a.cmd == "compile":
         from . import compile as _c
         raise SystemExit(_c.main([a.text] + (["--no-llm"] if a.no_llm else [])))
-
     if a.cmd == "mcp":
         from .mcp_server import serve
         serve()
@@ -112,19 +130,19 @@ def main(argv=None) -> None:
     if a.cmd in ("discover", "init"):
         from .discover import discover, init_config
         from .core import load_config
-        import yaml, os as _os
+        import yaml
         caps = discover()
         if a.cmd == "discover":
             _j(caps)
         else:
-            cfg = init_config(caps, load_config(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "config", "backbone.yaml")))
-            home = _os.path.expanduser("~/.agent-router")
-            _os.makedirs(home, exist_ok=True)
+            cfg = init_config(caps, load_config(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "backbone.yaml")))
+            home = os.path.expanduser("~/.agent-router")
+            os.makedirs(home, exist_ok=True)
             for k in ("db", "tickets_dir", "runs_dir", "work_dir", "graph_db"):
-                cfg[k] = f"~/.agent-router/data/{_os.path.basename(str(cfg.get(k, k)).rstrip('/'))}"
-            cfg["projects_file"] = _os.path.join(home, "projects.yaml")
-            yaml.safe_dump(cfg, open(_os.path.join(home, "backbone.yaml"), "w"), sort_keys=False)
-            yaml.safe_dump({"projects": [{"id": _os.path.basename(p), "path": p, "name": _os.path.basename(p)} for p in caps["projects"]]},
+                cfg[k] = f"~/.agent-router/data/{os.path.basename(str(cfg.get(k, k)).rstrip('/'))}"
+            cfg["projects_file"] = os.path.join(home, "projects.yaml")
+            yaml.safe_dump(cfg, open(os.path.join(home, "backbone.yaml"), "w"), sort_keys=False)
+            yaml.safe_dump({"projects": [{"id": os.path.basename(p), "path": p, "name": os.path.basename(p)} for p in caps["projects"]]},
                            open(cfg["projects_file"], "w"), sort_keys=False)
             print("wrote", home + "/backbone.yaml;", len(caps["projects"]), "projects; ssh hosts you can add under `hosts:`:", caps["ssh_hosts"])
         return
@@ -132,10 +150,10 @@ def main(argv=None) -> None:
         from .discover import discover
         from .doctor import run as doctor_run
         import tempfile
-        out = _os_path = __import__("os").path.join(__import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__))), "data", "capabilities.json")
+        out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "doctor.json")
         res = doctor_run(discover()["agents"], tempfile.mkdtemp(prefix="doctor-"), out, a.only)
         from . import health
-        health.save(__import__("os").path.join(__import__("os").path.dirname(out), "doctor.json"), res)
+        health.save(os.path.join(os.path.dirname(out), "doctor.json"), res)
         _j(res)
         return
     bb = Backbone()
@@ -146,8 +164,8 @@ def main(argv=None) -> None:
         tok = _os.environ.get("ROUTER_BOT_TOKEN", "") or _cred("TELEGRAM_BOT_TOKEN")
         if not tok:
             raise SystemExit("no bot token: set it in the router secrets file or export ROUTER_BOT_TOKEN; it is never printed")
-        root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-        print(json.dumps(pairing.pair(tok, _os.path.join(root, ".env.local"), a.wait)))
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        print(json.dumps(pairing.pair(tok, os.path.join(root, ".env.local"), a.wait)))
         return
     if a.cmd == "node":
         from . import node
@@ -181,6 +199,14 @@ def main(argv=None) -> None:
         _j(bb.fanout(a.prompts, project=a.project, cwd=a.cwd, gate=a.gate))
     elif a.cmd == "swarm":
         _j(bb.swarm(a.goal, n=None if a.n == "auto" else int(a.n), project=a.project, cwd=a.cwd, gate=a.gate))
+    elif a.cmd == "workflow":
+        from . import workflow as _wf
+        res = _wf.run_workflow(bb, a.workflow_id, " ".join(a.prompt), a.cwd or os.getcwd(),
+                               read_only=a.read_only)
+        _j({"workflow_id": res.workflow_id, "ok": res.ok, "synthesis": res.synthesis,
+            "steps": {sid: {"ok": sr.ok, "worker": sr.worker, "output": sr.output,
+                            "gate_passed": sr.gate_passed, "error": sr.error}
+                    for sid, sr in res.step_results.items()}})
     elif a.cmd == "library":
         if a.lcmd == "ingest":
             _j(bb.ingest())
@@ -190,6 +216,23 @@ def main(argv=None) -> None:
             _j(library.counts(bb.con))
         else:
             for h in bb.rag.search(a.query, a.kind, a.k):
+                print(f"{h['kind']:8} {h['name']:30} {h['via']:5} {h['description'][:70]}")
+    elif a.cmd == "catalog":
+        if a.ccmd == "ingest":
+            from .catalog_ingest import ingest_all
+            ecc = os.path.expanduser("~/Developer/ecc-reference/agents")
+            agency = os.path.expanduser("~/.agent-skills/vendor/msitarzewski_agency-agents")
+            skills = ingest_all(ecc, agency)
+            _j({"ingested": len(skills), "skills": skills})
+        else:
+            ap.error("catalog requires: ingest")
+    elif a.cmd == "rag":
+        if a.rcmd2 == "index-vault":
+            from . import rag as _rag_mod
+            count = bb.rag.index_vault(a.dir, limit=a.limit)
+            print(f"indexed {count} vault pages")
+        elif a.rcmd2 == "search-vault":
+            for h in bb.rag.search_vault(a.query, k=a.k):
                 print(f"{h['kind']:8} {h['name']:30} {h['via']:5} {h['description'][:70]}")
     elif a.cmd == "runs":
         if a.rcmd == "list":

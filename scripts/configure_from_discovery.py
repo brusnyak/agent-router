@@ -15,6 +15,12 @@ import json
 import os
 import shutil
 from datetime import datetime, timezone
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from backbone.catalog_ingest import ingest_all
+
+ECC_DIR = os.path.expanduser("~/Developer/ecc-reference/agents")
+AGENCY_DIR = os.path.expanduser("~/.agent-skills/vendor/msitarzewski_agency-agents")
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -62,7 +68,6 @@ KEY_MODEL_MAP = {
     "NVIDIA_API_KEY_1": {"id": "nim-nemotron-3-ultra-550b-1", "name": "nvidia/nemotron-3-ultra-550b-a55b", "provider": "nim", "role": "worker", "base_url": "https://integrate.api.nvidia.com/v1", "context_window": 128000},
     "ANTHROPIC_API_KEY": {"id": "claude-sonnet-5-5", "name": "claude-sonnet-5-5", "provider": "anthropic", "role": "worker", "context_window": 200000},
     "OPENAI_API_KEY": {"id": "gpt-6-1-sol", "name": "gpt-6.1-sol", "provider": "openai", "role": "worker", "context_window": 128000},
-    "GEMINI_API_KEY": {"id": "gemini-pro", "name": "gemini-pro", "provider": "google", "role": "worker", "browser_only": True, "context_window": 128000},
 }
 
 
@@ -89,7 +94,6 @@ AGENT_DEFAULTS = {
     "cline": {"write_access": True, "route_reasons": ["build", "review"]},
     "kilo": {"write_access": True, "route_reasons": ["build", "review"], "note": "check if free tier available before routing"},
     "hermes": {"write_access": True, "route_reasons": ["hermes", "chat", "notification"]},
-    "gemini": {"write_access": False, "route_reasons": ["research", "deep-research", "vision"], "note": "browser-only via Neo/Ego; chat-based interaction"},
     "nim3": {"write_access": False, "route_reasons": ["supervisor", "research", "mechanical", "vision"]},
     "nim2": {"write_access": False, "route_reasons": ["hermes", "research"]},
     "nim1": {"write_access": False, "route_reasons": ["research"]},
@@ -163,8 +167,13 @@ def build_skills(skills_locations: Dict[str, Any]) -> List[dict]:
         if not data.get("exists"):
             continue
         loc_path = Path(loc)
+        home = Path(os.path.expanduser("~"))
         for sf in data.get("skill_files", []):
             sf_path = Path(sf)
+            try:
+                sf_display = "~" + str(sf_path)[len(str(home)):]
+            except Exception:
+                sf_display = str(sf_path)
             try:
                 rel = sf_path.relative_to(loc_path)
             except ValueError:
@@ -176,12 +185,28 @@ def build_skills(skills_locations: Dict[str, Any]) -> List[dict]:
             category = sf_path.parent.name
             skills.append({
                 "id": sid,
-                "path": sf,
+                "path": sf_display,
                 "category": category,
-                "description": f"Auto-discovered skill from {sf}",
+                "description": f"Auto-discovered skill from {sf_display}",
                 "_source": "discovered",
                 "_discovered_at": datetime.now(timezone.utc).isoformat(),
             })
+    # Ingest ECC personas and agency agents as catalog skills
+    ingested = ingest_all(ECC_DIR, AGENCY_DIR)
+    home = Path(os.path.expanduser("~"))
+    for s in ingested:
+        if s["id"] not in seen_ids:
+            seen_ids.add(s["id"])
+            sp = Path(s["path"])
+            try:
+                s["path"] = "~" + str(sp)[len(str(home)):]
+                s["persona_file"] = "~" + str(Path(s["persona_file"]))[len(str(home)):]
+            except Exception:
+                pass
+            s["_source"] = "discovered"
+            s["_discovered_at"] = datetime.now(timezone.utc).isoformat()
+            skills.append(s)
+
     return skills
 
 

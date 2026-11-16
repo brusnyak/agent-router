@@ -1,6 +1,7 @@
 # HANDOFF: Agent Router (2026-11-15). Older: `docs/archive/HANDOFF-2026-11-13-shadow-hook.md`
 
-Repo `~/Developer/agent-router` (PRIVATE, github brusnyak/agent-router). Work branch `dev/enforcement`; `main` is pushed only after the release gate below.
+Repo (PRIVATE, github brusnyak/agent-router). Work branch `dev/enforcement`; `main` is pushed only after the release gate below.
+
 
 ## What exists now
 - Decision layer: `backbone/{plan,bandit,rules,enforce}.py`, `config/routes.yaml`. See README "Decision layer".

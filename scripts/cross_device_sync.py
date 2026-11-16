@@ -77,7 +77,7 @@ def check_files() -> dict:
 def council_fan_out(task: str, models: Optional[List[str]] = None) -> dict:
     """Fan-out a research task to Oracle VM council endpoint for multi-model response."""
     if not models:
-        models = ["gemini", "glm", "gemma"]
+        models = ["glm", "gemma"]
     payload = {"task": task, "models": models, "synth": True}
     data = json.dumps(payload).encode()
     req = urllib.request.Request(

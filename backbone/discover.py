@@ -7,7 +7,7 @@ import re
 import shutil
 from typing import Callable, Dict, List, Optional
 
-AGENT_BINS = ["claude", "codex", "opencode", "qwen", "kilo", "pi", "gemini", "cline", "hermes", "goose", "crush"]
+AGENT_BINS = ["claude", "codex", "opencode", "qwen", "kilo", "pi", "cline", "hermes", "goose", "crush"]
 KEY_PATTERNS = {"nim": r"^NIM_\d+$", "openrouter": r"^OPENROUTER_API_KEY$", "groq": r"^GROQ_API_KEY$",
                 "mistral": r"^MISTRAL_API_KEY$", "anthropic": r"^ANTHROPIC_API_KEY$", "openai": r"^OPENAI_API_KEY$"}
 

@@ -12,6 +12,9 @@ lanes:
   acceptance: packet written with all fields filled (lane, agent, project, skills,
     reasoning, project_vision, direct_market, value_exchange, action_chain, next_step);
     valid JSON; project comprehension fields non-empty when project is set
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335883+00:00'
+  model_availability_check: true
 - id: build
   engine: codex
   model: gpt-6.1-sol
@@ -29,6 +32,9 @@ lanes:
   acceptance: tests or command output named in the packet; 'NOT RUN' = FAIL; PEEM
     accuracy and coherence verified by deterministic check
   never: execute without acceptance check
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335897+00:00'
+  model_availability_check: true
 - id: design-ui
   engine: agency-ui-designer
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
@@ -41,6 +47,11 @@ lanes:
   acceptance: desktop and 390px screenshots attached; contrast and keyboard check
     named; owner picks the direction; PEEM clarity verified
   never: ship UI to production without owner pick
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335899+00:00'
+  fallback_needed: true
+  fallback_reason: CLI 'agency-ui-designer' not found on PATH or config missing
+  model_availability_check: true
 - id: review-roast
   engine: codex
   model: gpt-6.1-sol
@@ -54,6 +65,9 @@ lanes:
   - ecc-silent-failure-hunter
   acceptance: severity-ranked findings with evidence + smallest fix; PEEM objectivity
     and clarity rated 3+ each
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335902+00:00'
+  model_availability_check: true
 - id: evaluation
   engine: ecc-agent-evaluator
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
@@ -66,6 +80,11 @@ lanes:
     every score below 5 cites evidence and names the fix; PEEM accuracy and coherence
     verified
   never: re-perform the task under evaluation
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335903+00:00'
+  fallback_needed: true
+  fallback_reason: CLI 'ecc-agent-evaluator' not found on PATH or config missing
+  model_availability_check: true
 - id: ops-repair
   engine: claude
   model: claude-sonnet-5-5
@@ -79,6 +98,9 @@ lanes:
   - ecc-silent-failure-hunter
   acceptance: deterministic check named in the packet passes; PEEM accuracy verified
   never: git push, rebase, reset, delete
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335905+00:00'
+  model_availability_check: true
 - id: config-edit
   engine: claude
   model: claude-sonnet-5-5
@@ -89,6 +111,9 @@ lanes:
   - claude
   acceptance: sync_roles.py --check shows no new drift; grep shows no dangling reference;
     PEEM clarity verified
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335906+00:00'
+  model_availability_check: true
 - id: research-public
   engine: nim3
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
@@ -100,6 +125,9 @@ lanes:
   acceptance: every claim has a URL; fact-checker for decisive claims; PEEM accuracy
     and relevance rated 3+ each
   data: public only
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335907+00:00'
+  model_availability_check: true
 - id: mechanical
   engine: nim3
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
@@ -109,6 +137,9 @@ lanes:
   - nim3
   acceptance: script verifies quotes/counts; deterministic selftest passes; PEEM accuracy
     verified
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335909+00:00'
+  model_availability_check: true
 - id: content-clips
   engine: nim3
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
@@ -118,6 +149,9 @@ lanes:
   - nim3
   acceptance: quotes verified by script; use flagged for unsourced numbers; PEEM objectivity
     verified
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335910+00:00'
+  model_availability_check: true
 - id: vision
   engine: nim3
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
@@ -128,6 +162,9 @@ lanes:
   acceptance: describes only what is visible; owner spot-checks; PEEM objectivity
     verified
   data: public screenshots only
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335911+00:00'
+  model_availability_check: true
 - id: cash-leads
   engine: claude
   model: claude-sonnet-5-5
@@ -143,6 +180,9 @@ lanes:
   acceptance: each lead row has ONE gap, a URL or screenshot path, and a source line;
     PEEM relevance verified
   never: send
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335912+00:00'
+  model_availability_check: true
 - id: cash-outreach
   engine: claude
   model: claude-sonnet-5-5
@@ -156,6 +196,9 @@ lanes:
   acceptance: roast pass + owner exact-text yes; send is owner-only; PEEM clarity
     and conciseness verified
   never: send
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335914+00:00'
+  model_availability_check: true
 - id: upwork
   engine: claude
   model: claude-sonnet-5-5
@@ -168,6 +211,9 @@ lanes:
   acceptance: proposal draft within word range; owner clicks send; PEEM relevance
     and clarity verified
   never: submit, spend Connects
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335915+00:00'
+  model_availability_check: true
 - id: jobs
   engine: claude
   model: claude-sonnet-5-5
@@ -179,17 +225,31 @@ lanes:
   acceptance: fit gate verdict per posting; max 2 drafts; owner approves exact text;
     PEEM relevance verified
   never: submit without exact-text yes
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335916+00:00'
+  model_availability_check: true
 - id: owner-only
   engine: planner
   model: claude-sonnet-5-5
   does: approvals, deploys, sends, submits, spends — planner prepares, owner decides
   rule: gate word overrides any lane
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335917+00:00'
+  model_availability_check: true
 - id: browser
   engine: neo
   model: browseros-neo
-  does: open, read, act, fill, sign in, download, verify on websites — real browser with live logins
+  does: open, read, act, fill, sign in, download, verify on websites — real browser
+    with live logins
   never: use headless fetchers or devtools automation when neo is available
   skills: []
   agents: []
-  acceptance: page snapshot or read output attached; claim verified by act diff or readback
-  note: Uses BrowserOS neo MCP at http://127.0.0.1:9010/mcp. Agents call neo tools via MCP, not headless fetch.
+  acceptance: page snapshot or read output attached; claim verified by act diff or
+    readback
+  note: Uses BrowserOS neo MCP at http://127.0.0.1:9010/mcp. Agents call neo tools
+    via MCP, not headless fetch.
+  _source: discovered
+  _discovered_at: '2026-11-16T00:22:45.335918+00:00'
+  fallback_needed: true
+  fallback_reason: CLI 'neo' not found on PATH or config missing
+  model_availability_check: true
