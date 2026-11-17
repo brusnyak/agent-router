@@ -1,7 +1,7 @@
 """`backbone status`: one-glance view of what the router is doing (for terminals, UIs and notifications).
 
 `--json` for machines (the web UI mini graph reads this), `--brief` for a 2-line text widget.
-Reads only: backbone.db (runs, jobs, library, steps) and the monitor snapshots written by `backbone monitor --write`.
+Reads only: backbone.db (runs, jobs) and the monitor snapshots written by `backbone monitor --write`.
 Nothing here starts a worker or touches the network.
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ import os
 import sqlite3
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 STALE_RUNNING_S = 6 * 3600
 WINDOW_S = 24 * 3600
@@ -31,13 +31,11 @@ def _short(worker: str) -> str:
 
 def collect(db_path: str = "", now: float = 0.0, per_worker: int = 8) -> Dict:
     now = now or time.time()
-    out: Dict = {"ts": now, "counts": {}, "stale_running": 0, "workers": {}, "jobs": {}, "hosts": {},
-                 "library": {}, "recent": [], "worker_acc": {}}
+    out: Dict = {"ts": now, "counts": {}, "stale_running": 0, "workers": {}, "jobs": {}, "hosts": {}}
     path = db_path or _db_path()
     if os.path.exists(path):
         try:
             con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-            con.row_factory = sqlite3.Row
             rows = con.execute("SELECT worker, state, created FROM runs WHERE created >= ? ORDER BY created DESC",
                                (now - WINDOW_S,)).fetchall()
             counts: Dict[str, int] = {}
@@ -52,32 +50,6 @@ def collect(db_path: str = "", now: float = 0.0, per_worker: int = 8) -> Dict:
                 1 for (c,) in con.execute("SELECT created FROM runs WHERE state='running'") if now - c > STALE_RUNNING_S)
             try:
                 out["jobs"] = dict(con.execute("SELECT state, COUNT(*) FROM jobs GROUP BY state").fetchall())
-            except sqlite3.Error:
-                pass
-            # library breakdown (skills, agents, hooks, loops, commands ...)
-            try:
-                out["library"] = dict(con.execute("SELECT kind, COUNT(*) FROM library GROUP BY kind").fetchall())
-            except sqlite3.Error:
-                pass
-            # recent runs with prompt + state + worker (+ accuracy hint via steps ok/fail)
-            try:
-                recents = []
-                for r in con.execute(
-                    "SELECT id, worker, state, substr(prompt,1,90) AS prompt, error, updated FROM runs "
-                    "ORDER BY updated DESC LIMIT 12"):
-                    d = dict(r)
-                    d["acc"] = _run_acc(con, d["id"])
-                    recents.append(d)
-                out["recent"] = recents
-            except sqlite3.Error:
-                pass
-            # per-worker accuracy (done vs failed) over all time
-            try:
-                for r in con.execute(
-                    "SELECT worker, state, COUNT(*) c FROM runs GROUP BY worker, state"):
-                    wa = out["worker_acc"].setdefault(r["worker"] or "?",
-                                                      {"done": 0, "failed": 0, "blocked": 0, "running": 0})
-                    wa[r["state"]] = wa.get(r["state"], 0) + r["c"]
             except sqlite3.Error:
                 pass
             con.close()
@@ -99,18 +71,6 @@ def collect(db_path: str = "", now: float = 0.0, per_worker: int = 8) -> Dict:
                 except (OSError, ValueError):
                     continue
     return out
-
-
-def _run_acc(con: sqlite3.Connection, rid: str) -> Optional[float]:
-    """Step-level accuracy for a run: ok steps / total steps."""
-    try:
-        row = con.execute("SELECT COUNT(*) n, SUM(CASE WHEN ok THEN 1 ELSE 0 END) ok FROM steps WHERE run_id=?",
-                          (rid,)).fetchone()
-        if row and row["n"]:
-            return round(100.0 * row["ok"] / row["n"], 1)
-    except sqlite3.Error:
-        pass
-    return None
 
 
 _GLYPH = {"done": "●", "failed": "✗", "running": "◐", "blocked": "▫", "queued": "·"}
