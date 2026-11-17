@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import socket
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,9 +13,122 @@ from urllib.parse import parse_qs, urlparse
 
 from . import nim
 from . import otel
+from . import status
 from .jobs import Jobs
 from .keys import Transient
 
+_DASHBOARD_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>agent router — dashboard</title>
+<style>
+  :root { --fg: #111; --muted: #666; --border: #ccc; --surface: #fafafa; --accent: #0b6; }
+  * { box-sizing: border-box; }
+  html { font: 13px/1.45 system-ui, -apple-system, sans-serif; color: var(--fg); }
+  body { margin: 0; background: var(--surface); padding: 16px; }
+  h1 { font-size: 16px; margin: 0 0 10px 0; letter-spacing: .3px; text-transform: uppercase; }
+  .bar { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; flex-wrap: wrap; }
+  .bar b { font-size: 17px; }
+  .tag { font-size: 11px; color: var(--muted); margin-left: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .card h2 { font-size: 12px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: .2px; color: var(--muted); border-bottom: 1px solid #eee; padding-bottom: 5px; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  .runline { margin: 8px 0 0 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .runline span { margin-right: 12px; }
+  .ok { color: var(--accent); } .bad { color: #c00; } .muted { color: var(--muted); }
+  .workers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .worker { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; min-width: 130px; }
+  .worker .w { font-weight: 700; }
+  .glyphs { margin-top: 4px; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+  .g { margin-right: 4px; }
+  .g.r { color: #ff9800; } .g.d { color: #0b6; } .g.b { color: #c00; } .g.q { color: #bbb; } .g.s { color: var(--muted); }
+  .hosts { margin-top: 6px; }
+  .host { margin: 4px 0; font-size: 12px; }
+  .host .h { font-weight: 700; }
+  .err { color: #c00; }
+  .keys { margin-top: 8px; font-size: 12px; }
+  .keys .k { display: inline-block; margin-right: 14px; }
+  .keys .ok { font-weight: 700; }
+  .keys .bad { color: #c00; font-weight: 700; }
+  .refresh { font-size: 11px; color: var(--muted); margin-top: 8px; cursor: pointer; text-decoration: underline; }
+  .refresh:hover { color: var(--fg); }
+  .legend { font-size: 11px; color: var(--muted); margin: 8px 0 0 0; }
+</style>
+</head>
+<body>
+<h1>agent router</h1>
+<div class="bar">
+  <b id="ts">—</b>
+  <span class="tag" id="host"></span>
+</div>
+<div class="grid">
+  <div class="card">
+    <h2>router</h2>
+    <div class="kv">
+      <div><span class="k">running</span> <b id="run">0</b></div>
+      <div><span class="k">done (24h)</span> <b class="ok" id="done">0</b></div>
+      <div><span class="k">failed</span> <b class="bad" id="failed">0</b></div>
+      <div><span class="k">blocked (24h)</span> <b id="blocked">0</b></div>
+      <div><span class="k">stale</span> <b class="bad" id="stale">0</b></div>
+    </div>
+  <div class="card hosts">
+    <h2>hosts</h2>
+    <div id="hosts">—</div>
+  </div>
+</div>
+<div class="card">
+  <h2>workers</h2>
+  <div class="workers" id="workers">loading…</div>
+  <div class="legend">glyphs: ● done · queued ◐ running ▫ blocked ✗ failed</div>
+</div>
+<div class="card keys">
+  <h2>nim keys</h2>
+  <div id="keys">loading…</div>
+</div>
+<div class="refresh" id="refresh">refresh</div>
+<script>
+async function load() {
+  const res = await fetch("/status");
+  const s = await res.json();
+  document.getElementById("ts").textContent = new Date(s.ts * 1000).toLocaleString();
+  const c = s.counts || {};
+  document.getElementById("run").textContent = c.running || 0;
+  document.getElementById("done").textContent = c.done || 0;
+  document.getElementById("failed").textContent = c.failed || 0;
+  document.getElementById("blocked").textContent = c.blocked || 0;
+  document.getElementById("stale").textContent = s.stale_running || 0;
+  const hosts = s.hosts || {};
+  const hd = document.getElementById("hosts");
+  hd.innerHTML = Object.entries(hosts).map(([h, v]) => {
+    const bad = v.error || (v.age_s != null && v.age_s > 900);
+    return `<div class="host"><span class="h">${escape(h)}</span> load ${v.load1 ?? "?"}/${v.cpus ?? "?"} mem ${v.mem_avail_mb ?? "?"}MiB age ${v.age_s ?? "?"}s${bad ? ' <span class="err">· error/stale</span>' : ""}</div>`;
+  }).join("") || "no host snapshots";
+  const wk = document.getElementById("workers");
+  wk.innerHTML = Object.entries(s.workers || {}).map(([w, states]) => {
+    const glyph = {"done": "●", "failed": "✗", "running": "◐", "blocked": "▫", "queued": "·"};
+    const cls = {"done": "d", "failed": "b", "running": "r", "blocked": "▫".replace("▫","b"), "queued": "q"};
+    const cls2 = {"done": "d", "failed": "b", "running": "r", "blocked": "b", "queued": "q"};
+    const disp = w.replace("browser+", "b+").replace(":NIM_", ":n");
+    return `<div class="worker"><div class="w">${escape(disp)}</div><div class="glyphs">${states.map(st => `<span class="g ${cls2[st] || 's'}">${glyph[st] || "?"}</span>`).join("")}</div></div>`;
+  }).join("") || "no workers";
+  const keys = document.getElementById("keys");
+  const ks = await fetch("/keys").then(r => r.json()).catch(() => ({}));
+  keys.innerHTML = Object.entries(ks || {}).map(([k, v]) => {
+    const ok = v && v.ok != null && v.ok > 0;
+    return `<span class="k ${ok ? "ok" : "bad"}">${escape(k)} ${ok ? "ok" : "idle/fail"}</span>`;
+  }).join("") || "no key data";
+}
+function escape(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]); }
+load();
+document.getElementById("refresh").onclick = load;
+setInterval(load, 10000);
+</script>
+</body>
+</html>"""
 
 def make_handler(bb, token: str):
     jobs = Jobs(bb)
@@ -27,6 +141,14 @@ def make_handler(bb, token: str):
             body = json.dumps(obj, default=str).encode()
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _send_html(self, code: int, html: str) -> None:
+            body = html.encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -55,8 +177,12 @@ def make_handler(bb, token: str):
             if u.path == "/library":
                 q = parse_qs(u.query).get("q", [""])[0]
                 return self._send(200, bb.rag.search(q, k=5))
+            if u.path == "/status":
+                return self._send(200, status.collect())
             if u.path == "/keys":
                 return self._send(200, bb.pool.status())
+            if u.path == "/":
+                return self._send_html(200, _DASHBOARD_HTML)
             self._send(404, {"error": "not found"})
 
         def _sse(self, obj) -> None:
