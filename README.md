@@ -95,6 +95,7 @@ The old quickstart shell commands (`python3.13 -m venv .venv`, `pip install`,
 | `backbone plan "<prompt>"`, `plan --table` | Deterministic plan (class, worker, compiled command); what the bandit learned |
 | `backbone digest [--write]` | Watcher snapshot of enforcement, Nina's router calls, runs and bandit; written hourly to `~/.agent-router/digest/` (launchd locally, cron on Oracle) |
 | `backbone submit`, `jobs`, `daemon`, `runs` | Queued jobs and run history |
+| `backbone tickets [--dir]` | Submit eligible vault tickets from pages/jobs/ to existing queue (idempotent by ticket_id) |
 | `backbone serve`, `node` | Loopback hub API and an outbound-only node |
 | `backbone discover`, `init`, `keys`, `mcp`, `watch`, `telegram-pair` | Setup and integrations |
 
@@ -124,6 +125,10 @@ Take the best of what exists, add one measured thing of our own (skill: `harvest
 | `enforce` PreToolUse on Agent/Task | none | blocks a heavy call once with the exact router command; repeat, `model: haiku/sonnet`, `ROUTER-OK`, light tasks and a 20% holdout go through |
 
 Executors: planning and judgment on `claude` or `codex`; acting on free NVIDIA NIM keys (`nim1`..`nim3` via `pi`, `nim-chat` read-only), `omp`, `opencode` (3 models via the local NIM proxy on :8787), `goose`, `cline`, `jcode`, `agy` (read-only allow-list). `kilo` is detected and probed (`backbone doctor`) but has no run adapter yet. `backbone discover` lists what a machine has. The router loads only the NIM keys it needs; no wrapper.
+
+**Generic adapter** (`backbone/adapter.py`): any discovered local CLI can run through `backbone run --worker generic:<name>` as `["<name>", prompt]` with argv-only execution (never `bash -c`), an explicit allowlist from discovery, bounded environment, per-call timeout and process cleanup. Read-only is a prompt instruction; `write_access` opts in to writers. Capability probes report installed / authenticated / executed separately — detection never implies execution support.
+
+**Vault ticket adapter** (`backbone/ticket.py`): `backbone tickets [--dir pages/jobs/]` parses allowlisted YAML-frontmatter tickets from the local synchronized vault working tree and submits each eligible ticket once to the existing SQLite queue, idempotent by `ticket_id`. Requires `status: ready`, `execution_authority: preauthorized-internal`, a named gate from config (never a raw shell gate), and budget/timeout within the existing cap. Never executes `DONE_CMD` from a ticket; never writes to the vault tree.
 
 ## Safety and invariants
 
