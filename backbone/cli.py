@@ -44,6 +44,11 @@ def main(argv=None) -> None:
     d.add_argument("goal"); d.add_argument("--cwd"); d.add_argument("--project", default=""); d.add_argument("--gate")
     d.add_argument("--worker", default=""); d.add_argument("--no-isolate", action="store_true")
     d.add_argument("--read-only", action="store_true"); d.add_argument("--max-subagents", type=int, default=3)
+    im = sub.add_parser("improve", help="propose skill/command maintenance from outcomes + receipts")
+    im.add_argument("--receipts", default=os.path.expanduser("~/.agent-router/hook-shadow.jsonl"))
+    im.add_argument("--db", default=os.path.expanduser("~/.agent-router/data/backbone.db"))
+    im.add_argument("--out", default=os.path.expanduser("~/.agent-router/improve-report.md"))
+    im.add_argument("--top", type=int, default=40)
 
     f = sub.add_parser("fanout", help="run several prompts in parallel, one NIM key each")
     f.add_argument("prompts", nargs="+"); f.add_argument("--cwd"); f.add_argument("--gate"); f.add_argument("--project", default="")
@@ -287,6 +292,16 @@ def main(argv=None) -> None:
         _j(bb.delegate(a.goal, project=a.project, cwd=a.cwd, gate=a.gate,
                        worker=a.worker, max_subagents=a.max_subagents,
                        read_only=a.read_only, isolate=not a.no_isolate))
+    elif a.cmd == "improve":
+        from . import improve as _improve
+        import sqlite3
+        con = sqlite3.connect(f"file:{a.db}?mode=ro", uri=True)
+        con.row_factory = sqlite3.Row
+        from .db import DB
+        props = _improve.improve(DB(con), _improve._read_jsonl(a.receipts), top_n=a.top)
+        _j({"proposals": props, "count": len(props),
+            "report_path": a.out, "format": _improve.format_report(props)})
+        return
     elif a.cmd == "workflow":
         from . import workflow as _wf
         res = _wf.run_workflow(bb, a.workflow_id, " ".join(a.prompt), a.cwd or os.getcwd(),

@@ -43,7 +43,9 @@ def test_i3_receipt_has_no_prompt_text():
 
 
 def test_i4_shadow_injects_nothing(tmp_path):
-    p = json.dumps({"prompt": "please refactor this module now", "session_id": "s", "prompt_id": "p"})
+    # holdout arm never injects; the library index may surface skills in treat,
+    # so this invariant must be checked against a holdout session.
+    p = json.dumps({"prompt": "please refactor this module now", "session_id": "holdout-7", "prompt_id": "p"})
     r = _run("backbone/hook.py", p, {"HOOK_LOG": str(tmp_path / "l.jsonl")})
     assert r.stdout == "" and r.returncode == 0
 

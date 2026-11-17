@@ -16,7 +16,7 @@ SOURCES = {
     "enforce": os.path.join(AR, "enforce.jsonl"),
     "receipts": os.path.join(AR, "hook-shadow.jsonl"),
     "router_calls": os.path.join(AR, "router-calls.jsonl"),
-    "outcomes": os.path.join(AR, "outcomes.jsonl"),
+    "nina_hook": os.path.join(HOME, ".hermes-nina", "state", "router-default.jsonl"),
 }
 
 
@@ -64,7 +64,8 @@ def build(hours: float = 24.0, now: float | None = None, sources: dict | None = 
     src = sources or SOURCES
     enf, rec = read_jsonl(src["enforce"], since), read_jsonl(src["receipts"], since)
     blocked = [r for r in enf if r.get("action") == "block"]
-    calls, nina = read_jsonl(src["router_calls"], since), read_jsonl(src["nina_hook"], since)
+    calls = read_jsonl(src["router_calls"], since)
+    nina = read_jsonl(src.get("nina_hook", ""), since) if src.get("nina_hook") else []
     heavy = [r for r in rec if r.get("heavy")]  # heavy prompts the router sees
     routed = [r for r in rec if r.get("routed")]  # prompts actually sent through backbone run
     share_routed = (len(routed) / len(heavy)) if heavy else 0.0
