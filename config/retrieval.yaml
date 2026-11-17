@@ -1,0 +1,36 @@
+# Enable providers explicitly. Discovery proposes entries without editing this file.
+# Stdlib config subset: indented maps/lists, scalars, JSON inline lists/maps.
+# Quote strings containing ': ' or '#'. No YAML tags, aliases or block scalars.
+providers:
+  - name: builtin
+    type: builtin
+    enabled: false
+    params:
+      # Existing router library only; missing database degrades to empty results.
+      db: ~/.agent-router/data/backbone.db
+  - name: vault
+    type: cmd
+    enabled: true
+    params:
+      # Strings are shlex-split BEFORE {q}/{k} substitution. No shell is used.
+      # argv lists also work; ~ expands in each argument.
+      command: 'python3 ~/memory-vault/scripts/vector_memory/query.py "{q}" --top-k {k}'
+      timeout_s: 10
+  - name: memory-mcp
+    type: mcp_stdio
+    enabled: false
+    params:
+      command: ["my-memory-server", "--stdio"]
+      tool: search
+      query_arg: query
+      k_arg: k
+      arguments: {}
+      timeout_s: 10
+  - name: memory-http
+    type: http
+    enabled: false
+    params:
+      # GET response: [{"id":"path", "title":"Title", "text":"...", "score":1, "source":"path"}]
+      # {q} is URL-encoded. Missing title/text/score use safe defaults.
+      url: 'http://localhost:8080/search?q={q}&k={k}'
+      timeout_s: 10

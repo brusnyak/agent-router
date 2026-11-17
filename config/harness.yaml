@@ -1,0 +1,25 @@
+# JSON syntax is valid YAML. The stdlib loader also accepts block mappings,
+# sequences, quoted/plain scalars and inline scalar lists (no YAML tags/anchors).
+# Owner settings: $AGENT_ROUTER_HOME/harness.yaml (default ~/.agent-router).
+# Example owner YAML:
+# include:
+#   - ~/my-rules.md
+# rules_path:
+#   cline: ~/project/.clinerules/backbone.md
+# disable: [pi]
+# Detection uses binary OR directory. verified describes the default rules path;
+# false paths need confirmation/override for the installed client/version.
+{
+  "adapters": [
+    {"id": "omp", "detect": {"binary": "omp", "config_dir": "~/.omp"}, "rules_path": "~/.omp/agent/AGENTS.md", "format": "markdown block", "verified": true,
+     "extras": [{"source": "config/harness/omp/vault-recall.ts", "path": "~/.omp/agent/extensions/vault-recall.ts"}]},
+    {"id": "codex", "detect": {"binary": "codex", "config_dir": "~/.codex"}, "rules_path": "~/.codex/AGENTS.md", "format": "markdown block", "verified": true},
+    {"id": "claude", "detect": {"binary": "claude", "config_dir": "~/.claude"}, "rules_path": "~/.claude/CLAUDE.md", "format": "markdown block", "verified": true},
+    {"id": "goose", "detect": {"binary": "goose", "config_dir": "~/.config/goose"}, "rules_path": "~/.config/goose/.goosehints", "format": "markdown block", "verified": true},
+    {"id": "cline", "detect": {"binary": "cline", "config_dir": "~/.cline"}, "rules_path": "~/.clinerules/backbone.md", "format": "markdown block", "verified": false},
+    {"id": "opencode", "detect": {"binary": "opencode", "config_dir": "~/.config/opencode"}, "rules_path": "~/.config/opencode/AGENTS.md", "format": "markdown block", "verified": true},
+    {"id": "kilo", "detect": {"binary": "kilo", "config_dir": "~/.config/kilo"}, "rules_path": "~/.config/kilo/AGENTS.md", "format": "markdown block", "verified": false},
+    {"id": "gemini", "detect": {"binary": "gemini", "config_dir": "~/.gemini"}, "rules_path": "~/.gemini/GEMINI.md", "format": "markdown block", "verified": true},
+    {"id": "pi", "detect": {"binary": "pi", "config_dir": "~/.pi"}, "rules_path": "~/.pi/agent/AGENTS.md", "format": "markdown block", "verified": false}
+  ]
+}

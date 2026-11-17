@@ -1,10 +1,25 @@
 # agent-router
 
-Measures whether the skills and agents installed for Claude Code are ever used, and tests whether surfacing the right one at prompt time changes that.
+A control plane for AI coding agents. Give it a task: it picks the right worker and model (Claude, Codex, omp, OpenCode, Cline, free NVIDIA NIM keys and more), runs it in an isolated worktree, verifies the result with acceptance checks it runs itself, and records the outcome. It also gives every agent the same rules, memory and retrieval, and can run unattended across machines.
 
-![python](https://img.shields.io/badge/python-3.13-blue) ![status](https://img.shields.io/badge/status-private%20WIP-orange) ![tests](https://img.shields.io/badge/tests-192%20passing-brightgreen) ![hook cold start](https://img.shields.io/badge/hook%20cold%20start-30%20ms-informational)
+![python](https://img.shields.io/badge/python-3.13-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/status-pre--release-orange)
 
-## Why
+## What you get
+
+- **Dispatch**: `backbone run --worker <w> --gate '<cmd>' '<task>'` runs one task on any detected worker; `backbone discover` lists what a machine has, `backbone doctor` probes it.
+- **Task contracts**: `backbone contract run FILE.json` adds timeouts, retry budgets, an exhaustive outcome handler per result and acceptance checks run by the router, never trusted from the worker.
+- **Memory and retrieval, pluggable**: `backbone retrieval` connects your own vault, an MCP memory server, an HTTP service or the built-in hybrid BM25 + embedding index, and injects project anchors plus top hits into every run.
+- **One rules source for every agent**: `backbone harness sync` writes the same rules, recall hook and worker catalog into each installed harness (omp, Codex, Claude Code, OpenCode, Cline, Kilo, Gemini, pi).
+- **Multi-machine**: a hub and nodes over HTTP/SSH, `backbone monitor` for RAM and load, `backbone diagnose` / `recover` for stuck jobs.
+- **Learning**: a Thompson-sampling picker learns which worker passes which task class.
+
+Everything is configuration: code has no user paths and keys are read by environment variable name only. The `config/*.yaml` files in this repo are the author's working setup, kept as a worked example (projects, lanes, anchors); run `backbone discover` and `backbone init` to generate your own.
+
+## License
+
+MIT, see `LICENSE`. Third-party study copies in `third_party/` keep their own licenses (`third_party/NOTICE.md`).
+
+## Research: do installed skills get used?
 
 Installed skills and agents are almost never used. On 953 real prompts, 3 percent led to a Skill-tool call (`docs/SKILL-ACTIVATION.md`). A router that picks the right library entry is only worth building if it moves that number, so this project first builds the measurement: a shadow hook that records what would have been surfaced, a holdout arm, and an offline report. Nothing is injected into any session yet.
 
@@ -41,28 +56,27 @@ Silver labels are made by LLM judges and have not been verified by a human; trea
 
 ## Quickstart
 
+One command instead of a shell block:
+
 ```sh
-python3.13 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+make                    # show targets
+make install            # venv + pip install -r requirements.txt
+make doctor             # probe every detected worker (read-only)
+make discover           # detect agents, keys, ssh hosts, projects
+make init               # write ~/.agent-router/backbone.yaml from discovery
 
-# NIM keys come from the environment; values are never printed or stored
-~/.claude/scripts/with-env NIM_1 NIM_2 NIM_3 -- .venv/bin/python -m backbone enrich
-
-# no network, no keys
-.venv/bin/python -m backbone ask --dry "fix the failing test in the router"
-.venv/bin/python -m backbone compile --no-llm "dictated text"
-.venv/bin/python -m backbone library counts
-.venv/bin/python -m backbone router-report
-
-# shadow hook (writes a timestamped backup of settings.json first)
-python3 scripts/shadow_hook.py status
-python3 scripts/shadow_hook.py install
-python3 scripts/shadow_hook.py uninstall --dry-run
-python3 scripts/shadow_hook.py uninstall
-
-# tests take about 100 s: run in the background
-.venv/bin/python -m pytest tests -q > /tmp/tests.log 2>&1 &
+# NIM keys from env; values never printed or stored
+make keys               # NIM key status
+make run prompt="fix the failing test in the router" worker=nim1 gate="python3 -m pytest -q"
+make ask text="dictated prompt"
+make compile text="dictated text"
+make enrich             # NIM embeddings (needs NIM_1..3)
+make test               # ~100 s: run in background with & if you like
+make clean              # remove venv and data/
 ```
+
+The old quickstart shell commands (`python3.13 -m venv .venv`, `pip install`,
+`backbone doctor`, ...) are now `make install`, `make doctor`, etc.
 
 ## Commands
 
@@ -77,7 +91,7 @@ python3 scripts/shadow_hook.py uninstall
 | `backbone enrich` | Fill `would_surface` on receipts (NIM embeddings) |
 | `backbone aa-replay` | A/A replay of the measurement pipeline |
 | `backbone librarian` | Propose-only catalog report written to `docs/archive/research/` |
-| `backbone doctor` | Probe every detected worker with one tiny call |
+| `backbone doctor` | Probe every detected worker (read-only) |
 | `backbone plan "<prompt>"`, `plan --table` | Deterministic plan (class, worker, compiled command); what the bandit learned |
 | `backbone digest [--write]` | Watcher snapshot of enforcement, Nina's router calls, runs and bandit; written hourly to `~/.agent-router/digest/` (launchd locally, cron on Oracle) |
 | `backbone submit`, `jobs`, `daemon`, `runs` | Queued jobs and run history |
@@ -109,7 +123,7 @@ Take the best of what exists, add one measured thing of our own (skill: `harvest
 | `plan` compiles command and a worker-shaped prompt | none | `backbone plan "<prompt>"`, `--table` shows what was learned |
 | `enforce` PreToolUse on Agent/Task | none | blocks a heavy call once with the exact router command; repeat, `model: haiku/sonnet`, `ROUTER-OK`, light tasks and a 20% holdout go through |
 
-Executors: `claude`, `codex`, `pi` on NIM_1..3, `jcode`, `opencode` (via the local NIM proxy on :8787), `agy` (read-only allow-list). The router loads only the NIM keys it needs; no wrapper.
+Executors: planning and judgment on `claude` or `codex`; acting on free NVIDIA NIM keys (`nim1`..`nim3` via `pi`, `nim-chat` read-only), `omp`, `opencode` (3 models via the local NIM proxy on :8787), `goose`, `cline`, `jcode`, `agy` (read-only allow-list). `kilo` is detected and probed (`backbone doctor`) but has no run adapter yet. `backbone discover` lists what a machine has. The router loads only the NIM keys it needs; no wrapper.
 
 ## Safety and invariants
 

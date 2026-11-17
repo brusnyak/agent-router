@@ -18,6 +18,7 @@ PROBES = {
     "qwen": lambda b: [b, "-p", PROBE],
     "kilo": lambda b: [b, "run", "--auto", PROBE],
     "opencode": lambda b: [b, "run", PROBE],
+    "omp": lambda b: [b, "-p", "--no-session", PROBE],
     "pi": lambda b: [b, "-p", "--no-session", "--no-extensions", "--no-mcp", "--no-skills", "--model", "openrouter/openrouter/free", "--", PROBE],
 }
 

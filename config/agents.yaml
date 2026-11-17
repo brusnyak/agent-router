@@ -42,6 +42,35 @@ agents:
   _source: discovered
   _discovered_at: '2026-11-16T00:22:44.579698+00:00'
   note: owner uses by hand; do not spawn from sub-agents without explicit permission
+- id: omp
+  cli: omp
+  model: omp-default
+  provider: omp
+  write_access: true
+  route_reasons:
+  - build
+  - review
+  skills: []
+  interactive_mode: false
+- id: cline
+  cli: cline
+  model: cline-default
+  provider: cline
+  write_access: true
+  route_reasons:
+  - mechanical
+  skills: []
+  interactive_mode: false
+  note: headless via the cline worker adapter
+- id: kilo
+  cli: kilo
+  model: kilo-default
+  provider: kilo
+  write_access: true
+  route_reasons: []
+  skills: []
+  interactive_mode: false
+  note: detected and probed by `backbone doctor`; no run adapter yet
 - id: nim3
   cli: nim_call.py
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
