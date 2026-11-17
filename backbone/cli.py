@@ -90,6 +90,8 @@ def main(argv=None) -> None:
     sub.add_parser("discover", help="detect agents, keys, ssh hosts, projects on this machine")
     sub.add_parser("init", help="write ~/.agent-router/backbone.yaml from what discover found")
     sub.add_parser("keys")
+    tk = sub.add_parser("tickets", help="submit eligible vault tickets from pages/jobs/ to the existing SQLite queue")
+    tk.add_argument("--dir", default="~/memory-vault/pages/jobs", help="local vault jobs directory")
     sub.add_parser("mcp")
     for n, (_f, h) in _EVAL.items():
         sub.add_parser(n, help=h)
@@ -197,16 +199,23 @@ def main(argv=None) -> None:
         if a.cmd == "discover":
             _j(caps)
         else:
-            cfg = init_config(caps, load_config(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "backbone.yaml")))
             home = os.path.expanduser("~/.agent-router")
+            out_path = os.path.join(home, "backbone.yaml")
+            if os.path.exists(out_path):
+                print(f"refusing to overwrite existing config: {out_path}; edit it by hand or remove it first")
+                raise SystemExit(1)
+            cfg = init_config(caps, load_config(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "backbone.yaml")))
             os.makedirs(home, exist_ok=True)
             for k in ("db", "tickets_dir", "runs_dir", "work_dir", "graph_db"):
                 cfg[k] = f"~/.agent-router/data/{os.path.basename(str(cfg.get(k, k)).rstrip('/'))}"
             cfg["projects_file"] = os.path.join(home, "projects.yaml")
-            yaml.safe_dump(cfg, open(os.path.join(home, "backbone.yaml"), "w"), sort_keys=False)
-            yaml.safe_dump({"projects": [{"id": os.path.basename(p), "path": p, "name": os.path.basename(p)} for p in caps["projects"]]},
-                           open(cfg["projects_file"], "w"), sort_keys=False)
-            print("wrote", home + "/backbone.yaml;", len(caps["projects"]), "projects; ssh hosts you can add under `hosts:`:", caps["ssh_hosts"])
+            projects_path = os.path.join(home, "projects.yaml")
+            with open(out_path, "w") as fh:
+                yaml.safe_dump(cfg, fh, sort_keys=False)
+            with open(projects_path, "w") as fh:
+                yaml.safe_dump({"projects": [{"id": os.path.basename(p), "path": p, "name": os.path.basename(p)} for p in caps["projects"]]},
+                               fh, sort_keys=False)
+            print("wrote", out_path + ";", len(caps["projects"]), "projects; ssh hosts you can add under `hosts:`:", caps["ssh_hosts"])
         return
     if a.cmd == "doctor":
         from .discover import discover
@@ -219,6 +228,11 @@ def main(argv=None) -> None:
         _j(res)
         return
     bb = Backbone()
+    if a.cmd == "tickets":
+        from .ticket import submit_tickets
+        res = submit_tickets(os.path.expanduser(a.dir), bb)
+        _j(res)
+        return
     if a.cmd == "telegram-pair":
         import os as _os
         from . import pairing

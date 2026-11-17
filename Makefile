@@ -9,7 +9,7 @@ BIN := $(VENV)/bin
 BACKBONE := $(BIN)/python -m backbone
 WITH_ENV := ~/.claude/scripts/with-env
 
-.PHONY: help setup install doctor discover init keys run ask enrich test clean
+.PHONY: help setup install doctor discover init keys run ask enrich tickets test clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -43,6 +43,9 @@ compile: ## Dictation to a compact card: make compile text="..."
 
 enrich: ## Fill would_surface on receipts (NIM embeddings)
 	$(WITH_ENV) NIM_1 NIM_2 NIM_3 -- $(BACKBONE) enrich
+
+tickets: ## Submit eligible vault tickets from pages/jobs/ to existing queue: make tickets [dir=...]
+	$(BACKBONE) tickets --dir "$(dir)"
 
 test: ## Run the test suite
 	$(BIN)/python -m pytest tests -q

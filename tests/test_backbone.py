@@ -661,3 +661,33 @@ def test_pi_timeout_is_not_retried_on_other_keys(monkeypatch):
     pool = KeyPool(["NIM_1", "NIM_2", "NIM_3"], env={"NIM_1": "a", "NIM_2": "b", "NIM_3": "c"})
     r = workers.PiWorker({"cmd": "pi", "timeout_s": 5}, "nvidia/x").run("task", ".", pool, retries=2, backoff_s=0)
     assert not r.ok and "not retried" in r.text and len(calls) == 1
+
+
+def test_discover_missing_keys_produces_empty_nim_and_no_default():
+    from backbone.discover import discover, init_config
+    caps = discover(env={"OPENROUTER_API_KEY": "k"}, which=lambda n: None, ssh_config="/nonexistent", project_roots=["/nonexistent"])
+    assert caps["keys"] == {"openrouter": ["OPENROUTER_API_KEY"]} and caps["agents"] == {}
+    cfg = init_config(caps, load_config())
+    assert cfg["nim"]["keys"] == [] and cfg["nim"]["default_key"] == "" and cfg["workers"] == {} and cfg["escalation"]["expert"] == ""
+
+
+def test_init_refuses_to_overwrite_existing_config(tmp_path, monkeypatch):
+    from backbone.cli import main
+    home = tmp_path / ".agent-router"
+    home.mkdir()
+    out = home / "backbone.yaml"
+    out.write_text("existing: user-edited" + chr(10))
+    monkeypatch.setattr("os.path.expanduser", lambda p: str(home) if p == "~/.agent-router" else p)
+    import backbone.discover as disc_mod
+    monkeypatch.setattr(disc_mod, "discover", lambda: {"agents": {"claude": "/bin/claude"}, "keys": {"nim": ["NIM_1"]},
+                                                            "ssh_hosts": [], "projects": []})
+    import backbone.core as core_mod
+    monkeypatch.setattr(core_mod, "load_config", lambda path=None: {"nim": {"base_url": "x", "model": "m", "keys": ["NIM_1"], "default_key": "NIM_1",
+                                                                              "rpm_limit": 30, "max_concurrent_per_key": 2, "backoff_s": 3, "cooldown_s": 20,
+                                                                              "wait_s": 120}, "workers": {}, "escalation": {}, "hosts": {}, "gates": {}, "allowed_roots": []})
+    try:
+        main(["init"])
+        assert False, "init should refuse to overwrite existing config"
+    except SystemExit as exc:
+        assert exc.code == 1, f"expected exit 1, got {exc.code}"
+    assert out.read_text() == "existing: user-edited" + chr(10), "existing config must be untouched"

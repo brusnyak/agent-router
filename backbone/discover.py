@@ -49,11 +49,16 @@ def discover(env: Optional[dict] = None, which: Callable[[str], Optional[str]] =
 
 
 def init_config(caps: Dict, base: Dict) -> Dict:
-    """Derive a config from capabilities: only workers that exist, only keys that are present."""
+    """Derive a config from capabilities: only workers that exist, only keys that are present.
+
+    Never falls back to sample key names or keeps workers (e.g. pi) that were not found.
+    Missing keys means an empty list and no default_key; the operator must supply real keys.
+    """
     cfg = {**base}
-    cfg["nim"] = {**base["nim"], "keys": caps["keys"].get("nim") or base["nim"]["keys"]}
-    cfg["nim"]["default_key"] = cfg["nim"]["keys"][0]
-    cfg["workers"] = {k: v for k, v in base["workers"].items() if k == "pi" or k in caps["agents"]}
+    nim_keys = list(caps["keys"].get("nim") or [])
+    cfg["nim"] = {**base["nim"], "keys": nim_keys}
+    cfg["nim"]["default_key"] = nim_keys[0] if nim_keys else ""
+    cfg["workers"] = {k: v for k, v in base["workers"].items() if k in caps["agents"]}
     expert = next((a for a in ("codex", "claude") if a in caps["agents"]), "")
     cfg["escalation"] = {"expert": expert}
     cfg["hosts"] = base.get("hosts", {})

@@ -29,6 +29,7 @@ from .db import connect
 from .keys import KeyPool, Transient
 from .runs import Runs, StaleLease
 from .workers import ClaudeWorker, AgyWorker, CodexWorker, GooseWorker, JcodeWorker, NimCallWorker, OmpWorker, OpenHandsWorker, OpencodeWorker, PersonaWorker, PiWorker, Result
+from .adapter import GenericWorker
 from .workspace import IsolationError, Workspace, run_gate
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -134,6 +135,7 @@ class Backbone:
         self.jcode = JcodeWorker(w.get("jcode", {}), n["model"])
         self.opencode = OpencodeWorker(w.get("opencode", {}), n["model"], ROOT)
         self.omp = OmpWorker(w.get("omp", {}))
+        self.generic = GenericWorker(w.get("generic", {}).get("cmd", ""), set(w.get("generic", {}).get("allowlist", [])), timeout_s=int(w.get("generic", {}).get("timeout_s", 600)))
         self.persona = PersonaWorker(w.get("persona", {}), n["model"])
         self.projects = self._load_projects(rel(self.cfg.get("projects_file", "config/projects.yaml")))
 
@@ -287,6 +289,8 @@ class Backbone:
                 return self.openhands.run(prompt, cwd, read_only=read_only)
             if kind == "omp":
                 return self.omp.run(prompt, cwd, read_only=read_only)
+            if kind == "generic":
+                return self.generic.run(prompt, cwd, read_only=read_only)
             if kind == "or":  # OpenRouter free model: second opinion with different weights, read-only by construction
                 model = arg or self.cfg.get("openrouter", {}).get("default_model", "openrouter/free")
                 return self.pi.run_fixed(prompt, cwd, "OPENROUTER_API_KEY", "openrouter/" + model, read_only=True)
