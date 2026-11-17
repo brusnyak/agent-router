@@ -1,6 +1,6 @@
 # Agent Router: master spec (DRAFT v1, 2026-11-12, owner review pending)
 
-Single source of truth. Everything else lives in docs/archive and docs/appendix. Measured state: HANDOFF.md. Scoping evidence: docs/E2E-SCOPE-PLAN.md. Reference designs studied (patterns only, no code dependency): docs/ADAPTER-RESEARCH.md.
+Single source of truth. Owner-internal notes are kept out of the repository. Measured state: HANDOFF.md. Scoping evidence: docs/E2E-SCOPE-PLAN.md.
 
 ## 1. Product
 A standalone, open-source agent router. You type a raw request from any channel (CLI, Telegram, web UI, API). The router understands the goal from its own prompt library, engineers the final prompt (persona, command, skill, hook, loop, system prompt), picks the cheapest capable executor (Claude Sonnet/Haiku/Opus, Codex models, NVIDIA NIM keys, OpenRouter free, OpenCode free, Cline, Kilo, Pi), runs it locally, on a server, or through a browser, verifies the result against evidence, cleans up, and remembers. If something needed is missing (design system, agent, skill) it says so and fetches candidates. It works the same on a fresh machine for any user.

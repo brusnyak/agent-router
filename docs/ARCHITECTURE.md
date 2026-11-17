@@ -93,7 +93,7 @@ stateDiagram-v2
 
 ## 5. Topology
 
-Oracle is the always-on hub; the Mac is the dev machine and a node. The node connects outbound only, through an `ssh -L` tunnel to the hub's loopback port 8799; nothing on the Mac listens for Oracle. Hooks, transcripts, receipts and held-out data stay on the Mac. The Hermes adapter would talk to `backbone serve` over its HTTP API, but how it is wired is UNKNOWN (`docs/ORACLE-HERMES.md`). Hub and node are proven only in-process.
+Oracle is the always-on hub; the Mac is the dev machine and a node. The node connects outbound only, through an `ssh -L` tunnel to the hub's loopback port 8799; nothing on the Mac listens for Oracle. Hooks, transcripts, receipts and held-out data stay on the Mac. Any chat or agent front end can talk to `backbone serve` over its OpenAI-compatible HTTP API. Hub and node are proven only in-process.
 
 ```mermaid
 flowchart LR

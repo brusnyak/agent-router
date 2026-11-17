@@ -71,3 +71,6 @@ eval/heldout_v2/
 
 # run logs hold owner prompt text
 logs/
+
+# Owner-internal notes (handoffs, host bootstrap, history): kept locally, never published
+docs/internal/
