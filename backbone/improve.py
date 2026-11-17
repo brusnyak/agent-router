@@ -7,7 +7,7 @@ UPDATE (high demand, low success — rewrite description/trigger), PROMOTE
 (high success, low usage — surface more aggressively), KEEP.
 
 Propose-only: writes a report, never touches skills/agents/commands. Owner
-applies via `backbone librarian`/manual edit after review.
+applies via manual edit after review.
 
 Smart-lazy: reuses the existing outcomes table (graph.finish() records every
 run), hook receipts (hook-shadow.jsonl), and the library catalog. No LLM
@@ -15,9 +15,13 @@ calls, no network, stdlib + sqlite.
 """
 from __future__ import annotations
 
-import json, math, os, re, time
+import json
+import math
+import os
+import re
+import time
 from collections import Counter, defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .db import DB
 
@@ -99,10 +103,8 @@ def outcomes_by_route(con) -> Dict[str, dict]:
             st["lat"].append(int(lat))
     out: Dict[str, dict] = {}
     for key, st in stats.items():
-        med = 0
-        if st["lat"]:
-            sl = sorted(st["lat"])
-            med = sl[len(sl) // 2]
+        sl = sorted(st["lat"]) if st["lat"] else []
+        med = sl[len(sl) // 2] if sl else 0
         out[key] = {
             "n": st["n"], "wins": st["wins"],
             "accept": round(st["wins"] / st["n"], 3) if st["n"] else 0.0,
@@ -111,27 +113,27 @@ def outcomes_by_route(con) -> Dict[str, dict]:
     return out
 
 
-def nearest_neighbour_all(cat: List[dict], toks: List[Counter]) -> List[tuple[Optional[str], float]]:
-    """Nearest other catalog entry by name+description cosine for every entry.
-    Precomputes tokens once; O(n^2) but on small token sets (names+descriptions).
-    """
-    out: List[tuple[Optional[str], float]] = []
-    norms = [math.sqrt(sum(v * v for v in t.values())) for t in toks]
-    for i, a in enumerate(toks):
-        best_name, best_score = None, 0.0
-        na = norms[i]
-        for j, b in enumerate(toks):
-            if j == i or norms[j] == 0 or na == 0:
-                continue
-            inter = sum((a & b).values())
-            if inter == 0:
-                continue
-            score = inter / (na * norms[j])
-            if score > best_score:
-                best_score = score
-                best_name = cat[j]["name"]
-        out.append((best_name, best_score))
-    return out
+def nearest_neighbour(cat: List[dict], idx: int) -> Tuple[Optional[str], float]:
+    """Nearest other catalog entry by name+description cosine (for MERGE proposals)."""
+    a = _tok(cat[idx]["name"] + " " + cat[idx]["description"])
+    na = math.sqrt(sum(v * v for v in a.values()))
+    best_name: Optional[str] = None
+    best_score = 0.0
+    for j, other in enumerate(cat):
+        if j == idx:
+            continue
+        b = _tok(other["name"] + " " + other["description"])
+        nb = math.sqrt(sum(v * v for v in b.values()))
+        if na == 0 or nb == 0:
+            continue
+        inter = sum((a & b).values())
+        if inter == 0:
+            continue
+        score = inter / (na * nb)
+        if score > best_score:
+            best_score = score
+            best_name = other["name"]
+    return best_name, best_score
 
 
 def improve(con: DB, receipts: List[dict], top_n: int = 40) -> List[dict]:
@@ -141,9 +143,9 @@ def improve(con: DB, receipts: List[dict], top_n: int = 40) -> List[dict]:
     outcomes = outcomes_by_route(con._c)
     # nearest-neighbour (cosine) computed lazily only for KEEP candidates that
     # might become MERGE proposals; avoids O(n^2) over the full catalog.
-    _nn_cache: Dict[int, tuple[Optional[str], float]] = {}
+    _nn_cache: Dict[int, Tuple[Optional[str], float]] = {}
 
-    def nn(i: int) -> tuple[Optional[str], float]:
+    def nn(i: int) -> Tuple[Optional[str], float]:
         if i not in _nn_cache:
             _nn_cache[i] = nearest_neighbour(cat, i)
         return _nn_cache[i]
@@ -187,7 +189,8 @@ def improve(con: DB, receipts: List[dict], top_n: int = 40) -> List[dict]:
 
         proposals.append({
             "kind": kind, "name": name,
-            "usage": u, "outcomes_n": n_out, "accept": round(accept, 3) if accept is not None else None,
+            "usage": u, "outcomes_n": n_out,
+            "accept": round(accept, 3) if accept is not None else None,
             "nearest": nearest, "cos": round(nn_cos, 2),
             "age_days": int(age) if age is not None else -1,
             "proposal": prop, "flag": flag,
@@ -211,7 +214,9 @@ def format_report(props: List[dict]) -> str:
 
 
 def main(argv=None) -> int:
-    import argparse, sqlite3
+    import argparse
+    import sqlite3
+
     ap = argparse.ArgumentParser(prog="backbone improve")
     ap.add_argument("--receipts", default=RECEIPTS)
     ap.add_argument("--db", default=OUTCOMES_DB)
@@ -222,8 +227,8 @@ def main(argv=None) -> int:
     try:
         con = sqlite3.connect(f"file:{a.db}?mode=ro", uri=True)
         con.row_factory = sqlite3.Row
-    except Exception as e:
-        print(f"cannot open db {a.db}: {e}", file=__import__("sys").stderr)
+    except Exception as exc:  # pragma: no cover - depends on environment
+        print(f"cannot open db {a.db}: {exc}", file=__import__("sys").stderr)
         return 1
     db = DB(con)
     props = improve(db, receipts, top_n=a.top)

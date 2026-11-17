@@ -35,6 +35,7 @@ workers:
   codex:  {cmd: codex, timeout_s: 900}
   opencode: {cmd: opencode, timeout_s: 600}
   agy:    {cmd: agy, timeout_s: 300}
+  gpt_ego: {cmd: ego-browser, timeout_s: 180}
 
 escalation:
   expert: codex
