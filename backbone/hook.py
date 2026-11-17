@@ -24,7 +24,9 @@ def _bucket(n):
 HEAVY = ("refactor", "migrate", "implement", "build ", "audit", "rewrite", "write tests", "test suite", "every file", "all files", "across the repo",
          "scrape", "batch", "overnight", "for each", "compare all", "summarize all", "research ", "analy")
 NUDGE = ("[router] Heavy task? Delegate bounded, gate-checkable pieces instead of doing them inline: "
-         "`python3 -m backbone run --worker nim1|nim2|nim3|codex --gate '<cmd>' '<task>'` (isolated worktree, returns a patch for review); "
+         "`python3 -m backbone run --worker <w> --gate '<cmd>' '<task>'` (isolated worktree, returns a patch for review); "
+         "workers: nim1|nim2|nim3 (free NVIDIA NIM keys), omp, opencode (3 models via NIM proxy), cline, codex (build/verify), claude (judgment/browser/MCP); "
+         "`backbone discover` lists what is installed, `backbone doctor` probes it. "
          "`backbone fanout` for parallel read/summarise jobs; prefix `@host:oracle-vm` for unattended or standalone work. Light edits stay inline.")
 
 

@@ -3,6 +3,7 @@ projects:
   - id: agent-router
     path: ~/Developer/agent-router
     name: Agent Router
+    keywords: [router, backbone, omp, retrieval, harness, orchestration, worker, workers, contract, delegation]
     type: build
     default_agent: codex
     default_model: gpt-6.1-sol
@@ -50,6 +51,36 @@ projects:
     preferred_lanes:
       - research-public
       - mechanical
+
+  - id: business
+    path: ~/memory-vault
+    name: Business (master plan, leads, outreach)
+    keywords: [plan, master, vision, leads, lead, outreach, offer, pilot, cv, jobs, career, clients, sales, business, copy, polsia]
+    type: ops
+    default_agent: claude
+    default_model: claude-sonnet-5-5
+    anchors:
+      - pages/START.md
+      - pages/plans/2026-11-16-master-plan.md
+      - pages/vision.md
+      - ~/ai-context/rules/standing-approvals.md
+
+  - id: domovyk
+    path: ~/Developer/domovyk
+    name: Domovyk (hosting exit planner)
+    keywords: [domovyk, aws, hosting, migration, exit, cloud, hetzner, ovhcloud]
+    type: build
+    default_agent: codex
+    default_model: gpt-6.1-sol
+    context_files:
+      - README.md
+    anchors:
+      - README.md
+      - PROGRESS.md
+      - docs/SPEC.md
+    preferred_lanes:
+      - build
+      - review-roast
 
   - id: global
     path: ~

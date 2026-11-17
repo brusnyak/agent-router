@@ -7,7 +7,12 @@ import os
 import sys
 
 from . import library
-from .core import Backbone
+
+
+def Backbone(*args, **kwargs):
+    """Lazy factory: lightweight commands need no optional worker dependencies."""
+    from .core import Backbone as implementation
+    return implementation(*args, **kwargs)
 
 
 def _j(o) -> None:
@@ -24,6 +29,9 @@ _EVAL = {
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="backbone")
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    retrieval = sub.add_parser("retrieval", help="pluggable memory retrieval")
+    retrieval.add_argument("retrieval_args", nargs=argparse.REMAINDER)
 
     r = sub.add_parser("run", help="run one task: [/command] [#project] [@worker] prompt")
     r.add_argument("prompt", nargs="+")
@@ -93,7 +101,27 @@ def main(argv=None) -> None:
     pl.add_argument("text", nargs="*"); pl.add_argument("--table", action="store_true")
     cp = sub.add_parser("compile", help="prompt -> compact card (entities kept verbatim)")
     cp.add_argument("text"); cp.add_argument("--no-llm", action="store_true")
+    mon = sub.add_parser("monitor", help="collect local or SSH host resource snapshots")
+    mon.add_argument("--host", nargs="+", action="extend", default=[])
+    mon.add_argument("--json", action="store_true"); mon.add_argument("--write", action="store_true")
+    for name in ("contract", "diagnose", "recover", "status", "harness"):
+        sub.add_parser(name, add_help=False)
     a, rest = ap.parse_known_args(argv)
+    if a.cmd in ("contract", "diagnose", "recover", "status", "harness"):
+        if a.cmd == "harness":
+            from . import harness
+            raise SystemExit(harness.main(rest))
+        if a.cmd == "contract":
+            from .contract import main as entry
+            raise SystemExit(entry(rest))
+        if a.cmd == "status":
+            from .status import main as entry
+            raise SystemExit(entry(rest))
+        from .diagnose import main as entry
+        raise SystemExit(entry([a.cmd] + rest))
+    if a.cmd == "retrieval":
+        from .retrieval import main as retrieval_main
+        raise SystemExit(retrieval_main(a.retrieval_args))
     if a.cmd in _EVAL:
         import importlib.util as _u
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -104,6 +132,40 @@ def main(argv=None) -> None:
         raise SystemExit(m.main(rest) or 0)
     if rest:
         ap.error("unrecognized arguments: " + " ".join(rest))
+    if a.cmd == "monitor":
+        from . import monitor
+        from .core import load_config
+        import re
+        import socket
+        limits = load_config().get("monitor", {})
+        if a.host:
+            snaps = [monitor.remote(host) for host in a.host]
+        else:
+            try:
+                snaps = [monitor.collect()]
+            except (OSError, ValueError, RuntimeError) as exc:
+                snaps = [{"host": socket.gethostname(), "ts": monitor._ts(), "error": str(exc)}]
+            except monitor.subprocess.SubprocessError as exc:
+                snaps = [{"host": socket.gethostname(), "ts": monitor._ts(), "error": str(exc)}]
+        alerted = False
+        for snap in snaps:
+            alerts = monitor.check(snap, limits)
+            alerted = alerted or bool(alerts)
+            if a.write:
+                directory = os.path.expanduser("~/.agent-router/monitor")
+                os.makedirs(directory, exist_ok=True)
+                name = re.sub(r"[^A-Za-z0-9_.-]", "_", snap["host"]).lstrip(".") or "host"
+                with open(os.path.join(directory, name + ".json"), "w") as stream:
+                    json.dump(snap, stream, indent=2)
+            if not a.json:
+                print(f"{snap['host']}: " + ("; ".join(alerts) if alerts else "OK"))
+                if "error" not in snap:
+                    print(f"  load {snap['load1']:.2f}/{snap['cpus']} CPUs; "
+                          f"available {snap['mem_avail_mb']:.0f} MiB; "
+                          f"swap {snap['swap_used_mb']:.0f} MiB; disk {snap['disk_root_pct']:.1f}%")
+        if a.json:
+            _j(snaps[0] if len(snaps) == 1 else snaps)
+        raise SystemExit(2 if alerted else 0)
     if a.cmd == "router-report":
         from . import hook_log
         hl = ["report"] + (["--json"] if a.json else [])

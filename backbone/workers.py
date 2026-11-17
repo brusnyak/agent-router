@@ -302,6 +302,37 @@ class GooseWorker:
         return r
 
 
+class OmpWorker:
+    """oh-my-pi headless; read-only is a prompt instruction, not a sandbox."""
+
+    def __init__(self, cfg: dict):
+        self.cmd = cfg.get("cmd", "omp")
+        self.timeout = int(cfg.get("timeout_s", 600))
+        self.model = cfg.get("model", "")
+
+    def run(self, prompt: str, cwd: str, read_only: bool = False) -> Result:
+        t0 = time.time()
+        if read_only:
+            prompt += "\nREAD-ONLY: do not edit or create files"
+        cmd = [self.cmd, "-p", "--no-session"]
+        if self.model:
+            cmd += ["--model", self.model]
+        cmd.append(prompt)
+        try:
+            p = _run(cmd, cwd, os.environ.copy(), self.timeout)
+        except subprocess.TimeoutExpired:
+            return Result(False, f"omp timeout after {self.timeout}s", "omp", latency_ms=self.timeout * 1000)
+        except OSError as e:
+            return Result(False, str(e)[-400:], "omp", latency_ms=int((time.time() - t0) * 1000))
+        out = (p.stdout or "").strip()
+        out = re.sub(r"^Working\.\.\.[^\n]*(?:\n|$)", "", out, count=1).strip()
+        lat = int((time.time() - t0) * 1000)
+        if p.returncode != 0 or not out:
+            err = (p.stderr or "").strip()[-400:]
+            return Result(False, err or f"omp failed: exit {p.returncode}, empty or unsuccessful output", "omp", latency_ms=lat)
+        return Result(True, out, "omp", latency_ms=lat)
+
+
 class ClineWorker:
     """cline headless (`cline -p`) with the owner's own installed binary and login.
     Supports NIM key selection via NIM_1 / NIM_2 env vars for model routing."""

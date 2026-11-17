@@ -92,10 +92,29 @@ class Sessions:
             return []
         return [ln[:240] for ln in p.stdout.splitlines() if ln.startswith("[")][:k]
 
-    def pack(self, sid: str, task: str, pinned: str = "", library_notes: str = "", use_vault: bool = True) -> str:
+    def pack(self, sid: str, task: str, pinned: str = "", library_notes: str = "", use_vault: bool = True,
+             project: Optional[str] = None) -> str:
         """Assemble the prompt context under budget. Priority order, each section clipped to its share."""
+        anchors = ""
+        if use_vault:
+            try:
+                # The graph stores core.run's resolved project on the session.
+                if project is None:
+                    row = self.con.execute("SELECT project FROM sessions WHERE id=?", (sid,)).fetchone()
+                    project = row["project"] if row else ""
+                if project:
+                    from .retrieval import Registry, load_yaml
+
+                    registry = Registry()
+                    projects = load_yaml(registry.projects_path).get("projects", [])
+                    if any(p.get("id") == project and p.get("anchors") for p in projects):
+                        anchors = (registry.context_pack(task, project) or "")[:6000]
+            except Exception:
+                pass  # Retrieval is optional; retain the existing vault fallback.
         parts: List[str] = []
         left = self.budget - est_tokens(task)
+        if anchors:
+            parts.append("## PROJECT ANCHORS + RECALL (sources shown; vault wins on conflict)\n" + anchors)
         if pinned:
             parts.append("## Pinned\n" + _clip(pinned, min(2000, left // 6)))
         if library_notes:
@@ -103,7 +122,7 @@ class Sessions:
         s = self._summary(sid)
         if s:
             parts.append("## Session summary\n" + _clip(s["text"], left // 4))
-        retrieved = self.recall(sid, task) + (self.vault(task) if use_vault else [])
+        retrieved = self.recall(sid, task) + (self.vault(task) if use_vault and not anchors else [])
         if retrieved:
             parts.append("## Retrieved\n" + "\n".join(retrieved))
         used = sum(est_tokens(p) for p in parts)

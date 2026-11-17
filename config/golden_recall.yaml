@@ -1,0 +1,21 @@
+# User-specific recall targets. Replace these for another memory collection.
+- query: what is the master plan
+  must_match_path_substring: plans/2026-11-16-master-plan
+- query: vision targets 100k
+  must_match_path_substring: vision
+- query: career-ops decision adopt or skip
+  must_match_path_substring: jobs-system/career-ops-extract
+- query: three engines copy lead content
+  must_match_path_substring: plans/2026-11-14-three-engines-plan
+- query: owner facts
+  must_match_path_substring: owner-facts
+- query: send ledger count
+  must_match_path_substring: START
+- query: agent router backbone handoff
+  must_match_path_substring: handoff
+- query: autonomy night shift plan
+  must_match_path_substring: autonomy-night-shift-plan
+- query: standing approvals sends
+  must_match_path_substring: standing-approvals
+- query: domovyk
+  must_match_path_substring: domovyk

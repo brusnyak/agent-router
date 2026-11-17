@@ -2,23 +2,24 @@
 
 agent-router is a lightweight multi-agent router: type one prompt, NIM1 picks the command/project/worker/gate, the router runs it, and a critic reviews. Runs queue through a daemon and keep going after you disconnect.
 
-## Install
+One command instead of a shell block:
 
-- Python 3.12 (minimum version unverified)
-- `pip install -r requirements.txt` (file contents unverified)
-- Export NIM keys — env var names from config/backbone.yaml (`nim.keys`); values are never stored:
+```sh
+make                    # show targets
+make install            # venv + pip install -r requirements.txt
+make doctor             # probe every detected agent (read-only)
+make discover           # detect agents, keys, ssh hosts, projects
+make init               # write ~/.agent-router/backbone.yaml from discovery
 
-export NIM_1=...
-export NIM_2=...
-export NIM_3=...
+# NIM keys from env; values never printed or stored
+make keys               # NIM key status
+make run prompt="free text question" worker=nim2
+make ask text="free text question"
+```
 
-## First run
-
-python3 -m backbone doctor      # probe every detected agent (uses your logins briefly)
-python3 -m backbone ask "free text question"
-python3 -m backbone run "/build #proj @nim2 prompt"
-python3 -m backbone submit "/build #proj @nim2 prompt"   # queue for daemon
-python3 -m backbone daemon      # runs queued tasks (poll 5.0 s, parallel 2)
+`make install` is the equivalent of `python3 -m venv .venv && pip install -r requirements.txt`.
+`make doctor` replaces `python3 -m backbone doctor`, `make run` replaces
+`python3 -m backbone run`, etc. All targets are defined in the root `Makefile`.
 
 Commands verified in `backbone [-h] usage`: doctor, ask, run, submit, daemon.
 

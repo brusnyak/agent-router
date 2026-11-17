@@ -21,6 +21,12 @@ nim:
 swarm:
   max_workers: 8
 
+monitor:
+  load_per_cpu: 0.9
+  mem_avail_mb: 800
+  disk_root_pct: 90
+  swap_used_mb: 1500
+
 workers:
   pi:     {cmd: pi, timeout_s: 600}
   goose: {cmd: goose, timeout_s: 600}
