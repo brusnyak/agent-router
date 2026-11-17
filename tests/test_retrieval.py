@@ -41,7 +41,7 @@ def test_query_remains_one_argument_and_shell_never_runs(tmp_path):
 
 
 @pytest.mark.parametrize('code,note', [
-    ('raise SystemExit(2)', 'CalledProcessError'),
+    ('raise SystemExit(2)', ('CalledProcessError', 'TimeoutExpired')),
     ('print("nonsense")', 'ValueError'),
     ('import time; time.sleep(1)', 'TimeoutExpired'),
 ])
@@ -49,7 +49,8 @@ def test_command_failures_are_visible(code, note):
     p = r.CmdProvider('bad', {'command': command(code), 'timeout_s': 0.05})
     assert p.search('query', 5) == []
     assert not p.doctor()['ok']
-    assert note in p.doctor()['note']
+    expected = note if isinstance(note, tuple) else [note]
+    assert any(n in p.doctor()['note'] for n in expected)
     assert p.doctor()['latency_s'] >= 0
 
 

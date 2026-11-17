@@ -16,7 +16,7 @@ SOURCES = {
     "enforce": os.path.join(AR, "enforce.jsonl"),
     "receipts": os.path.join(AR, "hook-shadow.jsonl"),
     "router_calls": os.path.join(AR, "router-calls.jsonl"),
-    "nina_hook": os.path.join(HOME, ".hermes-nina", "state", "router-default.jsonl"),
+    "outcomes": os.path.join(AR, "outcomes.jsonl"),
 }
 
 
@@ -65,8 +65,25 @@ def build(hours: float = 24.0, now: float | None = None, sources: dict | None = 
     enf, rec = read_jsonl(src["enforce"], since), read_jsonl(src["receipts"], since)
     blocked = [r for r in enf if r.get("action") == "block"]
     calls, nina = read_jsonl(src["router_calls"], since), read_jsonl(src["nina_hook"], since)
+    heavy = [r for r in rec if r.get("heavy")]  # heavy prompts the router sees
+    routed = [r for r in rec if r.get("routed")]  # prompts actually sent through backbone run
+    share_routed = (len(routed) / len(heavy)) if heavy else 0.0
+    # follow rate: outcomes where the redirected router command was actually followed
+    follow_rate = 0.0
+    try:
+        import sqlite3 as _sq
+        ocon = _sq.connect(os.path.join(AR, "data", "backbone.db"))
+        orows = ocon.execute("SELECT COUNT(*) n FROM outcomes WHERE ts > ? AND verified = 1", (since,)).fetchone()
+        all_runs = ocon.execute("SELECT COUNT(*) n FROM runs WHERE created > ?", (since,)).fetchone()
+        ocon.close()
+        if all_runs and all_runs[0]:
+            follow_rate = orows[0] / all_runs[0]
+    except Exception:
+        pass
     return {
         "generated": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)), "window_h": hours,
+        "delegation": {"share_heavy_routed": round(share_routed, 3), "hook_follow_rate": round(follow_rate, 3),
+                       "heavy_prompts": len(heavy), "routed": len(routed), "redirects": len(blocked)},
         "enforce": {"events": len(enf), "by_arm_action": count(enf, "arm", "action"), "by_why": count(enf, "why"), "redirects": len(blocked),
                     "sessions_redirected": len({r.get("sid") for r in blocked})},
         "receipts": {"prompts": len(rec), "by_arm": count(rec, "arm"), "heavy_nudged": sum(1 for r in rec if r.get("selected"))},

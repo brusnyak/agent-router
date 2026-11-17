@@ -11,7 +11,7 @@ nim:
   keys: [NIM_1, NIM_2, NIM_3]
   default_key: NIM_1
   embed_model: nvidia/nemotron-3.5-embed-1b
-  rpm_limit: 30
+  rpm_limit: 40
   max_concurrent_per_key: 2
   retries: 1
   backoff_s: 3
@@ -108,9 +108,7 @@ exclude_refs:
 - gather
 - router
 
-hosts:
-  oracle-vm:
-    ssh: oracle-vm
-    dir: ~/agent-router
-    env: ~/.config/agent-router/env
-    pythonpath: ~/.agent-router/venv/lib/python3.12/site-packages:~/agent-router/.deps
+hosts: {}
+delegate:
+  heavy: false  # opt-in: route heavy tasks to bounded subagents (backbone delegate) via enforce hook
+  max_subagents: 3

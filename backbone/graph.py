@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
+from .evidence import missing_paths
 from .runs import StaleLease
 from .workers import Result
 from .workspace import IsolationError, Workspace, run_gate
@@ -190,6 +191,7 @@ def build(bb, db_path: str):
         success = bool(last["ok"] and s["accepted"])
         diff = ws.diff()
         patch = bb.runs.save_patch(rid, diff) if diff else ""
+        reason = ""
         ticket = ""
         if success:
             if not bb.runs.set(rid, "done", fence=fences.get(rid)):
@@ -204,16 +206,31 @@ def build(bb, db_path: str):
             bb.sessions.maybe_fold(s["sid"], bb.summarize)
         except Exception:
             pass
-        bb._hook("post_run", rid, state="done" if success else "blocked", verified=str(bool(s.get("verified"))))
-        stop_beat(rid)
         from .evidence import missing_paths
-        gate_passed = bool(s.get("verified"))
         miss = missing_paths(last["text"], [s["ws_path"], s["proj_path"]]) if last["ok"] else []  # before cleanup: the worktree still holds files the worker just wrote
-        ws.cleanup()
+        # web + file verification: cited URLs readable, cited files exist, claims supported
+        try:
+            from .verify import verify_output
+            evidence_ok, vreasons = verify_output(last["text"], [s["ws_path"], s["proj_path"]])
+        except Exception:
+            evidence_ok, vreasons = True, []
+        gate_passed = bool(s.get("verified")) and evidence_ok
         verified = gate_passed and not miss
+        reason = "" if verified else (f"cites_missing_file: {', '.join(miss[:5])}" if miss else ("no gate" if not s.get("gate") else "gate failed"))
+        if not evidence_ok:
+            reason = (reason + "; " if reason else "") + "; ".join(vreasons[:3])
+        # record outcome for per-class/route learning (gate result is the only training signal)
+        try:
+            con = bb.con._c
+            con.execute("INSERT INTO outcomes (run_id, task_class, route, ok, latency_ms, cost, evidence_ok, verified) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (s["rid"], s.get("task_class", ""), last["worker"], int(success), last["latency_ms"], 0.0,
+                         int(bool(s.get("evidence_ok"))), int(bool(s.get("verified")))))
+            con.commit()
+        except Exception:
+            pass
         from .plan import learn
         learn(s.get("task_prompt") or s["text"], last["worker"], bool(s.get("gate")), gate_passed, last["latency_ms"])
-        reason = "" if verified else (f"cites_missing_file: {', '.join(miss[:5])}" if miss else ("no gate" if not s.get("gate") else "gate failed"))
         return {"out": {"run": rid, "session": s["sid"], "state": "done" if success else "blocked", "worker": last["worker"],
                         "mode": s["mode"], "style": s["style"], "verified": verified,
                         "gate_passed": gate_passed, "evidence_missing": miss, "unverified_reason": reason,

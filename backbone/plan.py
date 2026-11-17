@@ -7,11 +7,10 @@ import re
 import shutil
 
 import yaml
-
 from .rules import resolve
+from .tier import predict_tier
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# tier 1-3 = expected quality prior; cost 0-1 = scarcity of the quota it burns (own subscription > free NIM key)
 WORKERS = {
     "nim1": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_1"}, "nim2": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_2"},
     "nim3": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_3"},
@@ -78,9 +77,13 @@ def plan(prompt: str, bandit=None, rules=None, avail=None, rng=None) -> dict:
     if not cands:
         return {**ctx, "worker": "", "fallbacks": [], "gate_hint": "", "command": "", "packet": "", "why": "no worker available"}
     picked, why = cands[0], "rule order"
+    min_tier = predict_tier(prompt)
     if bandit is not None and len(cands) > 1:
         meta = {w: {"tier": WORKERS[w]["tier"], "cost": WORKERS[w]["cost"], "strengths": []} for w in cands}
-        picked, _ = bandit.pick(ctx["task_class"], meta, rng=rng)
+        try:
+            picked, _ = bandit.pick(ctx["task_class"], meta, rng=rng, min_tier=min_tier)
+        except TypeError:  # mock/stub bandits without min_tier
+            picked, _ = bandit.pick(ctx["task_class"], meta, rng=rng)
         why = "thompson"
     gate = str(then.get("gate_hint") or "")
     gate = "" if gate in ("True", "true") else gate

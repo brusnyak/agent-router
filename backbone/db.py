@@ -49,12 +49,25 @@ CREATE TABLE IF NOT EXISTS jobs(
 CREATE TABLE IF NOT EXISTS nodes(
   name TEXT PRIMARY KEY, last_seen REAL, caps TEXT DEFAULT '{}'
 );
+CREATE TABLE IF NOT EXISTS outcomes(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, task_class TEXT, route TEXT,
+  ok INTEGER, latency_ms INTEGER, cost REAL DEFAULT 0, evidence_ok INTEGER DEFAULT 1,
+  verified INTEGER DEFAULT 0, ts REAL DEFAULT (strftime('%s','now'))
+);
+CREATE INDEX IF NOT EXISTS outcomes_run ON outcomes(run_id);
+CREATE INDEX IF NOT EXISTS outcomes_class_route ON outcomes(task_class, route);
+CREATE TABLE IF NOT EXISTS subagents(
+  id TEXT PRIMARY KEY, run_id TEXT NOT NULL, task_id TEXT, worker TEXT, tools TEXT DEFAULT '',
+  gate TEXT, budget_tokens INTEGER DEFAULT 0, budget_ms INTEGER DEFAULT 0, budget_cost REAL DEFAULT 0,
+  state TEXT NOT NULL DEFAULT 'queued', created REAL DEFAULT (strftime('%s','now')), finished REAL,
+  evidence TEXT DEFAULT '', error TEXT DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS steps(
   id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, n INTEGER, kind TEXT, worker TEXT, key_slot TEXT,
   ok INTEGER, latency_ms INTEGER, tokens INTEGER DEFAULT 0, output TEXT DEFAULT '', note TEXT DEFAULT '', ts REAL
 );
-"""
 
+"""
 class _Result:
     def __init__(self, rows, lastrowid, rowcount=0):
         self.rows, self.lastrowid, self.rowcount = rows, lastrowid, rowcount

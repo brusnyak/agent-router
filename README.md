@@ -125,9 +125,8 @@ suggestions into live sessions.
 | `backbone discover` | Detect CLIs, projects, hosts |
 | `backbone init` | Create local configuration (non-destructive) |
 | `backbone doctor` | Probe workers with a small real call |
-| `backbone ask --dry "..."` | Preview routing packet; run nothing |
-| `backbone ask "..."` | Plan, dispatch, review a task |
 | `backbone run "..."` | Run a task now (`--worker`, `--gate`, `--cwd`) |
+| `backbone delegate "..."` | Split a goal into bounded subagents (split → fanout → integrate → gate) |
 | `backbone fanout "..." "..."` | Parallel independent tasks |
 | `backbone swarm "..."` | Split a goal among workers |
 | `backbone submit "..."` | Queue work for the daemon |

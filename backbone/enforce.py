@@ -18,17 +18,24 @@ CHEAP = ("haiku", "sonnet")  # owner decision 2026-11-15: modern haiku/sonnet ar
 DEADLINE_S = 0.3
 
 
-def command_for(prompt: str, picker=None) -> str:
+def command_for(prompt: str, picker=None, delegate: bool = False) -> str:
     """Compiled router command. picker(prompt)->dict(worker, gate_hint) comes from plan.py when present."""
     plan = picker(prompt) if picker else {}
     worker = plan.get("worker", "nim1")
     gate = plan.get("gate_hint") or "<gate cmd that exits 0 when the task is done>"
     task = " ".join(prompt.split())[:240].replace("'", "")
+    if delegate:
+        return f"python3 -m backbone delegate --gate '{gate}' --worker {worker} '{task}'"
     return f"python3 -m backbone run --worker {worker} --gate '{gate}' '{task}'"
 
 
-def decide(payload: dict, state: dict, now=time.time, picker=None, holdout_pct: int = 20) -> dict:
-    """-> {action: allow|block, reason, arm, why}. Mutates state (the one-time block memory)."""
+def decide(payload: dict, state: dict, now=time.time, picker=None, holdout_pct: int = 20,
+           delegate_heavy: bool = False) -> dict:
+    """-> {action: allow|block, reason, arm, why}. Mutates state (the one-time block memory).
+
+    When delegate_heavy is True, a heavy task is redirected to `backbone delegate` which
+    creates bounded subagents (one per subtask) instead of a single worker.
+    """
     ti = payload.get("tool_input") or {}
     prompt = ti.get("prompt") or ti.get("description") or ""
     sid = payload.get("session_id") or ""
@@ -47,8 +54,9 @@ def decide(payload: dict, state: dict, now=time.time, picker=None, holdout_pct: 
     if key in state:
         return {"action": "allow", "arm": arm, "why": "repeat-after-block"}
     state[key] = now()
-    cmd = command_for(prompt, picker)
-    reason = ("Heavy sub-agent task: run it through the router instead (isolated worktree, gate-checked, spreads over NIM keys):\n"
+    cmd = command_for(prompt, picker, delegate=delegate_heavy)
+    what = "delegated to bounded subagents (split -> fanout -> gate-checked integration)" if delegate_heavy else "run through the router"
+    reason = ("Heavy sub-agent task: " + what + " (isolated worktrees, gate-checked, spreads over NIM keys):\n"
               f"  {cmd}\nIf a built-in sub-agent is truly better, repeat the same call once, or set model to sonnet/haiku, "
               "or add ROUTER-OK to the prompt.")
     return {"action": "block", "arm": arm, "why": "heavy-first-call", "reason": reason}
@@ -72,7 +80,15 @@ def main():
             state = json.load(open(STATE))
         except Exception:
             state = {}
-        d = decide(payload, state, picker=_picker())
+        # delegation to bounded subagents is opt-in via config (DECISIONS.md: hooks enforce,
+        # but the default stay is a single worker until the owner flips the knob)
+        delegate_heavy = False
+        try:
+            from .core import load_config
+            delegate_heavy = bool(load_config().get("delegate", {}).get("heavy", False))
+        except Exception:
+            pass
+        d = decide(payload, state, picker=_picker(), delegate_heavy=delegate_heavy)
         os.makedirs(os.path.dirname(STATE), exist_ok=True)
         if d["action"] == "block":
             tmp = STATE + ".tmp"

@@ -40,6 +40,10 @@ def main(argv=None) -> None:
     r.add_argument("--worker", default=""); r.add_argument("--no-isolate", action="store_true")
     r.add_argument("--read-only", action="store_true"); r.add_argument("--no-vault", action="store_true")
     r.add_argument("--escalate", default=None); r.add_argument("--force-worker", action="store_true")
+    d = sub.add_parser("delegate", help="delegate a goal to bounded subagents: split -> fanout -> integrate -> gate")
+    d.add_argument("goal"); d.add_argument("--cwd"); d.add_argument("--project", default=""); d.add_argument("--gate")
+    d.add_argument("--worker", default=""); d.add_argument("--no-isolate", action="store_true")
+    d.add_argument("--read-only", action="store_true"); d.add_argument("--max-subagents", type=int, default=3)
 
     f = sub.add_parser("fanout", help="run several prompts in parallel, one NIM key each")
     f.add_argument("prompts", nargs="+"); f.add_argument("--cwd"); f.add_argument("--gate"); f.add_argument("--project", default="")
@@ -279,6 +283,10 @@ def main(argv=None) -> None:
         _j(bb.fanout(a.prompts, project=a.project, cwd=a.cwd, gate=a.gate))
     elif a.cmd == "swarm":
         _j(bb.swarm(a.goal, n=None if a.n == "auto" else int(a.n), project=a.project, cwd=a.cwd, gate=a.gate))
+    elif a.cmd == "delegate":
+        _j(bb.delegate(a.goal, project=a.project, cwd=a.cwd, gate=a.gate,
+                       worker=a.worker, max_subagents=a.max_subagents,
+                       read_only=a.read_only, isolate=not a.no_isolate))
     elif a.cmd == "workflow":
         from . import workflow as _wf
         res = _wf.run_workflow(bb, a.workflow_id, " ".join(a.prompt), a.cwd or os.getcwd(),

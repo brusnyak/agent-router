@@ -472,7 +472,56 @@ class Backbone:
         final = self.run(f"Goal: {goal}\n\nThe subtasks are finished. Their outputs are below. Use ONLY these outputs "
                          f"(do not invent facts) to complete the goal.\n\n{parts}",
                          project=project, cwd=cwd, gate=gate, use_vault=False)
-        return {"plan": subs, "results": results, "final": final}
+    def delegate(self, goal: str, *, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None,
+                 worker: str = "", max_subagents: int = 3, read_only: bool = False,
+                 isolate: bool = True) -> dict:
+        """Delegate a goal to bounded subagents: NIM splits into subtasks, each runs as a bounded
+        subagent in parallel, then an integrator applies reviewed patches and runs the combined gate.
+        Smart-lazy: reuses swarm's split logic + SubagentRunner + existing gate loop."""
+        from .subagents import delegate as _delegate, SubagentSpec
+        n = swarm_cap(None if max_subagents is None else max_subagents,
+                      self.cfg.get("swarm", {}).get("max_workers", 8), self.pool.rpm_limit, len(self.pool.names))
+        raw = self.chat([{"role": "user", "content": (
+            f"Split this goal into as many independent subtasks as it needs, at most {n}, that touch different files. Do NOT include a "
+            f"summary, write-up or merge subtask: a separate step does that after the others finish. Reply with ONLY a "
+            f"JSON array of strings, each a self-contained instruction.\n\nGoal: {goal}")}], max_tokens=800)
+        import re as _re, json as _json
+        m = _re.search(r"\[.*\]", raw, _re.S)
+        try:
+            subs = [str(s) for s in _json.loads(m.group(0))][:n] if m else []
+        except Exception:
+            subs = []
+        if not subs:
+            subs = [goal]
+
+        cwd = cwd or os.getcwd()
+        results = []
+        with ThreadPoolExecutor(max_workers=len(subs)) as ex:
+            futs = []
+            for i, sub in enumerate(subs):
+                spec = SubagentSpec(kind=worker or f"pi:{self.cfg['nim']['default_key']}",
+                                    gate=gate, read_only=read_only,
+                                    project=project or "")
+                futs.append(ex.submit(_delegate, self, spec, sub, f"{uuid.uuid4().hex[:8]}-{i}"))
+            for fut in futs:
+                r = fut.result()
+                results.append({"subagent": r.id, "state": r.state, "worker": r.worker,
+                                "output": r.output, "patch": r.patch, "gate_passed": r.gate_passed,
+                                "verified": r.verified, "error": r.error, "latency_ms": r.latency_ms})
+
+        all_ok = all(r["state"] == "done" and r["gate_passed"] for r in results) if results else False
+        synthesis = None
+        if all_ok and gate:
+            parts = "\n\n".join(f"### Subagent {r['subagent']} ({r['worker']})\n{r['output'][:3000]}"
+                                for r in results if r["output"])
+            synth = self.run(f"Goal: {goal}\n\nThe subagents finished. Their outputs and patches are below. "
+                             f"Use ONLY these outputs (do not invent facts) to complete the goal.\n\n{parts}",
+                             project=project, cwd=cwd, gate=gate, use_vault=False, read_only=read_only)
+            synthesis = synth.get("output", "")
+            all_ok = all_ok and bool(synth.get("verified"))
+
+        return {"goal": goal, "subagents": len(results), "results": results,
+                "synthesis": synthesis, "ok": all_ok}
 
     def resume_stale(self) -> List[dict]:
         """Runs whose lease expired (process died): mark failed and write a ticket. Retrying is an explicit rerun."""
