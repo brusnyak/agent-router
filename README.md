@@ -163,9 +163,8 @@ Plan: `docs/MVP-2026-11-13.md`, `docs/ROADMAP-2026-11-13.md`. Current state: `HA
 | [ROADMAP-2026-11-13.md](docs/ROADMAP-2026-11-13.md) | Roadmap |
 | [DECISION-MATRIX-2026-11-13.md](docs/DECISION-MATRIX-2026-11-13.md) | Build, adopt or skip decisions |
 | [SKILL-ACTIVATION.md](docs/SKILL-ACTIVATION.md) | The 3 percent measurement |
-| [ORACLE-HERMES.md](docs/ORACLE-HERMES.md) | Running on Oracle through Hermes |
 | [QUICKSTART.md](docs/QUICKSTART.md), [STACK.md](docs/STACK.md), [COMPONENTS.md](docs/COMPONENTS.md) | Setup, stack, components |
 | [VISION.md](docs/VISION.md), [AGENT_ROUTER.md](docs/AGENT_ROUTER.md), [RESEARCH-AND-REDESIGN.md](docs/RESEARCH-AND-REDESIGN.md) | Background |
-| [ADAPTER-RESEARCH.md](docs/ADAPTER-RESEARCH.md), [E2E-SCOPE-PLAN.md](docs/E2E-SCOPE-PLAN.md) | Adapter and end-to-end planning |
+| [E2E-SCOPE-PLAN.md](docs/E2E-SCOPE-PLAN.md) | End-to-end planning |
 | [README.md](docs/README.md), `complexity-budget.json`, `pi-models.example.json` | Index, size ratchet, example config |
 | `appendix/`, `archive/` | Older specs and handoffs |
