@@ -135,14 +135,31 @@ def test_hook_heavy_detection_edge_cases():
     assert hook.is_heavy("fix the typo in README") is False
 
 
-def test_hook_nudge_only_heavy_treat_prompts(monkeypatch):
+def test_hook_skill_inject_only_heavy_treat_prompts(tmp_path, monkeypatch):
     monkeypatch.delenv("MR_ORCH_DISPATCH", raising=False)
+    index = tmp_path / "library-index.jsonl"
+    index.write_text(
+        json.dumps({"id": "skill:review", "kind": "skill", "name": "review",
+                    "description": "Check code for correctness bugs.",
+                    "body": "## review\nrun pytest\n"}) + "\n"
+    )
+    monkeypatch.setattr(hook, "INDEX_PATH", str(index))
+    monkeypatch.setattr(hook, "SCORE_FLOOR", 0.0)
     assert not hook.decide({"prompt": "fix the typo in README", "session_id": "x1"})["selected"]
-    heavy = "refactor the whole repo and migrate all files across the repo"
-    r = hook.decide({"prompt": heavy, "session_id": "sid-treat", "prompt_id": "p1"})
-    assert r["arm"] in ("treat", "holdout")  # deterministic by session hash
-    if r["arm"] == "treat":
-        assert "heavy-nudge" in r["selected"]
+    # prompt shares terms with the skill description so it clears the score floor
+    heavy = "refactor this code and check it for correctness bugs across the repo"
+    treat_found = holdout_found = False
+    for i in range(60):
+        r = hook.decide({"prompt": heavy, "session_id": f"sid-{i}", "prompt_id": "p1"})
+        if r["arm"] == "treat":
+            treat_found = True
+            assert "skill-inject" in r["selected"], r
+            assert "run pytest" in (r["additional_context"] or ""), r
+        elif r["arm"] == "holdout":
+            holdout_found = True
+            assert r["selected"] == [], r
+            assert r["additional_context"] is None, r
+    assert treat_found and holdout_found, "both arms should appear across 60 sessions"
 
 
 def test_hook_no_raw_prompt_in_receipt():

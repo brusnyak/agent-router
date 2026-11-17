@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import threading
@@ -550,15 +551,28 @@ def test_node_local_opts_forces_read_only(monkeypatch):
     assert "read_only" not in node.local_opts(None, {"worker": "claude"})
 
 
-def test_hook_nudges_only_heavy_treat_prompts():
+def test_hook_skill_inject_only_heavy_treat_prompts(tmp_path, monkeypatch):
     from backbone import hook
+    index = tmp_path / "library-index.jsonl"
+    index.write_text(
+        json.dumps({"id": "skill:review", "kind": "skill", "name": "review",
+                    "description": "Check code for correctness bugs.",
+                    "body": "## review\nrun pytest\n"}) + "\n"
+    )
+    monkeypatch.setattr(hook, "INDEX_PATH", str(index))
+    monkeypatch.setattr(hook, "SCORE_FLOOR", 0.0)
     heavy = "refactor the whole module and write tests for every file in the repo, then audit it"
     assert hook.is_heavy(heavy) and not hook.is_heavy("fix the typo in README")
-    arms = {}
-    for i in range(200):
+    treat_selected = []
+    holdout_selected = []
+    for i in range(60):
         r = hook.decide({"prompt": heavy, "session_id": f"s{i}", "prompt_id": "p"})
-        arms.setdefault(r["arm"], []).append(bool(r["selected"]))
-    assert all(arms["treat"]) and not any(arms["holdout"])
+        if r["arm"] == "treat":
+            treat_selected.append(bool(r["selected"]))
+        elif r["arm"] == "holdout":
+            holdout_selected.append(bool(r["selected"]))
+    assert treat_selected and all(treat_selected), f"treat not all injected: {treat_selected}"
+    assert holdout_selected and not any(holdout_selected), f"holdout injected: {holdout_selected}"
     assert not hook.decide({"prompt": "fix the typo in README", "session_id": "x1"})["selected"]
 
 

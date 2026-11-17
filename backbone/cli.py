@@ -55,6 +55,10 @@ def main(argv=None) -> None:
 
     lib = sub.add_parser("library"); ls = lib.add_subparsers(dest="lcmd", required=True)
     ls.add_parser("ingest"); ls.add_parser("counts"); ls.add_parser("embed")
+    xi = ls.add_parser("export-index", help="export compact hook-consumable library index to JSONL")
+    xi.add_argument("--out", default="~/.agent-router/library-index.jsonl")
+    xi.add_argument("--kinds", nargs="*", default=["skill", "command"])
+    xi.add_argument("--limit-per-kind", type=int, default=None)
     q = ls.add_parser("search"); q.add_argument("query"); q.add_argument("--kind"); q.add_argument("-k", type=int, default=5)
 
     cat = sub.add_parser("catalog", help="catalog operations: catalog ingest")
@@ -290,6 +294,11 @@ def main(argv=None) -> None:
             print(bb.rag.embed_missing(), "embedded")
         elif a.lcmd == "counts":
             _j(library.counts(bb.con))
+        elif a.lcmd == "export-index":
+            from .library import export_index
+            n = export_index(bb.con, os.path.expanduser(a.out), kinds=a.kinds,
+                             limit_per_kind=a.limit_per_kind)
+            print(f"exported {n} rows to {a.out}")
         else:
             for h in bb.rag.search(a.query, a.kind, a.k):
                 print(f"{h['kind']:8} {h['name']:30} {h['via']:5} {h['description'][:70]}")

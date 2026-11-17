@@ -133,3 +133,36 @@ def get(con: sqlite3.Connection, kind: str, name: str) -> Optional[Dict[str, Any
 
 def counts(con: sqlite3.Connection) -> Dict[str, int]:
     return {r["kind"]: r["n"] for r in con.execute("SELECT kind, COUNT(*) n FROM library GROUP BY kind")}
+def export_index(con: sqlite3.Connection, path: str, kinds: Optional[List[str]] = None,
+                 limit_per_kind: Optional[int] = None) -> int:
+    """Export a compact, hook-consumable index of library rows.
+
+    Each row: {id, kind, name, description, body (truncated), meta}.
+    Written as JSONL so the hook can load it without importing the router.
+    """
+    import os
+    out = 0
+    kinds = kinds or ["skill", "command"]
+    lines: List[str] = []
+    for kind in kinds:
+        q = "SELECT id, kind, name, description, body, meta FROM library WHERE kind=?"
+        if limit_per_kind:
+            q += " ORDER BY updated DESC LIMIT ?"
+            rows = con.execute(q, (kind, limit_per_kind)).fetchall()
+        else:
+            rows = con.execute(q, (kind,)).fetchall()
+        for r in rows:
+            row = {
+                "id": r[0], "kind": r[1], "name": r[2],
+                "description": r[3] or "",
+                "body": (r[4] or "")[:2000],
+                "meta": json.loads(r[5] or "{}"),
+            }
+            lines.append(json.dumps(row, ensure_ascii=False))
+            out += 1
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines))
+        if lines:
+            fh.write("\n")
+    return out

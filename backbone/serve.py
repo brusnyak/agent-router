@@ -32,7 +32,7 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
   .bar { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; flex-wrap: wrap; }
   .bar b { font-size: 17px; }
   .tag { font-size: 11px; color: var(--muted); margin-left: 6px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
   .card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
   .card h2 { font-size: 12px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: .2px; color: var(--muted); border-bottom: 1px solid #eee; padding-bottom: 5px; }
   .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 13px; }
@@ -45,7 +45,7 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
   .worker .w { font-weight: 700; }
   .glyphs { margin-top: 4px; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
   .g { margin-right: 4px; }
-  .g.r { color: #ff9800; } .g.d { color: #0b6; } .g.b { color: #c00; } .g.q { color: #bbb; } .g.s { color: var(--muted); }
+  .g.r { color: #ff9800; } .g.d { color: var(--accent); } .g.b { color: #c00; } .g.q { color: #bbb; } .g.s { color: var(--muted); }
   .hosts { margin-top: 6px; }
   .host { margin: 4px 0; font-size: 12px; }
   .host .h { font-weight: 700; }
@@ -54,16 +54,24 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
   .keys .k { display: inline-block; margin-right: 14px; }
   .keys .ok { font-weight: 700; }
   .keys .bad { color: #c00; font-weight: 700; }
+  .library { margin-top: 6px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .library .k { display: inline-block; border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; background: #f5f5f5; }
+  .library .n { color: var(--muted); }
+  .recent { margin-top: 8px; font-size: 12px; }
+  .recent .row { border-bottom: 1px solid #f0f0f0; padding: 6px 0; }
+  .recent .row:last-child { border-bottom: none; }
+  .recent .id { color: var(--muted); font-size: 11px; }
+  .recent .prompt { font-size: 12.5px; }
   .refresh { font-size: 11px; color: var(--muted); margin-top: 8px; cursor: pointer; text-decoration: underline; }
   .refresh:hover { color: var(--fg); }
   .legend { font-size: 11px; color: var(--muted); margin: 8px 0 0 0; }
+  .acc { font-weight: 700; }
 </style>
 </head>
 <body>
 <h1>agent router</h1>
 <div class="bar">
   <b id="ts">—</b>
-  <span class="tag" id="host"></span>
 </div>
 <div class="grid">
   <div class="card">
@@ -75,19 +83,29 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
       <div><span class="k">blocked (24h)</span> <b id="blocked">0</b></div>
       <div><span class="k">stale</span> <b class="bad" id="stale">0</b></div>
     </div>
+  </div>
   <div class="card hosts">
     <h2>hosts</h2>
     <div id="hosts">—</div>
   </div>
+  <div class="card library">
+    <h2>library (skills / agents / hooks / …)</h2>
+    <div id="library">—</div>
+  </div>
 </div>
 <div class="card">
-  <h2>workers</h2>
+  <h2>workers — last states</h2>
   <div class="workers" id="workers">loading…</div>
+  <div class="library" id="worker_acc" style="margin-top:8px;"></div>
   <div class="legend">glyphs: ● done · queued ◐ running ▫ blocked ✗ failed</div>
 </div>
 <div class="card keys">
   <h2>nim keys</h2>
   <div id="keys">loading…</div>
+</div>
+<div class="card recent">
+  <h2>recent runs (what's being delegated)</h2>
+  <div id="recent">loading…</div>
 </div>
 <div class="refresh" id="refresh">refresh</div>
 <script>
@@ -102,25 +120,37 @@ async function load() {
   document.getElementById("blocked").textContent = c.blocked || 0;
   document.getElementById("stale").textContent = s.stale_running || 0;
   const hosts = s.hosts || {};
-  const hd = document.getElementById("hosts");
-  hd.innerHTML = Object.entries(hosts).map(([h, v]) => {
+  document.getElementById("hosts").innerHTML = Object.entries(hosts).map(([h, v]) => {
     const bad = v.error || (v.age_s != null && v.age_s > 900);
     return `<div class="host"><span class="h">${escape(h)}</span> load ${v.load1 ?? "?"}/${v.cpus ?? "?"} mem ${v.mem_avail_mb ?? "?"}MiB age ${v.age_s ?? "?"}s${bad ? ' <span class="err">· error/stale</span>' : ""}</div>`;
   }).join("") || "no host snapshots";
   const wk = document.getElementById("workers");
   wk.innerHTML = Object.entries(s.workers || {}).map(([w, states]) => {
     const glyph = {"done": "●", "failed": "✗", "running": "◐", "blocked": "▫", "queued": "·"};
-    const cls = {"done": "d", "failed": "b", "running": "r", "blocked": "▫".replace("▫","b"), "queued": "q"};
     const cls2 = {"done": "d", "failed": "b", "running": "r", "blocked": "b", "queued": "q"};
     const disp = w.replace("browser+", "b+").replace(":NIM_", ":n");
     return `<div class="worker"><div class="w">${escape(disp)}</div><div class="glyphs">${states.map(st => `<span class="g ${cls2[st] || 's'}">${glyph[st] || "?"}</span>`).join("")}</div></div>`;
   }).join("") || "no workers";
+  const wa = document.getElementById("worker_acc");
+  wa.innerHTML = Object.entries(s.worker_acc || {}).map(([w, a]) => {
+    const done = a.done || 0; const failed = a.failed || 0; const total = done + failed;
+    const pct = total ? Math.round(100 * done / total) : 0;
+    const disp = w.replace("browser+", "b+").replace(":NIM_", ":n");
+    return `<span class="k">${escape(disp)} <span class="n acc">${done}✓${failed ? ` ${failed}✗` : ""} ${pct}%</span></span>`;
+  }).join("") || "no worker data";
+  const library = document.getElementById("library");
+  library.innerHTML = Object.entries(s.library || {}).map(([k, v]) => `<span class="k">${escape(k)} <span class="n">${v}</span></span>`).join("") || "no library";
   const keys = document.getElementById("keys");
   const ks = await fetch("/keys").then(r => r.json()).catch(() => ({}));
   keys.innerHTML = Object.entries(ks || {}).map(([k, v]) => {
     const ok = v && v.ok != null && v.ok > 0;
     return `<span class="k ${ok ? "ok" : "bad"}">${escape(k)} ${ok ? "ok" : "idle/fail"}</span>`;
   }).join("") || "no key data";
+  const recent = document.getElementById("recent");
+  recent.innerHTML = (s.recent || []).map(r => {
+    const cls = r.state === "done" ? "ok" : (r.state === "failed" ? "bad" : "muted");
+    return `<div class="row"><span class="id">${escape(r.id)}</span> <span class="prompt">${escape(r.prompt || "")}</span> <span class="${cls}">[${r.state}]</span>${r.acc != null ? ` <span class="acc">acc ${r.acc}%</span>` : ""}${r.error ? ` <span class="err">· ${escape(r.error)}</span>` : ""}</div>`;
+  }).join("") || "no recent runs";
 }
 function escape(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]); }
 load();
