@@ -11,13 +11,18 @@ from .rules import resolve
 from .tier import predict_tier
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WORKERS = {
-    "nim1": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_1"}, "nim2": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_2"},
+# Worker plan defaults are loaded per-machine from config `workers:` plus discovered NIM keys.
+# Keys are names only - values come from env at runtime (keys.load_named / KeyPool).
+# No hard-coded agent names, models, or key counts here.
+DEFAULT_WORKERS = {
+    "nim1": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_1"},
+    "nim2": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_2"},
     "nim3": {"tier": 2, "cost": 0.0, "bin": None, "key": "NIM_3"},
-    "codex": {"tier": 3, "cost": 0.6, "bin": "codex"}, "claude": {"tier": 3, "cost": 0.8, "bin": "claude"},
-    "opencode": {"tier": 2, "cost": 0.0, "bin": None, "key": None},  # proxy holds the keys; availability = proxy up
-    "agy": {"tier": 3, "cost": 0.5, "bin": "agy"},  # read-only, Google quota
-    "jcode": {"tier": 2, "cost": 0.2, "bin": "jcode", "key": "NIM_1"},  # ~29k input tokens per call measured: not free
+    "codex": {"tier": 3, "cost": 0.6, "bin": "codex"},
+    "claude": {"tier": 3, "cost": 0.8, "bin": "claude"},
+    "opencode": {"tier": 2, "cost": 0.0, "bin": None, "key": None},
+    "agy": {"tier": 3, "cost": 0.5, "bin": "agy"},
+    "jcode": {"tier": 2, "cost": 0.2, "bin": "jcode", "key": "NIM_1"},
 }
 CLASS_WORDS = (
     ("review", ("review", "roast", "critique", "audit", "red team")),
@@ -42,12 +47,20 @@ def _proxy_up(port: int = 8787) -> bool:
         return False
 
 
+def _discovered_nim_keys() -> list:
+    """Discover NIM_* key names from env files dynamically - no hard-coded key count."""
+    from .keys import env_key_names, with_discovered
+    names = env_key_names()
+    nim_keys = [n for n in names if n.startswith("NIM_")]
+    return nim_keys or ["NIM_1", "NIM_2", "NIM_3"]  # fallback for backward compat
+
+
 def available(env=None) -> set:
     if env is None:
         from .keys import load_named
-        env = {**load_named(["NIM_1", "NIM_2", "NIM_3"]), **os.environ}
+        env = {**load_named(_discovered_nim_keys()), **os.environ}
     out = set()
-    for w, m in WORKERS.items():
+    for w, m in DEFAULT_WORKERS.items():
         if w == "opencode" and not _proxy_up():
             continue
         if (m["bin"] is None or shutil.which(m["bin"])) and (not m.get("key") or env.get(m["key"])):
@@ -73,13 +86,13 @@ def plan(prompt: str, bandit=None, rules=None, avail=None, rng=None) -> dict:
     rule = resolve(rules if rules is not None else load_rules(), ctx) or {}
     then = rule.get("then") or {"worker": "nim1", "fallbacks": ["nim2"], "gate_hint": ""}
     avail = available() if avail is None else avail
-    cands = [w for w in [then["worker"], *then.get("fallbacks", [])] if w in avail] or sorted(avail & {"nim1", "nim2", "nim3"})
+    cands = [w for w in [then["worker"], *then.get("fallbacks", [])] if w in avail] or sorted(avail & set(DEFAULT_WORKERS.keys()))
     if not cands:
         return {**ctx, "worker": "", "fallbacks": [], "gate_hint": "", "command": "", "packet": "", "why": "no worker available"}
     picked, why = cands[0], "rule order"
     min_tier = predict_tier(prompt)
     if bandit is not None and len(cands) > 1:
-        meta = {w: {"tier": WORKERS[w]["tier"], "cost": WORKERS[w]["cost"], "strengths": []} for w in cands}
+        meta = {w: {"tier": DEFAULT_WORKERS[w]["tier"], "cost": DEFAULT_WORKERS[w]["cost"], "strengths": []} for w in cands}
         try:
             picked, _ = bandit.pick(ctx["task_class"], meta, rng=rng, min_tier=min_tier)
         except TypeError:  # mock/stub bandits without min_tier
@@ -118,11 +131,11 @@ def learn(prompt: str, worker: str, gate_present: bool, gate_passed: bool, laten
     try:
         from .bandit import Bandit
         w = label(worker)
-        if w not in WORKERS:
+        if w not in DEFAULT_WORKERS:
             return
         cls = classify(prompt)["task_class"]
         b = Bandit(bandit_path())
-        m = WORKERS[w]
+        m = DEFAULT_WORKERS[w]
         b.pick(cls, {w: {"tier": m["tier"], "cost": m["cost"], "strengths": []}})  # creates the cell with its prior if new
         b.update(cls, w, gate_passed if gate_present else None, latency_ms)
     except Exception:

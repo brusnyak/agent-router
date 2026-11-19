@@ -15,8 +15,34 @@ COMPILER = (
     "open_questions (max 3 items, each {\"q\": question, \"default\": assumed answer}). "
     "Do not invent facts. Keep named things verbatim."
 )
-URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
+def get_base_url():
+    try:
+        cfg_path = os.path.expanduser("~/.agent-router/backbone.yaml")
+        if not os.path.exists(cfg_path):
+            cfg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "backbone.yaml")
+        with open(cfg_path) as _f:
+            _cfg = _yaml.safe_load(_f) or {}
+        return (_cfg.get("nim", {}) or {}).get("base_url", "https://integrate.api.nvidia.com/v1") + "/chat/completions"
+    except Exception:
+        return "https://integrate.api.nvidia.com/v1/chat/completions"
+# Model loaded from config at runtime - no hard-coded model
+import yaml as _yaml
+import os as _os
+_MODEL_CACHE = None
+def get_model():
+    global _MODEL_CACHE
+    if _MODEL_CACHE is None:
+        _MODEL_CACHE = "nvidia/nemotron-3.5-super-vl-120b-a12b"  # sensible default
+        try:
+            cfg_path = _os.path.expanduser("~/.agent-router/backbone.yaml")
+            if not _os.path.exists(cfg_path):
+                cfg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "backbone.yaml")
+            with open(cfg_path) as _f:
+                _cfg = _yaml.safe_load(_f) or {}
+            _MODEL_CACHE = (_cfg.get("nim", {}) or {}).get("model", _MODEL_CACHE)
+        except Exception:
+            pass
+    return _MODEL_CACHE
 _PATTERNS = [
     r"https?://[^\s`'\"<>)\]]+",
     r"`([^`\n]+)`",
@@ -104,13 +130,14 @@ def entities_preserved(raw: str, card: dict) -> list:
 
 
 def nim_call(system: str, user: str) -> str:
-    keys = [os.environ[k] for k in ("NIM_1", "NIM_2", "NIM_3") if os.environ.get(k)]
+    from .keys import env_key_names
+    keys = [os.environ[k] for k in env_key_names() if os.environ.get(k)]
     if not keys:
-        raise RuntimeError("no NIM_1..NIM_3 keys in env")
-    body = {"model": MODEL, "temperature": 0, "max_tokens": 500,
+        raise RuntimeError("no NIM keys in env")
+    body = {"model": get_model(), "temperature": 0, "max_tokens": 500,
             "chat_template_kwargs": {"enable_thinking": False},
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-    req = urllib.request.Request(URL, json.dumps(body).encode(), {
+    req = urllib.request.Request(get_base_url(), json.dumps(body).encode(), {
         "Authorization": "Bearer " + keys[next(_rr) % len(keys)], "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read().decode())["choices"][0]["message"]["content"]
