@@ -86,3 +86,35 @@ def test_guard_rejects_fifth_unconsumed_source(env):
     bb.allowed=lambda:{'workers':{'nim-chat:NIM_2'}}
     goal={'worker':'nim-chat:NIM_2','source_paths':['a.md','b.md','c.md','d.md','runtime/collect.json'],'require_successful_runtime_sources':True}
     assert proactive.tick(bb,write([goal]),NOW)['status']=='invalid'
+
+
+@pytest.mark.parametrize('row',[None,{'seq':2,'last_outcome':'done','active_job':''},{'seq':1,'last_outcome':'blocked','active_job':''},{'seq':1,'last_outcome':'done','active_job':'pending-job'}])
+def test_fresh_projection_cannot_override_canonical_coordinator_state(source,row):
+    base,_,_,_,g=source
+    canonical={} if row is None else {'collect':row}
+    with pytest.raises(proactive.ManifestError):proactive._source_context(g,base,canonical=canonical)
+
+
+def test_matching_canonical_coordinator_state_consumed(source):
+    base,_,_,_,g=source
+    canonical={'collect':{'seq':1,'last_outcome':'done','active_job':''}}
+    assert 'KNOWN BODY' in proactive._source_context(g,base,canonical=canonical)
+
+@pytest.mark.parametrize('seq,outcome,expected',[(1,'done','enqueued'),(2,'done','wait'),(1,'blocked','wait')])
+def test_guarded_tick_uses_canonical_producer_state(env,monkeypatch,seq,outcome,expected):
+    bb,write,tmp=env
+    monkeypatch.setattr(proactive.time,'time',lambda:NOW)
+    bb.allowed=lambda:{'workers':{'nim-chat:NIM_2'}}
+    bb.con.execute(proactive.SCHEMA)
+    bb.con.execute("INSERT INTO proactive_goals(goal_id,seq,last_outcome) VALUES(?,?,?)",('collect',seq,outcome));bb.con.commit()
+    runtime=tmp/'runtime';runtime.mkdir()
+    (runtime/'collect.json').write_text(json.dumps({'goal':'collect','seq':1,'outcome':'done','note':'reconciled'}))
+    receipt=runtime/'collect-1.md';receipt.write_text('Goal: collect\nJob: original\nExecution state: done\nKNOWN PRODUCER EVIDENCE')
+    os.utime(receipt,(NOW-10,NOW-10))
+    mp=write([{'id':'collect','enabled':False,'worker':'nim-chat:NIM_2','source_paths':[]},{'worker':'nim-chat:NIM_2','read_only':True,'source_paths':['runtime/collect.json'],'require_successful_runtime_sources':True}])
+    result=proactive.tick(bb,mp,NOW)
+    assert result['status']==expected
+    assert njobs(bb)==(1 if expected=='enqueued' else 0)
+    if expected=='enqueued':
+        assert 'KNOWN PRODUCER EVIDENCE' in bb.con.execute('SELECT text FROM jobs').fetchone()[0]
+    else:assert result['skipped']['a'].startswith('source error')

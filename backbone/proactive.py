@@ -278,7 +278,7 @@ def _is_runtime_json(value: str) -> bool:
     return PurePosixPath(value).suffix == '.json' and PurePosixPath(value).parent.name == 'runtime'
 
 
-def _verified_receipt(p: Path, text: str, max_age: int) -> str:
+def _verified_receipt(p: Path, text: str, max_age: int, canonical=None) -> str:
     """Guarded runtime input: only a reconciled, fresh, done receipt is consumed. Raises ManifestError otherwise.
 
     Trust comes from the parent-written header (first three lines), never from phrases in the worker body.
@@ -294,6 +294,10 @@ def _verified_receipt(p: Path, text: str, max_age: int) -> str:
         raise ManifestError("runtime source goal mismatch")
     if isinstance(seq, bool) or not isinstance(seq, int) or seq < 0:
         raise ManifestError("runtime source seq invalid")
+    if canonical is not None:
+        current = canonical.get(gid)
+        if not current or current['seq'] != seq or current['last_outcome'] != 'done' or current['active_job']:
+            raise ManifestError("runtime source differs from canonical coordinator state")
     if snap.get('outcome') != 'done' or snap.get('note') != 'reconciled':
         raise ManifestError("runtime source not reconciled as done")
     receipt = p.parent / f'{gid}-{seq}.md'
@@ -316,7 +320,7 @@ def _verified_receipt(p: Path, text: str, max_age: int) -> str:
     return head
 
 
-def _source_context(g: dict, base: Path) -> str:
+def _source_context(g: dict, base: Path, *, canonical=None) -> str:
     """Bounded owner-selected files and fixed public GET feeds; no model tool execution."""
     from .redact import redact
     blocks = []
@@ -330,7 +334,7 @@ def _source_context(g: dict, base: Path) -> str:
             text = stream.read(100000)
         if p.parent.name == 'runtime' and p.suffix == '.json' and g.get('require_successful_runtime_sources'):
             # Outside the try below: ManifestError is a ValueError and must reach tick() as a skip.
-            text = _verified_receipt(p, text, g.get('runtime_source_max_age_s', 7200))
+            text = _verified_receipt(p, text, g.get('runtime_source_max_age_s', 7200), canonical)
         elif p.parent.name == 'runtime' and p.suffix == '.json':
             try:
                 snap = json.loads(text)
@@ -442,7 +446,8 @@ def tick(bb, manifest_path, now: Optional[float] = None, node_online: Optional[C
                     opts['requires_idle'] = True
                 try:
                     digest = _input_digest(g, base)  # captured before context: this is the input the job is built from
-                    context = _source_context(g, base)
+                    context = (_source_context(g, base, canonical=rows) if g.get("require_successful_runtime_sources")
+                               else _source_context(g, base))
                     prior = base / "runtime" / f"{gid}-{r['seq']}.md"
                     if prior.exists():
                         context += "\n<prior-receipt>\n" + prior.read_text()[:18000] + "\n</prior-receipt>"
