@@ -165,10 +165,18 @@ class ClaudeWorker:
             j = json.loads(p.stdout)
         except Exception:
             return Result(False, (p.stderr or p.stdout)[:400], "claude", latency_ms=lat)
-        ok = not j.get("is_error") and p.returncode == 0
-        return Result(ok, str(j.get("result", "")), "claude", latency_ms=lat,
-                      meta={"cost_usd": j.get("total_cost_usd"), "turns": j.get("num_turns"),
-                            "requested_model": self.model, "reported_models": sorted((j.get("modelUsage") or {}).keys())})
+        from .model_policy import _reported_model_matches
+        usage = j.get("modelUsage")
+        reported = sorted(usage) if isinstance(usage, dict) and all(isinstance(k, str) for k in usage) else []
+        model_matches = _reported_model_matches(self.model, reported)
+        ok = not j.get("is_error") and p.returncode == 0 and model_matches
+        meta = {"cost_usd": j.get("total_cost_usd"), "turns": j.get("num_turns"),
+                "requested_model": self.model, "reported_models": reported,
+                "model_match": model_matches}
+        if not model_matches:
+            meta.update(failure_kind="model_mismatch", retryable=False)
+        text = str(j.get("result", "")) if model_matches else "claude requested/reported model mismatch; output not accepted"
+        return Result(ok, text, "claude", latency_ms=lat, meta=meta)
 
 
 class CodexWorker:
