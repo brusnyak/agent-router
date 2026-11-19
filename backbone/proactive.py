@@ -13,11 +13,13 @@ import json
 import os
 import re
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Iterable, Optional
 import urllib.request
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,47}$")
+RUNTIME_SRC_RE = re.compile(r"^runtime/[a-z0-9][a-z0-9_-]{0,47}\.json$")
+FUTURE_TOLERANCE_S = 60
 MAX_PROMPT, MAX_PREV, MAX_BACKOFF_S = 4000, 600, 86400
 FEEDS = {"arbeitnow": "https://www.arbeitnow.com/api/job-board-api"}
 
@@ -102,6 +104,24 @@ def load_manifest(bb, path) -> dict:
                 raise ManifestError(f"{gid}: require_source_change only for read-only analysis goals (no collector/feeds)")
         if not isinstance(g["read_only"], bool):
             raise ManifestError(f"{gid}: read_only must be bool")
+        guarded = g.get("require_successful_runtime_sources", False)
+        if not isinstance(guarded, bool):
+            raise ManifestError(f"{gid}: require_successful_runtime_sources must be bool")
+        if "runtime_source_max_age_s" in g:
+            age = g["runtime_source_max_age_s"]
+            if isinstance(age, bool) or not isinstance(age, int) or age <= 0:
+                raise ManifestError(f"{gid}: runtime_source_max_age_s must be positive int")
+        if guarded:
+            if len(paths) > 4:
+                raise ManifestError(f"{gid}: guarded goals allow at most four source paths")
+            if g["read_only"] is not True or not str(g.get("worker", "")).startswith("nim-chat:"):
+                raise ManifestError(f"{gid}: require_successful_runtime_sources only for read-only nim-chat goals")
+            runtime = [p for p in paths if _is_runtime_json(p)]
+            if not runtime:
+                raise ManifestError(f"{gid}: require_successful_runtime_sources needs at least one runtime/*.json source")
+            if not all(RUNTIME_SRC_RE.fullmatch(p) for p in runtime):
+                raise ManifestError(f"{gid}: guarded runtime source must be runtime/<goal>.json")
+            g.setdefault("runtime_source_max_age_s", 7200)
         if not isinstance(g.get('requires_idle', False), bool) or (g.get('requires_idle') and not g.get('target')):
             raise ManifestError(f"{gid}: requires_idle needs bool and target")
         from . import guard
@@ -129,13 +149,51 @@ def load_manifest(bb, path) -> dict:
 
 
 def _input_digest(g: dict, base: Path) -> str:
+    """Fingerprint the bounded text actually consumed, including runtime receipts."""
     digest = hashlib.sha256(json.dumps(g, sort_keys=True).encode())
-    for value in g['source_paths']:
-        try:
-            with (base / os.path.expanduser(value)).open('rb') as stream: digest.update(stream.read(100000))
-        except OSError: digest.update(b'missing-source')
-    return digest.hexdigest()
 
+    def add(label, payload):
+        label, payload = label.encode(), payload.encode()
+        digest.update(len(label).to_bytes(8, 'big'))
+        digest.update(label)
+        digest.update(len(payload).to_bytes(8, 'big'))
+        digest.update(payload)
+
+    for value in g['source_paths']:
+        p = Path(base) / os.path.expanduser(value)
+        if not p.is_file():
+            add('missing:' + str(p), '')
+            continue
+        try:
+            with p.open(encoding='utf-8', errors='replace') as stream:
+                text = stream.read(100000)
+        except OSError:
+            add('missing:' + str(p), '')
+            continue
+        add('source:' + str(p), text)
+        if p.parent.name != 'runtime' or p.suffix != '.json':
+            continue
+        try:
+            snap = json.loads(text)
+        except (ValueError, RecursionError):
+            continue
+        if not isinstance(snap, dict):
+            continue
+        gid, seq = snap.get('goal'), snap.get('seq')
+        if not isinstance(gid, str) or not ID_RE.fullmatch(gid) or isinstance(seq, bool) or not isinstance(seq, int) or seq < 0:
+            continue
+        receipt = p.parent / f'{gid}-{seq}.md'
+        if receipt.is_symlink() or not receipt.is_file():
+            add('missing:' + str(receipt), '')
+            continue
+        try:
+            with receipt.open(encoding='utf-8', errors='replace') as stream:
+                body = stream.read(18000)
+        except OSError:
+            add('missing:' + str(receipt), '')
+            continue
+        add('receipt:' + str(receipt), body)
+    return digest.hexdigest()
 
 def _missing(g: dict, base: Path) -> list:
     return [p for p in g["source_paths"] if not (base / os.path.expanduser(p)).exists()]
@@ -216,6 +274,48 @@ def _online(bb, target: str, node_online) -> bool:
     return bool(node_online(target)) if callable(node_online) else target in node_online
 
 
+def _is_runtime_json(value: str) -> bool:
+    return PurePosixPath(value).suffix == '.json' and PurePosixPath(value).parent.name == 'runtime'
+
+
+def _verified_receipt(p: Path, text: str, max_age: int) -> str:
+    """Guarded runtime input: only a reconciled, fresh, done receipt is consumed. Raises ManifestError otherwise.
+
+    Trust comes from the parent-written header (first three lines), never from phrases in the worker body.
+    """
+    try:
+        snap = json.loads(text)
+    except (ValueError, RecursionError):
+        raise ManifestError("runtime source malformed") from None
+    if not isinstance(snap, dict):
+        raise ManifestError("runtime source malformed")
+    gid, seq = snap.get('goal'), snap.get('seq')
+    if not isinstance(gid, str) or not ID_RE.fullmatch(gid) or gid != p.stem:
+        raise ManifestError("runtime source goal mismatch")
+    if isinstance(seq, bool) or not isinstance(seq, int) or seq < 0:
+        raise ManifestError("runtime source seq invalid")
+    if snap.get('outcome') != 'done' or snap.get('note') != 'reconciled':
+        raise ManifestError("runtime source not reconciled as done")
+    receipt = p.parent / f'{gid}-{seq}.md'
+    if receipt.is_symlink() or not receipt.is_file():
+        raise ManifestError("runtime receipt missing or unsafe")
+    try:
+        st = receipt.stat()
+    except OSError:
+        raise ManifestError("runtime receipt missing") from None
+    now = time.time()
+    if st.st_mtime > now + FUTURE_TOLERANCE_S:
+        raise ManifestError("runtime receipt from the future")
+    if now - st.st_mtime > max_age:
+        raise ManifestError("runtime receipt stale")
+    with receipt.open(encoding="utf-8", errors="replace") as stream:
+        head = stream.read(18000)
+    lines = head.split('\n', 3)
+    if len(lines) < 3 or lines[0] != f'Goal: {gid}' or lines[2] != 'Execution state: done':
+        raise ManifestError("runtime receipt not done")
+    return head
+
+
 def _source_context(g: dict, base: Path) -> str:
     """Bounded owner-selected files and fixed public GET feeds; no model tool execution."""
     from .redact import redact
@@ -224,9 +324,14 @@ def _source_context(g: dict, base: Path) -> str:
         p = base / os.path.expanduser(value)
         if p.name.startswith('.') or p.suffix in ('.pem', '.key'):
             raise ManifestError("secret-like source rejected")
+        if not p.is_file() or (g.get('require_successful_runtime_sources') and p.is_symlink()):
+            raise ManifestError("source is not a regular file or is unsafe")
         with p.open(encoding="utf-8", errors="replace") as stream:
             text = stream.read(100000)
-        if p.parent.name == 'runtime' and p.suffix == '.json':
+        if p.parent.name == 'runtime' and p.suffix == '.json' and g.get('require_successful_runtime_sources'):
+            # Outside the try below: ManifestError is a ValueError and must reach tick() as a skip.
+            text = _verified_receipt(p, text, g.get('runtime_source_max_age_s', 7200))
+        elif p.parent.name == 'runtime' and p.suffix == '.json':
             try:
                 snap = json.loads(text)
                 gid, seq = snap.get('goal'), snap.get('seq')
