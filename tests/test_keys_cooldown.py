@@ -32,8 +32,13 @@ def test_zero_cooldown_means_no_cooling():
     p, t = mk(cooldown_s=0)
     p.report("NIM_1", False)
     assert p.status()["NIM_1"]["cooling_s"] == 0
-    with p.lease() as name:
-        assert name == "NIM_1"
+    # lease is round-robin with load spreading on main, so a failed key is not guaranteed first;
+    # the contract is that it stays eligible rather than being cooled out.
+    seen = set()
+    for _ in range(2):
+        with p.lease() as name:
+            seen.add(name)
+    assert "NIM_1" in seen
 
 def test_retry_after_cools_even_with_zero_config():
     p, t = mk(cooldown_s=0)
