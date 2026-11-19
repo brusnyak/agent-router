@@ -36,8 +36,12 @@ def build(raw: str, analysis: Dict, persona: Optional[Dict] = None, command: Opt
 
 
 def pick_tier(task_class: str, tiers: Dict[str, str], allowed_workers: set, default: str = "nim1") -> tuple[str, str]:
-    """Task class -> worker via config table; a worker that is unavailable falls back to default with the reason."""
+    """Task class -> worker via config table; prefer free models over paid/expert when allow_experts is off."""
     w = tiers.get(task_class) or tiers.get("other") or default
+    # Free-model preference: if the selected worker is not available (e.g. expert disabled),
+    # prefer OpenRouter `:free` worker `or` over paid NIM/expert.
     if w in allowed_workers:
         return w, "tier"
+    if "or" in allowed_workers and w not in ("nim1", "nim2", "nim3", default):
+        return "or", f"tier {w} unavailable -> free model (or)"
     return default, f"tier {w} unavailable -> {default}"

@@ -138,7 +138,19 @@ def load_config(path: Optional[str] = None) -> dict:
     user = os.path.expanduser("~/.agent-router/backbone.yaml")
     path = path or (user if os.path.exists(user) else os.path.join(ROOT, "config", "backbone.yaml"))
     with open(path) as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
+    # Load model catalog (free vs paid providers) for model-preference routing.
+    models_path = os.path.join(ROOT, "config", "models.yaml")
+    if os.path.exists(models_path):
+        try:
+            with open(models_path) as f:
+                mc = yaml.safe_load(f) or {}
+            cfg["models"] = mc.get("models", [])
+        except Exception:
+            cfg["models"] = []
+    else:
+        cfg["models"] = []
+    return cfg
 
 
 def swarm_cap(n, max_workers: int, rpm_limit: int, n_keys: int) -> int:
