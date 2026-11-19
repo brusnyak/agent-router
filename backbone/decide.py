@@ -13,9 +13,11 @@ def heuristic(text: str, allowed: Dict) -> Dict:
     low = text.lower()
     ro = any(w in low for w in READ_WORDS)
     cmd = "roast" if "roast" in low and "roast" in allowed["commands"] else ("review" if "review" in low and "review" in allowed["commands"] else "")
-    return {"command": cmd, "project": "", "worker": allowed["default_worker"], "gate": "", "read_only": ro,
-            "critic": ro, "rationale": "heuristic fallback", "decided_by": "fallback"}
+    return {"command": cmd, "project": "", "worker": allowed["default_worker"], "gate": "", "tier": "auto",
+            "read_only": ro, "critic": ro, "rationale": "heuristic fallback", "decided_by": "fallback"}
 
+
+TIERS = {"strong", "weak", "auto"}
 
 def validate(plan: Dict, allowed: Dict) -> Dict:
     """Keep only fields whose values exist; report what was dropped."""
@@ -32,6 +34,11 @@ def validate(plan: Dict, allowed: Dict) -> Dict:
         dropped.append(f"persona={v}")
         v = ""
     out["persona"] = v
+    v = plan.get("tier") or "auto"
+    if v not in TIERS:
+        dropped.append(f"tier={v}")
+        v = "auto"
+    out["tier"] = v
     out["read_only"] = bool(plan.get("read_only"))
     out["critic"] = bool(plan.get("critic"))
     out["rationale"] = str(plan.get("rationale", ""))[:300]
@@ -43,7 +50,9 @@ def decide(chat: Callable[[List[dict]], str], text: str, allowed: Dict, hits: Li
     lib = "\n".join(f"- {h['kind']}:{h['name']}: {h['description'][:100]}" for h in hits[:6])
     prompt = (
         "You route one user request for a coding-agent gateway. Reply with ONLY a JSON object with keys: "
-        "command, persona, project, worker, gate, read_only, critic, rationale.\n"
+        "command, persona, project, worker, gate, tier, read_only, critic, rationale.\n"
+        f'Allowed tiers (requested quality/cost band): {sorted(TIERS)}. "weak" = cheapest acceptable worker, '
+        '"strong" = best worker for the task class, "auto" = let the tier table decide.\n'
         f"Allowed personas (agent/skill names): {sorted(allowed.get('personas', {}))}\n"
         f"Allowed commands: {sorted(allowed['commands'])}\nAllowed projects: {sorted(allowed['projects'])}\n"
         f"Allowed workers: {sorted(allowed['workers'])}\nAllowed gates (names): {sorted(allowed['gates'])}\n"
