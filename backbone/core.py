@@ -23,17 +23,51 @@ from typing import Callable, Dict, List, Optional
 import yaml
 
 from . import library, nim, otel
+from . import guard
 from .workflow import run_workflow
 from .context import Sessions, est_tokens
 from .db import connect
-from .keys import KeyPool, Transient
+from .keys import KeyPool, Transient, with_discovered
 from .runs import Runs, StaleLease
-from .workers import ClaudeWorker, AgyWorker, CodexWorker, GooseWorker, JcodeWorker, NimCallWorker, OmpWorker, OpenHandsWorker, OpencodeWorker, PersonaWorker, PiWorker, Result
+from .workers import ClaudeWorker, AgyWorker, ClineWorker, CodexWorker, GooseWorker, JcodeWorker, KiloWorker, NimCallWorker, OmpWorker, OpenHandsWorker, OpencodeWorker, PersonaWorker, PiWorker, Result
 from .adapter import GenericWorker
 from .workspace import IsolationError, Workspace, run_gate
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _TOKEN = re.compile(r"^([/#@])([A-Za-z0-9_.:-]+)\s*")
+_AUTH_REJECTION = re.compile(
+    r"\b(?:http(?:\s+error)?\s*)?(?:401|403)\b|unauthori[sz]ed|forbidden|invalid (?:api )?key|key rejected|authentication failed|invalid credentials",
+    re.I,
+)
+_RETRYABLE_PROVIDER = re.compile(r"\b429\b|\b50[0-4]\b|rate.?limit|ECONN|overloaded", re.I)
+
+
+def _raise_retryable_provider_failure(result: Result, pool, key_name: str, key_value: str) -> None:
+    """Raise only retryable provider failures, after masking the exact leased value."""
+    meta = result.meta or {}
+    if result.ok or meta.get("retryable") is False or meta.get("failure_kind") in (
+        "timeout", "truncated", "missing_key", "missing_nim_provider", "unsafe_key_flag",
+    ):
+        return
+    env = dict(os.environ)
+    env.update(getattr(pool, "env", {}) or {})
+    env[key_name] = key_value
+    env["NVIDIA_API_KEY"] = key_value
+    from .redact import redact
+    text = redact(result.text, environ=env)
+    if _AUTH_REJECTION.search(result.text or ""):
+        error = Transient(text)
+        error.retry_after = 3600.0
+        raise error
+    if _RETRYABLE_PROVIDER.search(result.text or ""):
+        raise Transient(text)
+
+
+def _redact_worker_error(owner, error: object) -> str:
+    env = dict(os.environ)
+    env.update(getattr(getattr(owner, "pool", None), "env", {}) or {})
+    from .redact import redact
+    return redact(str(error), environ=env)
 
 
 @dataclass
@@ -74,6 +108,7 @@ def norm_worker(w: str) -> str:
         return w
     if w.lower() == "browser":
         return "browser"
+
     m = re.fullmatch(r"(jcode|opencode)(?::?(?:nim|NIM_)(\d))?", w, re.I)
     if m:
         return f"{m.group(1).lower()}:NIM_{m.group(2) or 1}"
@@ -116,11 +151,13 @@ def swarm_cap(n, max_workers: int, rpm_limit: int, n_keys: int) -> int:
 class Backbone:
     def __init__(self, cfg: Optional[dict] = None, env: Optional[dict] = None):
         self.cfg = cfg or load_config()
+        self.guard_env = env
         base = ROOT
         rel = lambda p: os.path.expanduser(p) if os.path.isabs(os.path.expanduser(p)) else os.path.join(base, p)
         self.con = connect(rel(self.cfg["db"]))
         n = self.cfg["nim"]
-        self.pool = KeyPool(n["keys"], max_concurrent=n.get("max_concurrent_per_key", 0),
+        names = with_discovered(n["keys"]) if n.get("auto_keys", True) else list(n["keys"])
+        self.pool = KeyPool(names, max_concurrent=n.get("max_concurrent_per_key", 0),
                             cooldown_s=n.get("cooldown_s", 0), rpm_limit=n.get("rpm_limit", 40), env=env, wait_s=n.get("wait_s", 120))
         self.sessions = Sessions(self.con, self.cfg.get("context", {}))
         self.runs = Runs(self.con, rel(self.cfg["tickets_dir"]), rel(self.cfg.get("runs_dir", "data/runs")))
@@ -128,15 +165,17 @@ class Backbone:
         w = self.cfg.get("workers", {})
         self.pi = PiWorker(w.get("pi", {}), n["model"])
         self.goose = GooseWorker(w.get("goose", {}), n["model"])
-        self.nim = NimCallWorker(w.get("nim-chat", {}), n["model"])
+        self.nim = NimCallWorker(w.get("nim-chat", {}), n["model"], n["base_url"])
         self.openhands = OpenHandsWorker(w.get("openhands", {}))
         self.claude = ClaudeWorker(w.get("claude", {}))
+        self.omp = OmpWorker({"model": "nvidia/" + n["model"], **w.get("omp", {})})   # default: the router's own NIM model, never omp's default provider
+        self.cline = ClineWorker(w.get("cline", {}))
+        self.agy = AgyWorker(w.get("agy", {}), ROOT)
         self.codex = CodexWorker(w.get("codex", {}))
         self.jcode = JcodeWorker(w.get("jcode", {}), n["model"])
         self.opencode = OpencodeWorker(w.get("opencode", {}), n["model"], ROOT)
-        self.omp = OmpWorker(w.get("omp", {}))
+        self.kilo = KiloWorker(w.get("kilo", {}))
         self.generic = GenericWorker(w.get("generic", {}).get("cmd", ""), set(w.get("generic", {}).get("allowlist", [])), timeout_s=int(w.get("generic", {}).get("timeout_s", 600)))
-        self.persona = PersonaWorker(w.get("persona", {}), n["model"])
         self.projects = self._load_projects(rel(self.cfg.get("projects_file", "config/projects.yaml")))
 
         self._expert_lock = threading.Lock()  # SPEC D5: one expert (own-login) process at a time
@@ -206,15 +245,34 @@ class Backbone:
 
     def ingest(self) -> Dict[str, int]:
         out: Dict[str, int] = {}
-        for src in self.cfg.get("library", {}).get("sources", []):
+        from . import sources as _sources
+        configured = list(self.cfg.get("library", {}).get("sources", []))
+        have = {(os.path.expanduser(x["path"]), x["kind"]) for x in configured}
+        found = [x for x in _sources.load_registry() if (os.path.expanduser(x["path"]), x["kind"]) not in have]
+        for src in configured + found:
             out[src["path"] + (":" + src["prefix"] if src.get("prefix") else "") + (":" + src["match"] if src.get("match") else "")] = library.ingest_dir(self.con, src["path"], src["kind"], prefix=src.get("prefix", ""), match=src.get("match", ""))
         return out
 
     # -- llm helpers ----------------------------------------------------
     def chat(self, messages: List[dict], max_tokens: int = 1500, prefer: str = "NIM_1") -> str:
         n = self.cfg["nim"]
-        return nim.chat(self.pool, messages, base_url=n["base_url"], model=n["model"], max_tokens=max_tokens,
-                        prefer=prefer, retries=n.get("retries", 1), backoff_s=n.get("backoff_s", 3))
+        ledger = self._ledger()
+        env = getattr(self, "guard_env", None)
+        reservation = None
+        try:
+            if ledger:
+                _, reservation = ledger.reserve("nim-chat", True, self.cfg, env)
+            else:
+                guard.check("nim-chat", True, self.cfg, env)
+            out = nim.chat(self.pool, messages, base_url=n["base_url"], model=n["model"], max_tokens=max_tokens,
+                           prefer=prefer, retries=0 if guard.unattended(env) else n.get("retries", 1),
+                           backoff_s=n.get("backoff_s", 3))
+            if ledger:
+                ledger.finish(reservation, True)
+            return out
+        finally:
+            if ledger:
+                ledger.con.close()
 
     def summarize(self, text: str) -> str:
         return self.chat([{"role": "user", "content": text}], max_tokens=800)
@@ -271,16 +329,62 @@ class Backbone:
 
     # -- execution ------------------------------------------------------
     def _dispatch(self, spec: str, prompt: str, cwd: str, read_only: bool, attempt: int) -> Result:
+        """Run a worker and mask secrets in what it returns BEFORE anything stores, checkpoints or prints it."""
+        from . import guard
+        kind = spec.partition(":")[0]
+        cfg = getattr(self, "cfg", None) or {}
+        lp = guard.ledger_path(cfg)
+        ledger = guard.Ledger(lp) if lp else None
+        env = getattr(self, "guard_env", None)
+        try:
+            if guard.unattended(env) and kind != "nim-chat":
+                raise guard.Blocked("unattended: only tool-free nim-chat dispatch is allowed")
+            if ledger:
+                read_only, reservation = ledger.reserve(kind, read_only, cfg, env)
+            else:
+                read_only = guard.check(kind, read_only, cfg, env)
+        except guard.Blocked as e:
+            if ledger:
+                ledger.con.close()
+            return Result(False, f"blocked: {e}", spec)
+        try:
+            res = Backbone._dispatch_raw(self, spec, prompt, cwd, read_only, attempt)
+            if ledger:
+                ledger.finish(reservation, res.ok, float((res.meta or {}).get("cost_usd") or 0))
+        finally:
+            if ledger:
+                ledger.con.close()
+        try:
+            from .redact import redact, redact_obj
+            redaction_env = dict(os.environ)
+            redaction_env.update(getattr(getattr(self, "pool", None), "env", {}))
+            res.text = redact(res.text, environ=redaction_env)
+            res.meta = redact_obj(res.meta, environ=redaction_env)
+        except Exception:      # redaction must never break a run, but a failure here is logged, not silent
+            import sys
+            print("router: redact failed on worker output", file=sys.stderr)
+        return res
+
+    def _dispatch_raw(self, spec: str, prompt: str, cwd: str, read_only: bool, attempt: int) -> Result:
         kind, _, arg = spec.partition(":")
         with otel.span(
             "router.dispatch",
             {"router.worker": kind, "router.worker_arg": arg or "", "router.read_only": read_only},
         ):
             nimcfg = self.cfg["nim"]
+            if kind == "career-scan":
+                from . import career_scan
+                if arg not in ('', 'idle'):
+                    return Result(False, 'unknown career collector mode', spec)
+                return career_scan.run(idle=arg == 'idle')
             if kind == "pi":
                 return self.pi.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
                                    retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
             if kind == "nim-chat":
+                if guard.unattended(getattr(self, "guard_env", None)):
+                    text = nim.chat(self.pool, [{"role": "user", "content": prompt}], base_url=nimcfg["base_url"],
+                                    model=nimcfg["model"], max_tokens=3000, prefer=arg or nimcfg["default_key"], retries=0)
+                    return Result(True, text, spec, arg or nimcfg["default_key"])
                 return self.nim.run(prompt, cwd, key=arg or nimcfg["default_key"], read_only=True, pool=self.pool)
             if kind == "goose":
                 return self.goose.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
@@ -288,7 +392,20 @@ class Backbone:
             if kind == "openhands":
                 return self.openhands.run(prompt, cwd, read_only=read_only)
             if kind == "omp":
-                return self.omp.run(prompt, cwd, read_only=read_only)
+                pool = getattr(self, "pool", None)
+                alias = arg or nimcfg.get("default_key", "NIM_1")
+                if pool is not None and hasattr(pool, "call"):
+                    def invoke(name, value):
+                        result = self.omp.run(prompt, cwd, read_only=read_only, api_key=value)
+                        result.key_slot = name
+                        _raise_retryable_provider_failure(result, pool, name, value)
+                        return result
+                    return pool.call(invoke, prefer=alias, retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3))
+                try:
+                    key = pool.value(alias) if pool is not None else ""
+                except (AttributeError, KeyError):
+                    key = ""
+                return self.omp.run(prompt, cwd, read_only=read_only, api_key=key)
             if kind == "generic":
                 return self.generic.run(prompt, cwd, read_only=read_only)
             if kind == "or":  # OpenRouter free model: second opinion with different weights, read-only by construction
@@ -301,9 +418,40 @@ class Backbone:
                     full, cwd, self.pool, prefer=arg or nimcfg["default_key"], retries=nimcfg.get("retries", 1),
                     backoff_s=nimcfg.get("backoff_s", 3), read_only=True))
             if kind == "opencode":
-                return self.opencode.run(prompt, cwd, key=arg or nimcfg_default(self), read_only=read_only)
+                pool = getattr(self, "pool", None)
+                alias = arg or nimcfg.get("default_key", "NIM_1")
+                if pool is not None and hasattr(pool, "call"):
+                    def invoke(name, value):
+                        result = self.opencode.run(prompt, cwd, key=name, api_key=value, read_only=read_only)
+                        result.key_slot = name
+                        _raise_retryable_provider_failure(result, pool, name, value)
+                        return result
+                    return pool.call(invoke, prefer=alias, retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3))
+                return self.opencode.run(prompt, cwd, key=alias, read_only=read_only)
             if kind == "agy":
                 return self.agy.run(prompt, cwd)
+            if kind == "cline":
+                pool = getattr(self, "pool", None)
+                alias = arg or nimcfg.get("default_key", "NIM_1")
+                if pool is not None and hasattr(pool, "call"):
+                    def invoke(name, value):
+                        result = self.cline.run(prompt, cwd, key=name, api_key=value, read_only=read_only)
+                        result.key_slot = name
+                        _raise_retryable_provider_failure(result, pool, name, value)
+                        return result
+                    return pool.call(invoke, prefer=alias, retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3))
+                return self.cline.run(prompt, cwd, key=alias, read_only=read_only)
+            if kind == "kilo":
+                pool = getattr(self, "pool", None)
+                alias = arg or nimcfg.get("default_key", "NIM_1")
+                if pool is not None and hasattr(pool, "call"):
+                    def invoke(name, value):
+                        result = self.kilo.run(prompt, cwd, key=name, api_key=value, read_only=read_only)
+                        result.key_slot = name
+                        _raise_retryable_provider_failure(result, pool, name, value)
+                        return result
+                    return pool.call(invoke, prefer=alias, retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3))
+                return self.kilo.run(prompt, cwd, key=alias, read_only=read_only)
             if kind.startswith("ecc-") or kind.startswith("agency-"):
                 from . import library as _lib
                 row = _lib.get(self.con, "skill", kind) or _lib.get(self.con, "command", kind)
@@ -323,11 +471,18 @@ class Backbone:
             if kind in ("claude", "codex"):
                 with self._expert_lock:
                     return (self.claude if kind == "claude" else self.codex).run(prompt, cwd, read_only=read_only)
-            return Result(False, f"unknown worker '{spec}'", spec)
+            known = "pi nim-chat goose openhands omp cline agy opencode jcode claude codex browser workflow or ecc-*/agency-* host:*"
+            return Result(False, f"unknown worker '{spec}' (known: {known})", spec)
 
     def run(self, text: str, *, session: Optional[str] = None, project: str = "", cwd: Optional[str] = None,
             gate: Optional[str] = None, isolate: bool = True, worker: str = "", read_only: bool = False,
-            use_vault: bool = True, escalate: Optional[str] = None, on_start: Optional[Callable[[str], None]] = None) -> dict:
+            use_vault: bool = True, escalate: Optional[str] = None, on_start: Optional[Callable[[str], None]] = None,
+            prepared: bool = False) -> dict:
+        self._guard_open("run", read_only)
+        if guard.unattended(getattr(self, "guard_env", None)) and not guard.prepared_research(
+                dict(prepared=prepared, read_only=read_only, worker=worker, gate=gate, use_vault=use_vault, escalate=escalate), self.cfg):
+            # Night uses the deterministic queue; generic graph hooks/gates are not a sandbox.
+            raise guard.Blocked("unattended: use night-tick queue; generic run disabled")
         w, werr = resolve_worker(parse(text).worker, worker)
         if werr:
             return {"state": "failed", "error": werr}
@@ -345,7 +500,7 @@ class Backbone:
         if on_start:
             self._on_start[rid] = on_start
         opts = {"session": session, "project": project, "cwd": cwd, "gate": gate, "isolate": isolate, "worker": worker,
-                "read_only": read_only, "use_vault": use_vault, "escalate": escalate}
+                "read_only": read_only, "use_vault": use_vault, "escalate": escalate, "prepared": prepared}
         with otel.span(
             "router.run",
             {"router.rid": rid, "router.text": text[:300], "router.project": project,
@@ -356,18 +511,22 @@ class Backbone:
     def allowed(self) -> dict:
         cmds = {r["name"] for r in self.con.execute("SELECT name FROM library WHERE kind='command'")}
         workers = {f"nim{i + 1}" for i in range(len(self.pool.names))} | ({"or"} if os.environ.get("OPENROUTER_API_KEY") else set()) | {"workflow"}
+        workers |= {f"nim-chat:{name}" for name in self.pool.names}
+        from . import career_scan
+        if career_scan.available():
+            workers |= {'career-scan', 'career-scan:idle'}
         import shutil
         if self.cfg.get("decide", {}).get("allow_experts", False):  # experts cost your own subscription: opt-in only
             workers |= {w for w in ("claude", "codex") if shutil.which(self.cfg.get("workers", {}).get(w, {}).get("cmd", w))}
         if shutil.which(self.cfg.get("workers", {}).get("goose", {}).get("cmd", "goose")):
             workers.add("goose")
+        if shutil.which(self.cfg.get("workers", {}).get("kilo", {}).get("cmd", "kilo")):
+            workers.add("kilo")
         oh = self.cfg.get("workers", {}).get("openhands", {})
         if oh.get("base_url"):
             workers.add("openhands")
-        caps = os.path.join(ROOT, "data", "capabilities.json")  # from `backbone doctor`: drop agents that failed their probe
-        if os.path.exists(caps):
-            bad = {a["name"] for a in json.load(open(caps)).get("agents", []) if a.get("usable") is False}
-            workers -= bad
+        from . import health
+        workers -= health.unusable(os.path.join(ROOT, "data", "doctor.json"))   # fresh doctor results only (6 h); stale = unknown = allowed
         from . import browser as _b
         if _b.available():
             workers.add("browser")
@@ -424,8 +583,9 @@ class Backbone:
             final = self.graph.invoke(init, cfg)
             return final["out"]
         except StaleLease as e:  # this process was reaped: its writes are rejected; the reaper's ticket is the record
+            safe_error = _redact_worker_error(self, e)
             self.graph.stop_beat(rid)
-            return {"run": rid, "state": "fenced", "error": str(e), "ticket": "", "patch": ""}
+            return {"run": rid, "state": "fenced", "error": safe_error, "ticket": "", "patch": ""}
         except Exception as e:  # unexpected: keep the worktree for `resume`, save what the worker did, leave a ticket
             patch = ""
             try:
@@ -437,9 +597,30 @@ class Backbone:
             except Exception:
                 pass
             self.graph.stop_beat(rid)
-            t = self.runs.ticket(rid, f"{type(e).__name__}: {e}", f"rerun `runs resume {rid}` (checkpointed); patch so far: {patch}")
-            self.runs.set(rid, "failed", error=str(e))
-            return {"run": rid, "state": "failed", "error": str(e), "ticket": t, "patch": patch}
+            safe_error = _redact_worker_error(self, e)
+            t = self.runs.ticket(rid, f"{type(e).__name__}: {safe_error}", f"rerun `runs resume {rid}` (checkpointed); patch so far: {patch}")
+            self.runs.set(rid, "failed", error=safe_error)
+            return {"run": rid, "state": "failed", "error": safe_error, "ticket": t, "patch": patch}
+
+    def _guard_open(self, kind: str, read_only: bool) -> None:
+        """Entry-point guard: honor PAUSE + unattended read-only + daily budget before any worker runs."""
+        from .guard import Blocked
+        try:
+            hit = guard.paused(self.cfg, getattr(self, "guard_env", None))
+            if hit:
+                raise Blocked("paused: kill file present")
+            ledger = self._ledger()
+            try:
+                guard.check(kind, read_only, self.cfg, getattr(self, "guard_env", None), ledger=ledger)
+            finally:
+                if ledger:
+                    ledger.con.close()
+        except Blocked as e:
+            raise Blocked(f"blocked: {e}")
+
+    def _ledger(self):
+        lp = guard.ledger_path(self.cfg)
+        return guard.Ledger(lp) if lp else None
 
     def fanout(self, prompts: List[str], *, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None,
                session: Optional[str] = None, workers: Optional[List[str]] = None) -> List[dict]:
@@ -452,6 +633,9 @@ class Backbone:
 
     def swarm(self, goal: str, *, n=None, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None) -> dict:
         """Planner (NIM1) picks the subtask count (n=None/'auto'), capped; workers run in parallel, depth 1."""
+        go = getattr(self, "_guard_open", None)
+        if go:
+            go("pi", False)
         n = swarm_cap(n, self.cfg.get("swarm", {}).get("max_workers", 8), self.pool.rpm_limit, len(self.pool.names))
         raw = self.chat([{"role": "user", "content": (
             f"Split this goal into as many independent subtasks as it needs, at most {n}, that touch different files. Do NOT include a "
@@ -472,6 +656,8 @@ class Backbone:
         final = self.run(f"Goal: {goal}\n\nThe subtasks are finished. Their outputs are below. Use ONLY these outputs "
                          f"(do not invent facts) to complete the goal.\n\n{parts}",
                          project=project, cwd=cwd, gate=gate, use_vault=False)
+        return {"plan": subs, "results": results, "final": final}
+
     def delegate(self, goal: str, *, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None,
                  worker: str = "", max_subagents: int = 3, read_only: bool = False,
                  isolate: bool = True) -> dict:
@@ -495,6 +681,8 @@ class Backbone:
             subs = [goal]
 
         cwd = cwd or os.getcwd()
+        kind = worker.partition(":")[0] or "pi"
+        self._guard_open(kind, read_only)
         results = []
         with ThreadPoolExecutor(max_workers=len(subs)) as ex:
             futs = []

@@ -8,7 +8,7 @@ projects_file: ~/.agent-router/projects.yaml
 nim:
   base_url: https://integrate.api.nvidia.com/v1
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
-  keys: [NIM_1, NIM_2, NIM_3]
+  keys: [NIM_1, NIM_2, NIM_3, NIM_4, NIM_5]
   default_key: NIM_1
   embed_model: nvidia/nemotron-3.5-embed-1b
   rpm_limit: 40
@@ -34,9 +34,9 @@ workers:
   claude: {cmd: claude, timeout_s: 900}
   codex:  {cmd: codex, timeout_s: 900}
   opencode: {cmd: opencode, timeout_s: 600}
+  omp:    {cmd: omp, timeout_s: 600, profile: router, model: nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b}
   agy:    {cmd: agy, timeout_s: 300}
-  gpt_ego: {cmd: ego-browser, timeout_s: 180}
-
+  cline:  {cmd: cline, timeout_s: 900}
 escalation:
   expert: codex
 
@@ -113,3 +113,17 @@ hosts: {}
 delegate:
   heavy: false  # opt-in: route heavy tasks to bounded subagents (backbone delegate) via enforce hook
   max_subagents: 3
+
+night:
+  window_start: 23   # 23:00 Europe/Bratislava
+  window_end: 7      # 07:00 Europe/Bratislava (overnight window wraps midnight)
+  interval_s: 300
+  min_interval_s: 120
+  max_interval_s: 900
+  read_only: true    # night mode never sends, spends, deploys or publishes
+  gate: ""
+  worker: ""         # router picks per task (tier policy); empty = bandit decision
+  project: ""        # empty = current dir / registered project
+  pause_files:
+    - ~/.agent-router/PAUSE
+    - ~/memory-vault/pages/dispatch-PAUSE

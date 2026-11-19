@@ -25,6 +25,9 @@ def local_opts(bb, opts: dict) -> dict:
     for k in ("project", "worker", "read_only"):
         if opts.get(k):
             out[k] = opts[k]
+    for k in ('prepared', 'use_vault', 'escalate'):
+        if k in opts:
+            out[k] = opts[k]
     if os.environ.get("NODE_ALLOW_WRITE") != "1":  # default: a hub job can never write on this machine
         out["read_only"] = True
     return out
@@ -49,9 +52,16 @@ def loop(bb, hub: str, name: str, poll_s: float = 3.0) -> None:
     token = os.environ.get("BACKBONE_TOKEN", "")
     if len(token) < 16:
         raise SystemExit("set BACKBONE_TOKEN (>=16 chars, same as the hub)")
+    root = os.path.expanduser("~/.agent-router")
+    os.makedirs(root, exist_ok=True)
+    with open(os.path.join(root, "router-node.pid"), "w") as f:
+        f.write(str(os.getpid()))
     caps = {"workers": sorted(bb.allowed()["workers"]), "host": os.uname().nodename.split(".")[0]}
     while True:
         try:
+            if os.uname().sysname == 'Darwin':
+                from .idle_policy import current_snapshot, decision
+                caps['idle_state'] = decision(current_snapshot())
             busy = poll_once(bb, hub, token, name, caps)
         except Exception:
             busy = False

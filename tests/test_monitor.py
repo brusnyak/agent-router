@@ -95,10 +95,13 @@ def test_threshold_boundaries():
 
 
 @pytest.mark.parametrize("values, expected", [({}, True), ({"load1": 5.99}, True),
-    ({"load1": 6}, False), ({"mem_avail_mb": 499}, False), ({"mem_avail_mb": 500}, True)])
+    ({"load1": 6}, True), ({"load1": 9.9}, True), ({"load1": 10}, True),
+    ({"mem_avail_mb": 499}, False), ({"mem_avail_mb": 500}, True)])
 def test_dispatch(values, expected):
     ok, reason = monitor.ok_to_dispatch(snapshot(**values))
     assert ok is expected and reason
+    if values.get("load1", 0) >= 10:
+        assert "warning" in reason and "load1" in reason
 
 
 def test_error_snapshot():

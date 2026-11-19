@@ -289,4 +289,8 @@ def serve(bb, port: int = 8799) -> None:
     token = os.environ.get("BACKBONE_TOKEN", "")
     if len(token) < 16:
         raise SystemExit("set BACKBONE_TOKEN (>=16 chars) before serving")
+    root = os.path.expanduser("~/.agent-router")
+    os.makedirs(root, exist_ok=True)
+    with open(os.path.join(root, "router-daemon.pid"), "w") as f:
+        f.write(str(os.getpid()))
     ThreadingHTTPServer(("127.0.0.1", port), make_handler(bb, token)).serve_forever()

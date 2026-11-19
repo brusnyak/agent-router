@@ -21,6 +21,11 @@ from .keys import KeyPool, Transient
 from .workspace import run_group
 
 _TRANSIENT = re.compile(r"(\b429\b|\b50[0-4]\b|safety screening|queue budget|rate.?limit|timed? ?out|ECONN|overloaded)", re.I)
+_TRUNCATED = re.compile(
+    r"response (?:was )?truncated|model reached (?:the )?output token limit|output token limit|"
+    r"(?:maximum|max)[_ ]tokens? (?:limit )?(?:reached|exceeded)|context (?:window|length).{0,40}(?:limit|exceed|truncat)",
+    re.I,
+)
 
 
 @dataclass
@@ -53,11 +58,25 @@ def key_index(name: str) -> str:
     return m.group(1) if m else "1"
 
 
+def _timeout_meta(error):
+    meta = {"failure_kind": "timeout", "retryable": False}
+    pieces = []
+    for value in (error.output, error.stderr):
+        if isinstance(value, bytes):
+            value = value.decode(errors='replace')
+        if value:
+            pieces.append(str(value))
+    if pieces:
+        meta['partial_output'] = '\n'.join(pieces)[-6000:]
+    return meta
+
+
 class PiWorker:
     def __init__(self, cfg: dict, nim_model: str):
         self.cmd = cfg.get("cmd", "pi")
         self.timeout = int(cfg.get("timeout_s", 600))
         self.model_id = nim_model
+        self.thinking = str(cfg.get("thinking", "off"))
 
     def run(self, prompt: str, cwd: str, pool: KeyPool, prefer: Optional[str] = None, system: str = "",
             retries: int = 1, backoff_s: float = 3.0, read_only: bool = False) -> Result:
@@ -66,21 +85,28 @@ class PiWorker:
         def once(name: str, key: str) -> Result:
             env = os.environ.copy()
             env["NVIDIA_API_KEY"] = key
+            isolated = tempfile.TemporaryDirectory(prefix="router-pi-")
+            env["PI_CODING_AGENT_DIR"] = isolated.name
             model = self.model_id
             cmd = [self.cmd, "-p", "--no-session", "--no-extensions", "--no-mcp", "--no-skills",
-                   "--no-prompt-templates", "--model", model]
+                   "--no-prompt-templates", "--thinking", self.thinking, "--model", model]
             if read_only:
                 cmd += ["--tools", "read"]  # no write/edit/bash
             if system:
                 cmd += ["--append-system-prompt", system]
             cmd += ["--", prompt]
             try:
-                p = _run(cmd, cwd, env, self.timeout)
-            except subprocess.TimeoutExpired:
+                with isolated:
+                    p = _run(cmd, cwd, env, self.timeout)
+            except subprocess.TimeoutExpired as error:
                 # not transient: another key would burn the same budget again (3 keys x timeout_s = 30 min for one stuck task)
-                return Result(False, f"pi timeout after {self.timeout}s on {name}: not retried; give it a smaller scope or raise pi.timeout_s", f"pi:{name}", name)
+                return Result(False, f"pi timeout after {self.timeout}s on {name}: not retried; give it a smaller scope or raise pi.timeout_s", f"pi:{name}", name, self.timeout * 1000, _timeout_meta(error))
             out = (p.stdout or "").strip()
             err = (p.stderr or "").strip()
+            diagnostic = "\n".join(part for part in (err, out) if part)
+            if _TRUNCATED.search(diagnostic):
+                return Result(False, f"pi output truncated on {name}: {diagnostic[:300]}", f"pi:{name}", name,
+                              meta={"failure_kind": "truncated", "retryable": False})
             if p.returncode != 0 or not out:
                 blob = (err or out)[:300]
                 if _TRANSIENT.search(blob) or not out:
@@ -125,7 +151,8 @@ class ClaudeWorker:
         t0 = time.time()
         env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY")}
         cmd = [self.cmd, "-p", prompt, "--output-format", "json", "--no-session-persistence",
-               "--setting-sources", "project", "--permission-mode", "plan" if read_only else "acceptEdits"]
+               "--setting-sources", "project", "--strict-mcp-config",   # no global MCP servers (flag verified in `claude --help`)
+               "--permission-mode", "plan" if read_only else "acceptEdits"]
         try:
             p = _run(cmd, cwd, env, self.timeout)
         except subprocess.TimeoutExpired:
@@ -228,31 +255,52 @@ def _porcelain(repo: str) -> str:
 
 
 class OpencodeWorker:
-    """opencode headless through the local NIM proxy (launchd `local.nim-proxy`, 127.0.0.1:8787, holds the keys, so none are handled here).
-    The router's own config/opencode-nim.json replaces the owner's global one (no plugins, no forced agent)."""
+    """OpenCode headless with a per-run direct NVIDIA NIM provider and leased key."""
 
     def __init__(self, cfg: dict, nim_model: str, root: str):
         self.cmd = cfg.get("cmd", "opencode")
         self.timeout = int(cfg.get("timeout_s", 600))
         self.model = nim_model
-        self.conf = os.path.join(root, "config", "opencode-nim.json")
 
-    def run(self, prompt: str, cwd: str, key: str = "NIM_1", read_only: bool = False, **_) -> Result:
+    def run(self, prompt: str, cwd: str, key: str = "NIM_1", api_key: str = "", read_only: bool = False, **_) -> Result:
         t0 = time.time()
-        n = key_index(key)
+        if not api_key:
+            return Result(False, "opencode requires an explicitly leased NIM API key", "opencode", key,
+                          meta={"failure_kind": "missing_key", "retryable": False})
         env = os.environ.copy()
-        env["OPENCODE_CONFIG"] = self.conf
+        env["NVIDIA_API_KEY"] = api_key
         # opencode resolves a git worktree to its MAIN repo and wrote there (benchmark 2026-11-15: files landed outside the isolated
         # workspace, the gate saw nothing). Pin every path to cwd in the prompt, and fail the run if the main repo's status changed.
         prompt = f"WORKSPACE: {cwd}\nUse absolute paths under {cwd} only. Never read or write outside it.\n\n{prompt}"
         main = _main_repo(cwd)
         before = _porcelain(main) if main else None
+        config = {
+            "$schema": "https://opencode.ai/config.json",
+            "default_agent": "build",
+            "instructions": [],
+            "plugin": [],
+            "provider": {
+                "nim": {
+                    "npm": "@ai-sdk/openai-compatible",
+                    "name": "NVIDIA NIM",
+                    "options": {"baseURL": "https://integrate.api.nvidia.com/v1", "apiKey": "{env:NVIDIA_API_KEY}"},
+                    "models": {self.model: {"name": self.model}},
+                }
+            },
+        }
+        isolated = tempfile.TemporaryDirectory(prefix="router-opencode-")
+        conf = os.path.join(isolated.name, "opencode.json")
+        with open(conf, "w", encoding="utf-8") as f:
+            json.dump(config, f)
+        env["OPENCODE_CONFIG"] = conf
         cmd = [_opencode_bin(self.cmd), "--standalone", "run", "--agent", "plan" if read_only else "build", "--auto",
-               "-m", f"nim{n}/{self.model}", prompt]
+               "-m", f"nim/{self.model}", prompt]
         try:
-            p = _run(cmd, cwd, env, self.timeout)
-        except subprocess.TimeoutExpired:
-            return Result(False, f"opencode timeout after {self.timeout}s", f"opencode:{key}", key, self.timeout * 1000)
+            with isolated:
+                p = _run(cmd, cwd, env, self.timeout)
+        except subprocess.TimeoutExpired as error:
+            return Result(False, f"opencode timeout after {self.timeout}s", f"opencode:{key}", key,
+                          self.timeout * 1000, _timeout_meta(error))
         lat = int((time.time() - t0) * 1000)
         text = re.sub(r"\x1b\[[0-9;]*m", "", p.stdout or "")
         text = "\n".join(l for l in text.splitlines() if not l.startswith("> ")).strip()  # drop the '> agent · model' banner
@@ -309,19 +357,45 @@ class OmpWorker:
         self.cmd = cfg.get("cmd", "omp")
         self.timeout = int(cfg.get("timeout_s", 600))
         self.model = cfg.get("model", "")
+        # Router runs use an isolated profile (own auth/settings) so a stale key stored in the owner's interactive omp
+        # profile can never break or leak into a delegated run; the key arrives through the environment only.
+        self.profile = cfg.get("profile", "router")
+        self.key_env = cfg.get("key_env", "NVIDIA_API_KEY")
+        # keep omp's auxiliary calls (judge, spotlight) on the active model's provider: they otherwise reach another
+        # provider whose free quota may be exhausted, which blocks the whole run
+        self.extra = list(cfg.get("flags", ["--offline"]))
+        self.thinking = str(cfg.get("thinking", "off"))
 
-    def run(self, prompt: str, cwd: str, read_only: bool = False) -> Result:
+    def run(self, prompt: str, cwd: str, read_only: bool = False, api_key: str = "") -> Result:
         t0 = time.time()
         if read_only:
             prompt += "\nREAD-ONLY: do not edit or create files"
         cmd = [self.cmd, "-p", "--no-session"]
+        if self.profile and not api_key:
+            cmd += ["--profile", self.profile]
+        # --offline removes omp's web_search backend (verified 2026-11-18: "No web search backend ... under --offline").
+        # Research runs set BACKBONE_OMP_WEB=1 to drop it; everything else keeps the quota-safe default.
+        cmd += [f for f in self.extra if not (f == "--offline" and os.environ.get("BACKBONE_OMP_WEB") == "1")]
         if self.model:
             cmd += ["--model", self.model]
+        cmd += ["--thinking", self.thinking]
         cmd.append(prompt)
+        env = os.environ.copy()
+        if api_key:
+            env[self.key_env] = api_key          # never on the command line (it would show in the process list)
+            isolated = tempfile.TemporaryDirectory(prefix="router-omp-")
+            env["PI_CODING_AGENT_DIR"] = isolated.name
+        else:
+            isolated = None
         try:
-            p = _run(cmd, cwd, os.environ.copy(), self.timeout)
-        except subprocess.TimeoutExpired:
-            return Result(False, f"omp timeout after {self.timeout}s", "omp", latency_ms=self.timeout * 1000)
+            if isolated:
+                with isolated:
+                    p = _run(cmd, cwd, env, self.timeout)
+            else:
+                p = _run(cmd, cwd, env, self.timeout)
+        except subprocess.TimeoutExpired as error:
+            return Result(False, f"omp timeout after {self.timeout}s", "omp", latency_ms=self.timeout * 1000,
+                          meta=_timeout_meta(error))
         except OSError as e:
             return Result(False, str(e)[-400:], "omp", latency_ms=int((time.time() - t0) * 1000))
         out = (p.stdout or "").strip()
@@ -334,33 +408,58 @@ class OmpWorker:
 
 
 class ClineWorker:
-    """cline headless (`cline -p`) with the owner's own installed binary and login.
+    """cline headless (`cline [--plan] --cwd DIR PROMPT`, verified against `cline --help` 3.0.74) with the owner's installed binary and login.
     Supports NIM key selection via NIM_1 / NIM_2 env vars for model routing."""
 
     def __init__(self, cfg: dict):
         self.cmd = cfg.get("cmd", "cline")
         self.timeout = int(cfg.get("timeout_s", 900))
+        self.flags = list(cfg.get("flags", []))   # e.g. ["--provider", "<id>", "--model", "<id>"]; a key never goes on argv
 
-    def run(self, prompt: str, cwd: str, key: str = "NIM_1", read_only: bool = False, **_) -> Result:
+    def run(self, prompt: str, cwd: str, key: str = "NIM_1", token: str = "", api_key: str = "", read_only: bool = False, **_) -> Result:
         t0 = time.time()
-        tok = os.environ.get(key, "")
+        if api_key:
+            flags = self.flags
+            provider = ""
+            model = ""
+            for i, flag in enumerate(flags):
+                if flag in ("--provider", "-P") and i + 1 < len(flags):
+                    provider = str(flags[i + 1]).lower()
+                elif flag.startswith("--provider="):
+                    provider = flag.split("=", 1)[1].lower()
+                if flag in ("--model", "-m") and i + 1 < len(flags):
+                    model = str(flags[i + 1])
+                elif flag.startswith("--model="):
+                    model = flag.split("=", 1)[1]
+            if not provider or not (provider == "nim" or provider == "nvidia" or provider.startswith("nvidia-")) or not model:
+                return Result(False, "cline explicit NIM key requires flags: --provider nvidia|nim --model <NIM model>",
+                              "cline", key, int((time.time() - t0) * 1000),
+                              {"failure_kind": "missing_nim_provider", "retryable": False})
+            if any(flag in ("-k", "--key") or flag.startswith("--key=") for flag in flags):
+                return Result(False, "cline --key persists credentials; remove it and use the leased NVIDIA_API_KEY environment value",
+                              "cline", key, int((time.time() - t0) * 1000),
+                              {"failure_kind": "unsafe_key_flag", "retryable": False})
+        tok = api_key or token or os.environ.get(key, "")
         env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY")}
         if tok:
             env["NVIDIA_API_KEY"] = tok
-        cmd = [self.cmd, "-p", prompt, "--output-format", "json", "--no-session-persistence",
-               "--permission-mode", "plan" if read_only else "acceptEdits"]
+        cmd = [self.cmd]
+        if read_only:
+            cmd.append("--plan")                 # cline: -p/--plan = plan mode (no edits); the prompt is positional
+        cmd += ["--cwd", cwd] + self.flags + [prompt]
         try:
             p = _run(cmd, cwd, env, self.timeout)
-        except subprocess.TimeoutExpired:
-            return Result(False, "cline timeout", "cline", latency_ms=self.timeout * 1000)
+        except subprocess.TimeoutExpired as error:
+            return Result(False, "cline timeout", "cline", key, self.timeout * 1000,
+                          _timeout_meta(error))
         lat = int((time.time() - t0) * 1000)
         try:
             j = json.loads(p.stdout)
         except Exception:
-            return Result(False, (p.stderr or p.stdout)[:400], "cline", latency_ms=lat)
+            return Result(False, (p.stderr or p.stdout)[:400], "cline", key, lat)
         ok = not j.get("is_error") and p.returncode == 0
-        return Result(ok, str(j.get("result", "")), "cline", latency_ms=lat,
-                      meta={"cost_usd": j.get("total_cost_usd"), "turns": j.get("num_turns"), "key": key})
+        return Result(ok, str(j.get("result", "")), "cline", key, lat,
+                      meta={"cost_usd": j.get("total_cost_usd"), "turns": j.get("num_turns")})
 
 
 class OpenHandsWorker:
@@ -501,61 +600,36 @@ class AgyWorker:
 
 
 class NimCallWorker:
-    """nim_call.py library lane (read-only chat): NIM chat via nim_call.chat() inside KeyPool.call.
-    Key rotation, 2.5s cross-process throttling, and thinking-mode disable for nemotron are handled by nim_call.
-    This lane never touches cwd/token/file tools — it is a text-in/text-out NIM chat worker only.
-    Selectable via @nim-chat; never used for nim1|nim2|nim3 (those stay on PiWorker)."""
+    """Tool-free NIM chat through the router's single authoritative KeyPool."""
 
-    def __init__(self, cfg: dict, nim_model: str):
+    def __init__(self, cfg: dict, nim_model: str, base_url: str = "https://integrate.api.nvidia.com/v1"):
         self.model = nim_model
         self.timeout = int(cfg.get("timeout_s", 120))
+        self.max_tokens = int(cfg.get("max_tokens", 4096))
+        self.base_url = base_url
 
     def run(self, prompt: str, cwd: str, key: str = "NIM_1", token: str = "", read_only: bool = False, pool=None, **_) -> Result:
         t0 = time.time()
+        if pool is None or not hasattr(pool, "call"):
+            return Result(False, "nim-chat requires the router KeyPool", "nim-chat", key,
+                          int((time.time() - t0) * 1000), {"failure_kind": "missing_key_pool", "retryable": False})
+        from . import nim
+        selected = {"key": key}
+        # nim.chat owns HTTP, transient classification, and the sole KeyPool lease.
         try:
-            sys.path.insert(0, os.path.expanduser("~/Developer/agent-router/scripts"))
-            from nim_call import chat
-        except Exception as e:
-            return Result(False, f"nim_call import failed: {e}", "nim-chat", latency_ms=int((time.time() - t0) * 1000))
-
-        def _chat(kname: str, kval: str):
-            # explicit preferred key first, then nim_call's own rotation on 429
-            key_order = [kname] + [k for k in ("NIM_3", "NIM_2", "NIM_1") if k != kname]
-            try:
-                msg = chat(self.model, [{"role": "user", "content": prompt}], timeout=self.timeout, max_tokens=1500, key_order=key_order)
-            except Exception as e:
-                text = str(e)
-                if _TRANSIENT.search(text):
-                    raise Transient(text)
-                raise Transient(f"nim chat failed: {text}")
-            out = (msg.get("content") or "").strip()
-            if not out:
-                raise Transient("empty NIM response")
-            return out
-
-        try:
-            if pool is not None:
-                text = pool.call(_chat, prefer=key, retries=1, backoff_s=3.0)
-            else:
-                # fallback: direct call without pool
-                kname = key
-                kval = os.environ.get(kname, "")
-                env = os.environ.copy()
-                env[kname] = kval
-                try:
-                    msg = chat(self.model, [{"role": "user", "content": prompt}], timeout=self.timeout, max_tokens=1500)
-                except RuntimeError as e:
-                    text = str(e)
-                    if _TRANSIENT.search(text):
-                        raise Transient(text)
-                    return Result(False, text, "nim-chat", kname, int((time.time() - t0) * 1000))
-                text = (msg.get("content") or "").strip()
-                if not text:
-                    return Result(False, "empty NIM response", "nim-chat", kname, int((time.time() - t0) * 1000))
+            text = nim.chat(pool, [{"role": "user", "content": prompt}], base_url=self.base_url,
+                            model=self.model, max_tokens=self.max_tokens, prefer=key, retries=1,
+                            backoff_s=3.0, timeout=self.timeout,
+                            on_key=lambda name: selected.update(key=name))
         except Transient as e:
-            return Result(False, str(e), "nim-chat", key, int((time.time() - t0) * 1000))
+            return Result(False, str(e), "nim-chat", selected['key'], int((time.time() - t0) * 1000))
+        except RuntimeError as e:
+            return Result(False, str(e), "nim-chat", selected['key'], int((time.time() - t0) * 1000),
+                          {"failure_kind": "truncated" if "finish_reason=length" in str(e) else "provider_error", "retryable": False})
         lat = int((time.time() - t0) * 1000)
-        return Result(True, text, "nim-chat", key, lat)
+        return Result(True, text, "nim-chat", selected['key'], lat)
+
+
 
 class PersonaWorker:
     """ECC persona / agency agent lane: reads a persona .md file, injects it as system
@@ -629,4 +703,41 @@ class PersonaWorker:
             return Result(False, str(e), "persona", key, int((time.time() - t0) * 1000))
         lat = int((time.time() - t0) * 1000)
         return Result(bool(text), text, "persona", key, lat)
+class KiloWorker:
+    """Kilo headless (`kilo run <message>`): pure local agent run without external plugins.
+    No keys travel on argv; an explicitly leased NIM/OpenAI-compatible API key arrives through
+    the environment only. Works with any provider reachable through Kilo's model config, not
+    just NVIDIA. Failover across leased keys through KeyPool.
 
+    Read-only is honored via --pure (no plugins) plus the instruction not to edit files;
+    Kilo has no plan-only mode, so write operations are bounded by the prompt contract.
+    """
+
+    def __init__(self, cfg: dict):
+        self.cmd = cfg.get("cmd", "kilo")
+        self.timeout = int(cfg.get("timeout_s", 600))
+        self.flags = list(cfg.get("flags", ["--pure"]))
+
+    def run(self, prompt: str, cwd: str, key: str = "NIM_1", api_key: str = "",
+            read_only: bool = False, **_) -> Result:
+        t0 = time.time()
+        if not api_key:
+            return Result(False, "kilo requires an explicitly leased API key", "kilo", key,
+                          meta={"failure_kind": "missing_key", "retryable": False})
+        env = os.environ.copy()
+        env["API_KEY"] = api_key
+        prompt = f"WORKSPACE: {cwd}\nUse absolute paths under {cwd} only. Never read or write outside it.\n{'' if not read_only else 'READ-ONLY: do not edit or create files.\n'}{prompt}"
+        main = _main_repo(cwd)
+        before = _porcelain(main) if main else None
+        cmd = [self.cmd, *self.flags, "--model", f"nim/{key}", prompt]
+        try:
+            p = _run(cmd, cwd, env, self.timeout)
+        except subprocess.TimeoutExpired as error:
+            return Result(False, f"kilo timeout after {self.timeout}s", f"kilo:{key}", key,
+                          self.timeout * 1000, _timeout_meta(error))
+        lat = int((time.time() - t0) * 1000)
+        text = re.sub(r"\x1b\[[0-9;]*m", "", p.stdout or "").strip()
+        if main and _porcelain(main) != before:
+            return Result(False, f"kilo escaped its workspace and changed {main}; inspect `git -C {main} status`", f"kilo:{key}", key, lat)
+        ok = p.returncode == 0 and bool(text) and "Error:" not in text[:40]
+        return Result(ok, text or (p.stderr or "")[:400], f"kilo:{key}", key, lat)

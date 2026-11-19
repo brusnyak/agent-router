@@ -131,12 +131,10 @@ def check(snap: dict, limits: dict | None = None) -> list[str]:
 def ok_to_dispatch(snap: dict) -> tuple[bool, str]:
     if "error" in snap:
         return False, f"collection failed: {snap['error']}"
-    if snap["load1"] >= 6:
-        return False, "load1 >= 6"
+    if snap["load1"] >= 10:
+        return True, f"warning: load1 {snap['load1']:.1f} >= 10; dispatch still allowed but host is heavily loaded"
     if snap["mem_avail_mb"] < 500:
         return False, "mem_avail_mb < 500"
     return True, "resources available"
-
-
 if __name__ == "__main__":
     print(json.dumps(collect()))
