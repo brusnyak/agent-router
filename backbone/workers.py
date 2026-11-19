@@ -146,6 +146,7 @@ class ClaudeWorker:
     def __init__(self, cfg: dict):
         self.cmd = cfg.get("cmd", "claude")
         self.timeout = int(cfg.get("timeout_s", 900))
+        self.model = cfg.get("model", "")
 
     def run(self, prompt: str, cwd: str, read_only: bool = False, **_) -> Result:
         t0 = time.time()
@@ -153,6 +154,8 @@ class ClaudeWorker:
         cmd = [self.cmd, "-p", prompt, "--output-format", "json", "--no-session-persistence",
                "--setting-sources", "project", "--strict-mcp-config",   # no global MCP servers (flag verified in `claude --help`)
                "--permission-mode", "plan" if read_only else "acceptEdits"]
+        if self.model:
+            cmd += ["--model", self.model]
         try:
             p = _run(cmd, cwd, env, self.timeout)
         except subprocess.TimeoutExpired:
@@ -164,7 +167,8 @@ class ClaudeWorker:
             return Result(False, (p.stderr or p.stdout)[:400], "claude", latency_ms=lat)
         ok = not j.get("is_error") and p.returncode == 0
         return Result(ok, str(j.get("result", "")), "claude", latency_ms=lat,
-                      meta={"cost_usd": j.get("total_cost_usd"), "turns": j.get("num_turns")})
+                      meta={"cost_usd": j.get("total_cost_usd"), "turns": j.get("num_turns"),
+                            "requested_model": self.model, "reported_models": sorted((j.get("modelUsage") or {}).keys())})
 
 
 class CodexWorker:
@@ -729,7 +733,7 @@ class KiloWorker:
         prompt = f"WORKSPACE: {cwd}\nUse absolute paths under {cwd} only. Never read or write outside it.\n{'' if not read_only else 'READ-ONLY: do not edit or create files.\n'}{prompt}"
         main = _main_repo(cwd)
         before = _porcelain(main) if main else None
-        cmd = [self.cmd, *self.flags, "--model", f"nim/{key}", prompt]
+        cmd = [self.cmd, "run", *self.flags, "--model", f"nim/{key}", prompt]
         try:
             p = _run(cmd, cwd, env, self.timeout)
         except subprocess.TimeoutExpired as error:

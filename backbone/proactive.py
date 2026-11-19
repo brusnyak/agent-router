@@ -94,6 +94,12 @@ def load_manifest(bb, path) -> dict:
             if not isinstance(v, int) or isinstance(v, bool) or v < 0:
                 raise ManifestError(f"{gid}: {k} must be non-negative int")
         g.setdefault("read_only", True)
+        if "require_source_change" in g:
+            rsc = g["require_source_change"]
+            if not isinstance(rsc, bool):
+                raise ManifestError(f"{gid}: require_source_change must be bool")
+            if rsc and (g["read_only"] is not True or str(g.get("worker", "")).startswith("career-scan") or g.get("feeds")):
+                raise ManifestError(f"{gid}: require_source_change only for read-only analysis goals (no collector/feeds)")
         if not isinstance(g["read_only"], bool):
             raise ManifestError(f"{gid}: read_only must be bool")
         if not isinstance(g.get('requires_idle', False), bool) or (g.get('requires_idle') and not g.get('target')):
@@ -120,6 +126,15 @@ def load_manifest(bb, path) -> dict:
     if "max_load" in m and (isinstance(m["max_load"], bool) or not isinstance(m["max_load"], (int, float)) or m["max_load"] <= 0):
         raise ManifestError("max_load must be positive")
     return m
+
+
+def _input_digest(g: dict, base: Path) -> str:
+    digest = hashlib.sha256(json.dumps(g, sort_keys=True).encode())
+    for value in g['source_paths']:
+        try:
+            with (base / os.path.expanduser(value)).open('rb') as stream: digest.update(stream.read(100000))
+        except OSError: digest.update(b'missing-source')
+    return digest.hexdigest()
 
 
 def _missing(g: dict, base: Path) -> list:
@@ -184,6 +199,8 @@ def _reconcile(bb, goals: list, base: Path, now: float) -> None:
         atomic(receipt, f"Goal: {gid}\nJob: {row['active_job']}\nExecution state: {state}\nWorker output below; factual/business claims require verification.\n\n{result}")
         result = f"Full prior receipt: {receipt}\n{result}"
         if state == "done":
+            # Only a successful job consumes its dispatched input digest; failures stay retryable.
+            con.execute("UPDATE proactive_inputs SET success=dispatched WHERE goal_id=?", (gid,))
             _set(con, gid, active_job="", last_outcome="done", last_result=result[:MAX_PREV], failures=0, next_due=now + g["cooldown_s"])
         else:
             n = row["failures"] + 1  # bounded exponential backoff: a blocked goal never storms
@@ -265,6 +282,7 @@ def tick(bb, manifest_path, now: Optional[float] = None, node_online: Optional[C
     os.makedirs(bb.runs.runs_dir, exist_ok=True)
     with open(os.path.join(bb.runs.runs_dir, "proactive.lock"), "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        bb.con.execute("CREATE TABLE IF NOT EXISTS proactive_inputs(goal_id TEXT PRIMARY KEY, dispatched TEXT DEFAULT '', success TEXT DEFAULT '')")
         _reconcile(bb, m["goals"], base, now)
         bb.con.execute("CREATE TABLE IF NOT EXISTS proactive_specs(goal_id TEXT PRIMARY KEY, digest TEXT)")
         # A changed approved packet or source wakes the goal without resetting
@@ -272,12 +290,7 @@ def tick(bb, manifest_path, now: Optional[float] = None, node_online: Optional[C
         for g in m['goals']:
             state = _row(bb.con, g['id'])
             if state['active_job']: continue
-            digest = hashlib.sha256(json.dumps(g, sort_keys=True).encode())
-            for value in g['source_paths']:
-                try:
-                    with (base / os.path.expanduser(value)).open('rb') as stream: digest.update(stream.read(100000))
-                except OSError: digest.update(b'missing-source')
-            value = digest.hexdigest()
+            value = _input_digest(g, base)
             old = bb.con.execute("SELECT digest FROM proactive_specs WHERE goal_id=?", (g['id'],)).fetchone()
             if old and old['digest'] != value:
                 _set(bb.con, g['id'], next_due=0)
@@ -310,6 +323,9 @@ def tick(bb, manifest_path, now: Optional[float] = None, node_online: Optional[C
                 skipped[gid] = "cooldown"
             elif r["day"] == day and r["day_count"] >= g["daily_limit"]:
                 skipped[gid] = "goal daily limit"
+            elif g.get("require_source_change") and bb.con.execute(
+                    "SELECT 1 FROM proactive_inputs WHERE goal_id=? AND success=?", (gid, _input_digest(g, base))).fetchone():
+                skipped[gid] = "unchanged input"
             else:
                 seq = r["seq"] + 1
                 opts = {"worker": g["worker"], "read_only": g["read_only"], "escalate": "", "use_vault": False, "prepared": True}
@@ -320,6 +336,7 @@ def tick(bb, manifest_path, now: Optional[float] = None, node_online: Optional[C
                 if g.get('requires_idle'):
                     opts['requires_idle'] = True
                 try:
+                    digest = _input_digest(g, base)  # captured before context: this is the input the job is built from
                     context = _source_context(g, base)
                     prior = base / "runtime" / f"{gid}-{r['seq']}.md"
                     if prior.exists():
@@ -327,10 +344,19 @@ def tick(bb, manifest_path, now: Optional[float] = None, node_online: Optional[C
                 except (OSError, ManifestError) as e:
                     skipped[gid] = f"source error: {type(e).__name__}"
                     continue
+                if _input_digest(g, base) != digest:  # source changed while reading: no submit, retry next tick
+                    skipped[gid] = "input changed"
+                    continue
                 jid = Jobs(bb).submit(f"{_key(gid, seq)}\n{_prompt(g, r, context)}", **opts)
+                bb.con.execute("INSERT INTO proactive_inputs(goal_id,dispatched) VALUES (?,?) ON CONFLICT(goal_id) DO UPDATE SET dispatched=excluded.dispatched",
+                               (gid, digest))
                 _set(bb.con, gid, seq=seq, active_job=jid, day=day, day_count=(r["day_count"] if r["day"] == day else 0) + 1)
                 _handoff(base, gid, _row(bb.con, gid), "enqueued")
                 return {"status": "enqueued", "goal": gid, "job": jid, "seq": seq, "skipped": skipped}
+        if "unchanged input" in skipped.values():
+            return {"status": "wait", "reason": "unchanged evidence", "skipped": skipped}
+        if "input changed" in skipped.values():
+            return {"status": "wait", "reason": "input changed during read", "skipped": skipped}
         return {"status": "wait", "reason": "nothing eligible", "skipped": skipped}
 
 
