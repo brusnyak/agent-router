@@ -1,7 +1,7 @@
 import json
 import subprocess
 from unittest.mock import patch
-from backbone.workers import ClaudeWorker, KiloWorker
+from backbone.workers import ClaudeWorker
 
 def test_haiku_is_explicit_and_actual_model_reported(tmp_path):
     result = subprocess.CompletedProcess([], 0, json.dumps({'result':'ok','modelUsage':{'claude-haiku-4-5':{}},'num_turns':1}), '')
@@ -20,6 +20,7 @@ def test_empty_model_preserves_cli_default(tmp_path):
     assert '--model' not in run.call_args.args[0]
 
 def test_kilo_uses_run_subcommand_and_key_only_in_environment(tmp_path):
+    from backbone.workers import KiloWorker
     with patch('backbone.workers._run', return_value=subprocess.CompletedProcess([],0,'OK','')) as run:
         assert KiloWorker({}).run('OK',str(tmp_path),key='NIM_1',api_key='synthetic-key').ok
     argv, _, env, _ = run.call_args.args
