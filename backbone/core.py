@@ -389,7 +389,9 @@ class Backbone:
                 from . import career_scan
                 if arg not in ('', 'idle'):
                     return Result(False, 'unknown career collector mode', spec)
-                return career_scan.run(idle=arg == 'idle')
+                host_cfg = self.cfg.get("workers", {}).get("career-scan", {})   # trusted host config only, never model opts
+                host_cfg = host_cfg if isinstance(host_cfg, dict) else {}
+                return career_scan.run(idle=arg == 'idle', root=host_cfg.get("root"), profile_path=host_cfg.get("profile_path"))
             if kind == "pi":
                 return self.pi.run(prompt, cwd, self.pool, prefer=arg or nimcfg["default_key"],
                                    retries=nimcfg.get("retries", 1), backoff_s=nimcfg.get("backoff_s", 3), read_only=read_only)
