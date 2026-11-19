@@ -152,3 +152,26 @@ if __name__ == "__main__":
     test_browsers_available()
     test_vault_sandbox_ready()
     print("All discovery tests passed.")
+
+
+def test_key_discovery_is_provider_agnostic_and_names_only(tmp_path):
+    from backbone import keys
+    env = tmp_path / "env"
+    env.write_text("export GROQ_API_KEY=SENTINEL-1\nNIM_1=SENTINEL-2\nNIM_2=x\nACMEAI_API_KEY=SENTINEL-3\nKAGGLE_API_TOKEN=SENTINEL-4\nPATH_THING=1\n# TOKEN=no\n")
+    known = {"groq": {"base_url": "https://g/v1"}, "nim": {"base_url": "https://n/v1", "aliases": ["nvidia"]}}
+    got = keys.discover_keys(paths=[str(env)], environ={}, known=known)
+    assert got["groq"] == {"keys": ["GROQ_API_KEY"], "llm": True, "base_url": "https://g/v1"}
+    assert got["nim"]["keys"] == ["NIM_1", "NIM_2"] and got["nim"]["llm"]
+    assert got["acmeai"]["llm"] is False and got["kaggle"]["keys"] == ["KAGGLE_API_TOKEN"]   # unknown providers still listed
+    assert "SENTINEL" not in repr(got) and "path" not in got                                   # never values; non-key names ignored
+
+
+def test_discover_feeds_init_config_for_any_provider(tmp_path):
+    from backbone import discover as bd
+    env = tmp_path / "env"
+    env.write_text("OPENROUTER_API_KEY=x\nGROQ_API_KEY=y\nNIM_1=z\n")
+    caps = bd.discover(env={}, which=lambda b: None, ssh_config=str(tmp_path / "none"), project_roots=[], env_files=[str(env)])
+    assert set(caps["keys"]) == {"openrouter", "groq", "nim"}
+    cfg = bd.init_config(caps, {"nim": {}, "workers": {}})
+    assert cfg["nim"]["keys"] == ["NIM_1"] and cfg["providers"]["groq"]["keys"] == ["GROQ_API_KEY"]
+    assert cfg["providers"]["openrouter"]["base_url"].startswith("https://")

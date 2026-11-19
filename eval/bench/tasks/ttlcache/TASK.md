@@ -1,0 +1,2 @@
+Create ttlcache.py with class `TTLCache(maxsize, ttl, clock=time.monotonic)`: get(key, default=None), set(key, value), __len__ (live entries only). Entries older than ttl (by the injected clock) are expired. When more than maxsize live entries exist, evict the least recently used (get and set both count as use).
+Only create/edit `ttlcache.py`. Do not modify test_ttlcache.py. Run the tests with: python3 -m pytest -q test_ttlcache.py

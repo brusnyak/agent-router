@@ -110,3 +110,32 @@ def test_hub_run_accepts_named_gate_job(tmp_path):
     jobs._execute(job)
     row = [r for r in jobs.list() if r["id"] == jid][0]
     assert row["state"] == "done" and seen["gate"] == "true" and "gate_name" not in seen["kw"]
+
+
+def test_execute_persists_result_for_next_operator(tmp_path):
+    jobs = _make_jobs(tmp_path)
+    jobs.bb.runs = types.SimpleNamespace(get=lambda rid: None)
+    jobs.bb.run = lambda text, **opts: {"state":"done", "run":"r1", "output":"verified receipt"}
+    jid = jobs.submit("bounded goal")
+    job = dict(jobs.con.execute("SELECT * FROM jobs WHERE id=?", (jid,)).fetchone())
+    with patch("backbone.jobs.notify"):
+        jobs._execute(job)
+    assert jobs.get(jid)["result"] == "verified receipt"
+
+
+def test_interactive_daemon_leaves_prepared_research_for_bounded_executor(tmp_path):
+    jobs = _make_jobs(tmp_path)
+    jobs.bb.cfg = {"db":str(tmp_path/'jobs.db')}
+    jobs.bb.guard_env = {"BACKBONE_UNATTENDED":"0", "BACKBONE_PAUSE_FILES":""}
+    jobs.submit("research", worker="nim-chat:NIM_5", read_only=True, prepared=True, use_vault=False, escalate="")
+    other=jobs.submit("interactive", worker="goose")
+    assert jobs._claim()["id"] == other
+
+
+def test_unattended_executor_leaves_generic_jobs(tmp_path):
+    jobs = _make_jobs(tmp_path)
+    jobs.bb.cfg = {"db":str(tmp_path/'jobs.db')}
+    jobs.bb.guard_env = {"BACKBONE_UNATTENDED":"1", "BACKBONE_PAUSE_FILES":""}
+    jobs.submit("generic", worker="goose")
+    research=jobs.submit("research", worker="nim-chat:NIM_5", read_only=True, prepared=True, use_vault=False, escalate="")
+    assert jobs._claim()["id"] == research

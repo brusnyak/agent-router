@@ -6,6 +6,7 @@ import shutil
 import signal
 import subprocess
 import tempfile
+import time
 from typing import Optional, Tuple
 
 
@@ -87,12 +88,38 @@ def run_group(cmd, cwd: str, timeout: int, env: Optional[dict] = None, shell: bo
     p = subprocess.Popen(cmd, cwd=cwd, env=env, shell=shell, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, text=True, start_new_session=True)
     try:
-        out, err = p.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
+        watch = (env or os.environ).get("BACKBONE_WATCH_PAUSE") == "1"
+        deadline = time.monotonic() + timeout
+        while True:
+            if (env or {}).get("BACKBONE_WATCH_IDLE") == "1":
+                from .idle_policy import current_snapshot, decision
+                from .guard import Blocked
+                state = decision(current_snapshot())
+                if state != 'ready':
+                    raise Blocked(f"idle eligibility lost: {state}")
+            if watch:
+                from . import guard
+                hit = guard.paused(env=env)
+                if hit:
+                    raise guard.Blocked(f"paused during worker: {hit}")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(cmd, timeout)
+            try:
+                out, err = p.communicate(timeout=min(0.5, remaining) if watch else remaining)
+                break
+            except subprocess.TimeoutExpired:
+                if not watch:
+                    raise
+    except BaseException as error:
         try:
             os.killpg(p.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
-        p.communicate()
+        partial_out, partial_err = p.communicate()
+        if isinstance(error, subprocess.TimeoutExpired):
+            # communicate() after termination includes everything read so far.
+            # Keep it on the exception so adapters can return a masked diagnostic.
+            error.output, error.stderr = partial_out, partial_err
         raise
     return subprocess.CompletedProcess(cmd, p.returncode, out, err)

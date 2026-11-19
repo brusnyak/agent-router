@@ -80,6 +80,8 @@ def bb(tmp_path):
     cfg["runs_dir"] = str(tmp_path / "runs")
     cfg["work_dir"] = str(tmp_path / "work")
     cfg["context"] = {"budget_tokens": 600, "summarize_over_tokens": 150, "keep_recent_turns": 2, "vault_query": "/nonexistent"}
+    cfg['understand'] = False  # these tests exercise routing, not live query expansion
+    cfg['critic'] = {'when': 'never'}
     return Backbone(cfg, env={"NIM_1": "a", "NIM_2": "b", "NIM_3": "c"})
 
 
@@ -555,12 +557,12 @@ def test_hook_skill_inject_only_heavy_treat_prompts(tmp_path, monkeypatch):
     from backbone import hook
     index = tmp_path / "library-index.jsonl"
     index.write_text(
-        json.dumps({"id": "skill:review", "kind": "skill", "name": "review",
-                    "description": "Check code for correctness bugs.",
+        json.dumps({"id": "skill:review", "kind": "skill", "name": "refactor-audit",
+                    "description": "Refactor modules, write tests and audit every file in the repo.",
                     "body": "## review\nrun pytest\n"}) + "\n"
     )
     monkeypatch.setattr(hook, "INDEX_PATH", str(index))
-    monkeypatch.setattr(hook, "SCORE_FLOOR", 0.0)
+    monkeypatch.setattr("backbone.pick.FLOOR", 0.0)
     heavy = "refactor the whole module and write tests for every file in the repo, then audit it"
     assert hook.is_heavy(heavy) and not hook.is_heavy("fix the typo in README")
     treat_selected = []

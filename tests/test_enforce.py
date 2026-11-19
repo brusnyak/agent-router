@@ -35,3 +35,9 @@ def test_escape_light_cheap_holdout_childs_pass(monkeypatch):
 def test_picker_shapes_command():
     d = enforce.decide(P(), {}, picker=lambda p: {"worker": "codex", "gate_hint": "pytest -q"})
     assert "--worker codex --gate 'pytest -q'" in d["reason"]
+
+
+def test_route_tag_is_honored_but_plain_heavy_still_redirected():
+    for tag in ("judgment", "browser", "mcp", "verify", "private", "fresh-context"):
+        assert enforce.decide(P("route: " + tag + "\n" + HEAVY), {})["action"] == "allow"
+    assert enforce.decide(P("route: build\n" + HEAVY), {})["action"] == "block"   # unknown route is not an exemption

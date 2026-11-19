@@ -39,7 +39,7 @@ def test_success_cwd_arguments_and_model(fake_omp, tmp_path):
     result = OmpWorker({"model": "provider/model"}).run(prompt, str(tmp_path))
     assert result.ok and result.worker == "omp"
     assert json.loads(result.text) == [
-        ["-p", "--no-session", "--model", "provider/model", prompt], str(tmp_path)
+        ["-p", "--no-session", "--profile", "router", "--offline", "--model", "provider/model", "--thinking", "off", prompt], str(tmp_path)
     ]
     assert result.latency_ms >= 0
 
@@ -83,7 +83,7 @@ def test_read_only_prompt_suffix(fake_omp, tmp_path, read_only):
     result = OmpWorker({}).run("task", str(tmp_path), read_only=read_only)
     suffix = "\nREAD-ONLY: do not edit or create files" if read_only else ""
     assert result.ok
-    assert json.loads(result.text) == ["-p", "--no-session", "task" + suffix]
+    assert json.loads(result.text) == ["-p", "--no-session", "--profile", "router", "--offline", "--thinking", "off", "task" + suffix]
 
 
 def test_missing_binary_returns_failure(tmp_path):
@@ -108,3 +108,12 @@ def test_discovery_and_doctor(fake_omp, tmp_path):
     absent = discover.discover(env={}, which=lambda _: None,
                                ssh_config=str(tmp_path / "missing"), project_roots=[str(tmp_path)])
     assert doctor.run(absent["agents"], str(tmp_path), only=["omp"])["agents"] == []
+
+
+def test_key_goes_through_the_environment_only(fake_omp, tmp_path):
+    fake_omp("import json, os, sys\nprint(json.dumps({'argv': sys.argv[1:], 'key': os.environ.get('NVIDIA_API_KEY')}))")
+    result = OmpWorker({}).run("task", str(tmp_path), api_key="secret-value-123456789")
+    out = json.loads(result.text)
+    assert out["key"] == "secret-value-123456789"
+    assert not any("secret-value" in a for a in out["argv"])           # never on the command line (visible in `ps`)
+    assert "--profile" not in out["argv"]

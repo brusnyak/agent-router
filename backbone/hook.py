@@ -18,6 +18,12 @@ import threading
 import time
 from typing import List, Optional
 
+try:                                    # works as `python -m backbone.hook` and as the script `backbone/hook.py`
+    from .pick import pick
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from backbone.pick import pick
+
 MACHINE_PREFIXES = ("Another Claude session sent", "<task-notification")
 DEADLINE_S = 0.3
 INDEX_PATH = os.path.expanduser("~/.agent-router/library-index.jsonl")
@@ -111,25 +117,20 @@ def decide(payload, now=time.time, holdout_pct=20):
     # Deterministic pre-injection: treat arm only, score floor, factual body.
     if arm == "treat" and mode == "shadow":
         index = _load_index()
-        if index:
-            hits = _retrieve(index, prompt, k=MAX_BODIES + 2)
-            for h in hits[:MAX_BODIES]:
-                score = _score(
-                    set(re.findall(r"[A-Za-z0-9_]{3,}", (" ".join(
-                        str(h.get(f, "")) for f in ("name", "description", "body"))
-                    ).lower())),
-                    [w for w in re.findall(r"[A-Za-z0-9_]{3,}", prompt.lower())],
-                )
-                if score >= SCORE_FLOOR:
-                    name = h.get("name") or h.get("id") or "skill"
-                    body = (h.get("body") or "").strip()[:MAX_CHARS]
-                    kind = h.get("kind") or "skill"
-                    additional = (
-                        f"### Context from {kind} '{name}' (skill index)\n{body}"
-                    )
-                    would_surface = [h.get("name") or h.get("id")]
-                    selected = ["skill-inject"]
-                    break
+        got = pick(index, prompt) if index else None
+        if got:
+            h, _, _why = got
+            name = h.get("name") or h.get("id") or "skill"
+            kind = h.get("kind") or "skill"
+            if kind == "skill":    # skills are method: inject the head of the body
+                body = (h.get("body") or "").strip()[:MAX_CHARS]
+                additional = f"### Possibly relevant skill '{name}' (advisory; apply only if it fits the request)\n{body}"
+            else:                  # personas and commands are pointers, never loaded into the prompt
+                what = {"command": "slash command /", "agent": "specialist persona ", "subagent": "subagent type "}.get(kind, kind + " ")
+                additional = (f"Possibly relevant {what}{name}: {(h.get('description') or '')[:160]}"
+                              + (f" (file: {h['source']})" if h.get("source") else "") + ". Advisory; use only if it fits.")
+            would_surface = [name]
+            selected = ["skill-inject"]
 
     return {
         "receipt_id": hashlib.sha256(f"{sid}{pid}{ts}".encode()).hexdigest()[:16],

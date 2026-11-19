@@ -57,8 +57,14 @@ class Jobs:
                 for r in self.con.execute("SELECT * FROM nodes ORDER BY name")]
 
     def claim_for_node(self, name: str, caps: dict | None = None) -> Optional[dict]:
+        from . import guard
+        if guard.unattended(getattr(self.bb, "guard_env", None)):
+            return None
+        if not self._guard_claim():
+            return None
         self.node_seen(name, caps)
-        r = self.con.execute("SELECT * FROM jobs WHERE state='pending' AND target=? ORDER BY created LIMIT 1", (name,)).fetchone()
+        candidates = self.con.execute("SELECT * FROM jobs WHERE state='pending' AND target=? ORDER BY created", (name,)).fetchall()
+        r = next((j for j in candidates if not json.loads(j['opts'] or '{}').get('requires_idle') or (caps or {}).get('idle_state') == 'ready'), None)
         if not r:
             return None
         cur = self.con.execute("UPDATE jobs SET state='running', owner=?, node=?, attempts=attempts+1, updated=? WHERE id=? AND state='pending'",
@@ -70,7 +76,7 @@ class Jobs:
         """Only the node that claimed the job may finish it."""
         state = "done" if state == "done" else "blocked"
         cur = self.con.execute("UPDATE jobs SET state=?, run_id=?, result=?, updated=? WHERE id=? AND state='running' AND node=?",
-                               (state, run_id, output[:20000], time.time(), jid, name))
+                               (state, run_id, __import__("backbone.redact", fromlist=["redact"]).redact(output)[:20000], time.time(), jid, name))
         self.con.commit()
         if cur.rowcount != 1:
             return False
@@ -109,13 +115,36 @@ class Jobs:
         return n
 
     def _claim(self) -> Optional[dict]:
-        r = self.con.execute("SELECT * FROM jobs WHERE state='pending' AND (target='' OR target IS NULL) ORDER BY created LIMIT 1").fetchone()
+        if not self._guard_claim():
+            return None
+        from . import guard
+        candidates = self.con.execute("SELECT * FROM jobs WHERE state='pending' AND (target='' OR target IS NULL) ORDER BY created").fetchall()
+        un = guard.unattended(getattr(self.bb, "guard_env", None))
+        # Prepared text-only research belongs to the bounded unattended executor;
+        # the interactive daemon must not race it using a broader worker context.
+        r = next((j for j in candidates if guard.prepared_research(json.loads(j['opts'] or '{}'), getattr(self.bb, 'cfg', None)) == un), None)
         if not r:
             return None
         cur = self.con.execute("UPDATE jobs SET state='running', owner=?, attempts=attempts+1, updated=? "
                                "WHERE id=? AND state='pending'", (self.owner, time.time(), r["id"]))
         self.con.commit()
         return dict(r) if cur.rowcount == 1 else None  # lost the race: someone else claimed it
+
+    def _guard_claim(self) -> bool:
+        from . import guard
+        try:
+            env = getattr(self.bb, "guard_env", None)
+            cfg = getattr(self.bb, "cfg", None)
+            path = guard.ledger_path(cfg)
+            ledger = guard.Ledger(path) if path else None
+            try:
+                guard.check("claim", True, cfg, env, ledger=ledger)
+            finally:
+                if ledger:
+                    ledger.con.close()
+            return True
+        except guard.Blocked:
+            return False
 
     def _execute(self, job: dict) -> None:
         opts = json.loads(job["opts"] or "{}")
@@ -130,8 +159,10 @@ class Jobs:
             else:
                 res = self.bb.run(job["text"], on_start=link, **{k: v for k, v in opts.items() if k != "gate_name"})  # gate_name is for nodes
             state = "done" if res.get("state") == "done" else "blocked"
-            self.con.execute("UPDATE jobs SET state=?, run_id=?, updated=? WHERE id=?",
-                             (state, res.get("run", ""), time.time(), job["id"]))
+            from .redact import redact
+            output = redact(str(res.get("output") or res.get("error") or ""))[:20000]
+            self.con.execute("UPDATE jobs SET state=?, run_id=?, result=?, updated=? WHERE id=?",
+                             (state, res.get("run", ""), output, time.time(), job["id"]))
         except Exception as e:  # the Backbone already tickets; never leave the job 'running'
             state = "blocked"
             self.con.execute("UPDATE jobs SET state='blocked', result=?, updated=? WHERE id=?", (f"job crashed: {type(e).__name__}: {e}"[:500], time.time(), job["id"]))

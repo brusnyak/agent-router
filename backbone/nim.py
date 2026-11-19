@@ -25,11 +25,13 @@ def _nim_body(model: str, messages: List[dict], max_tokens: int, temperature: fl
 
 def chat(pool: KeyPool, messages: List[dict], *, base_url: str, model: str, max_tokens: int = 2048,
          temperature: float = 0.2, prefer: Optional[str] = None, retries: int = 1, backoff_s: float = 3.0,
-         timeout: float = 120.0) -> str:
+         timeout: float = 120.0, on_key=None) -> str:
     url = base_url.rstrip("/") + "/chat/completions"
     data = json.dumps(_nim_body(model, messages, max_tokens, temperature, False)).encode()
 
     def once(name: str, key: str) -> str:
+        if on_key:
+            on_key(name)
         req = urllib.request.Request(url, data=data, headers=_nim_headers(key))
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -41,10 +43,17 @@ def chat(pool: KeyPool, messages: List[dict], *, base_url: str, model: str, max_
                 ra = e.headers.get("Retry-After") if e.code == 429 and e.headers else None
                 t.retry_after = float(ra) if ra and ra.replace(".", "", 1).isdigit() else None
                 raise t
+            if e.code in (401, 403):   # revoked/expired key: park it for an hour and fail over to the next key
+                t = Transient(f"http {e.code} on {name}: key rejected")
+                t.retry_after = 3600.0
+                raise t
             raise RuntimeError(f"http {e.code} on {name}: {detail}")
         except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
             raise Transient(f"{type(e).__name__} on {name}: {e}")
         msg = (payload.get("choices") or [{}])[0].get("message", {})
+        choice = (payload.get("choices") or [{}])[0]
+        if choice.get("finish_reason") == "length":
+            raise RuntimeError("NIM completion truncated: finish_reason=length")
         text = msg.get("content") or msg.get("reasoning_content") or ""
         if not text.strip():
             raise Transient(f"empty completion on {name}")
@@ -89,6 +98,10 @@ def chat_stream(pool: KeyPool, messages: List[dict], *, base_url: str, model: st
                 t = Transient(f"http {e.code} on {name}: {detail}")
                 ra = e.headers.get("Retry-After") if e.code == 429 and e.headers else None
                 t.retry_after = float(ra) if ra and ra.replace(".", "", 1).isdigit() else None
+                raise t
+            if e.code in (401, 403):
+                t = Transient(f"http {e.code} on {name}: key rejected")
+                t.retry_after = 3600.0
                 raise t
             raise RuntimeError(f"http {e.code} on {name}: {detail}")
         except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:

@@ -74,3 +74,10 @@ logs/
 
 # Owner-internal notes (handoffs, host bootstrap, history): kept locally, never published
 docs/internal/
+
+# local scratch
+hello.txt
+.wf-*.out
+
+# generated run artifacts: may hold client/lead data, never published
+artifacts/

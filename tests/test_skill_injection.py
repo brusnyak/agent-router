@@ -125,9 +125,9 @@ def test_export_index_writes_hook_consumable_jsonl(tmp_path):
     from backbone.library import export_index
     import sqlite3
     con = sqlite3.connect(":memory:")
-    con.execute("CREATE TABLE library (id TEXT, kind TEXT, name TEXT, description TEXT, body TEXT, meta TEXT, updated REAL)")
-    con.execute("INSERT INTO library VALUES ('id1','skill','k1','desc one','body one text','{}',1.0)")
-    con.execute("INSERT INTO library VALUES ('id2','command','k2','desc two','body two text','{}',2.0)")
+    con.execute("CREATE TABLE library (id TEXT, kind TEXT, name TEXT, description TEXT, body TEXT, meta TEXT, source TEXT, updated REAL)")
+    con.execute("INSERT INTO library VALUES ('id1','skill','k1','desc one','body one text','{}','/s/k1',1.0)")
+    con.execute("INSERT INTO library VALUES ('id2','command','k2','desc two','body two text','{}','/s/k2',2.0)")
     con.commit()
     out = tmp_path / "idx.jsonl"
     n = export_index(con, str(out), kinds=["skill", "command"], limit_per_kind=5)

@@ -1,7 +1,7 @@
 # Enforcement experiment (plan, 2026-11-14; nothing implemented)
 
 ## Gap
-`backbone/hook.py` is shadow-only: it injects one generic heavy-task nudge in the treat arm and never names a skill. The A/A replay (1.7% vs 1.6%, p=0.89) therefore says nothing about enforcement. The product thesis (force skill use, delegate to different models) is untested.
+(Updated 2026-11-18) `backbone/hook.py` injects, in the treat arm only, one advisory item chosen by `backbone/pick.py` (BM25 over name+description, name-hit required, margin, floor, follow-up guard; skills inject a 1200-char body head, agents/commands inject a one-line pointer). Index = every source found by `backbone library sources` (see `backbone/sources.py`). Selection eval: `python3 -m backbone.pick` (fixture tests/fixtures/skill_select.json). The original A/A gap below is historical: The A/A replay (1.7% vs 1.6%, p=0.89) therefore says nothing about enforcement. The product thesis (force skill use, delegate to different models) is untested.
 
 ## Thesis
 Skills are ignored because they are only advertised. Indexing them beforehand and enforcing use through hooks raises the Skill/Agent call rate, without lowering the result quality.

@@ -1,0 +1,358 @@
+{
+  "n": 30,
+  "gold_escalate": 14,
+  "router": {
+    "precision": 0.9231,
+    "recall": 0.8571,
+    "f1": 0.8889,
+    "accuracy": 0.9,
+    "tp": 12,
+    "fp": 1,
+    "fn": 2,
+    "tn": 15
+  },
+  "baselines": {
+    "always_cheap": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "accuracy": 0.5
+    },
+    "always_expert": {
+      "precision": 0.4667,
+      "recall": 1.0,
+      "accuracy": 0.4667
+    }
+  },
+  "rows": [
+    {
+      "id": "t1",
+      "gold": "escalate",
+      "task_class": "review",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "review",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Review the OMP worker implementation in backbone/workers.py and roast the error "
+    },
+    {
+      "id": "t10",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Rewrite the compose.build function to accept a max_chars parameter and clamp eac"
+    },
+    {
+      "id": "t11",
+      "gold": "cheap",
+      "task_class": "research",
+      "predicted": "cheap",
+      "worker": "nim3",
+      "router_task_class": "research",
+      "decided_by": "named",
+      "tier_reason": "tier",
+      "prompt": "Research how OpenAI's Agents SDK handles stateful workflows vs the router's Lang"
+    },
+    {
+      "id": "t12",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "plan",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Plan the library hibernate approval node using LangGraph interrupt with a text-h"
+    },
+    {
+      "id": "t13",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Refactor backbone/decide.py validate() to return a richer dropped-fields report "
+    },
+    {
+      "id": "t14",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "cheap",
+      "worker": "nim1",
+      "router_task_class": "classify",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Decide the send gate prerequisites: which copy-engine checks must be logged PASS"
+    },
+    {
+      "id": "t15",
+      "gold": "cheap",
+      "task_class": "research",
+      "predicted": "cheap",
+      "worker": "nim1",
+      "router_task_class": "classify",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Summarize the security review report (top-10 defects, 2-week plan) into three bu"
+    },
+    {
+      "id": "t16",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Implement a lean opencode worker profile: --no-mcp --no-extensions --tools, isol"
+    },
+    {
+      "id": "t17",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "plan",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Plan how the router escalates to Claude/Codex when a task needs planning or reas"
+    },
+    {
+      "id": "t18",
+      "gold": "escalate",
+      "task_class": "review",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "review",
+      "decided_by": "named",
+      "tier_reason": "tier",
+      "prompt": "Review the pre-commit secret gate script for false positives on the env guard pa"
+    },
+    {
+      "id": "t19",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Fix the swarm() return bug in backbone so swarm results propagate to the caller."
+    },
+    {
+      "id": "t2",
+      "gold": "cheap",
+      "task_class": "research",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "review",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Compare the three NIM keys' failure behavior over the last 24 hours from the doc"
+    },
+    {
+      "id": "t20",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "plan",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Design the cross-process rate state so NIM key cooldown survives router restarts"
+    },
+    {
+      "id": "t21",
+      "gold": "cheap",
+      "task_class": "research",
+      "predicted": "cheap",
+      "worker": "nim3",
+      "router_task_class": "research",
+      "decided_by": "named",
+      "tier_reason": "tier",
+      "prompt": "Research whether Codex can run headless without spending on the owner's subscrip"
+    },
+    {
+      "id": "t22",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "plan",
+      "decided_by": "named",
+      "tier_reason": "tier",
+      "prompt": "Plan the benchmark resume: only omp layer 1 then layer 2 inv tasks, load under 6"
+    },
+    {
+      "id": "t23",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Refactor backbone/guard.py to expose a single can_run(worker, read_only) predica"
+    },
+    {
+      "id": "t24",
+      "gold": "escalate",
+      "task_class": "review",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "review",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Review the router's redaction output at the worker boundary for any unmasked key"
+    },
+    {
+      "id": "t25",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Implement the night-mode kill file check in backbone/night.py: read PAUSE file, "
+    },
+    {
+      "id": "t26",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "plan",
+      "decided_by": "named",
+      "tier_reason": "tier",
+      "prompt": "Plan the skill acquisition loop: research, measure, compare, choose, then integr"
+    },
+    {
+      "id": "t27",
+      "gold": "cheap",
+      "task_class": "research",
+      "predicted": "cheap",
+      "worker": "nim3",
+      "router_task_class": "research",
+      "decided_by": "named",
+      "tier_reason": "tier",
+      "prompt": "Research the current Anthropic Claude Code CLI options for headless runs and rea"
+    },
+    {
+      "id": "t28",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Fix the test_refresh.py acceptance test so library refresh passes test-first thr"
+    },
+    {
+      "id": "t29",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "cheap",
+      "worker": "nim1",
+      "router_task_class": "classify",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Decide whether 'SAID models' means SOTA/state-of-the-art models and record the i"
+    },
+    {
+      "id": "t3",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "plan",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Plan the night-mode state machine: window 23:00-07:00, manual start/stop, pause "
+    },
+    {
+      "id": "t30",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Refactor the omp worker default model line to read from config instead of hardco"
+    },
+    {
+      "id": "t4",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Fix the rm guard in ~/.claude/hooks/env-guard.py so temp dirs are allowed but ev"
+    },
+    {
+      "id": "t5",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "plan",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Decide whether the router should add a hard daily spend cap on expert workers or"
+    },
+    {
+      "id": "t6",
+      "gold": "cheap",
+      "task_class": "research",
+      "predicted": "cheap",
+      "worker": "nim1",
+      "router_task_class": "classify",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Summarize what changed in the skill selection index between the last two builds "
+    },
+    {
+      "id": "t7",
+      "gold": "cheap",
+      "task_class": "code_edit",
+      "predicted": "cheap",
+      "worker": "nim2",
+      "router_task_class": "code_edit",
+      "decided_by": "named",
+      "tier_reason": "tier",
+      "prompt": "Implement the skill hibernate dry run: list dormant skills that would move to ~/"
+    },
+    {
+      "id": "t8",
+      "gold": "escalate",
+      "task_class": "plan",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "plan",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Design the intake decision log with owner-quote anchors so the router can recove"
+    },
+    {
+      "id": "t9",
+      "gold": "escalate",
+      "task_class": "review",
+      "predicted": "escalate",
+      "worker": "claude",
+      "router_task_class": "review",
+      "decided_by": "nim",
+      "tier_reason": "tier",
+      "prompt": "Audit the ~/.claude/hooks directory for any file that prints or logs a secret va"
+    }
+  ]
+}

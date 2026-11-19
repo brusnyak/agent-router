@@ -5,6 +5,7 @@ phrase ROUTER-OK in it, or a light task, or a cheap model already chosen) goes t
 holdout 20% is never touched, so the effect stays measurable. Stdlib only, no network, fails open, 0.3 s deadline."""
 import hashlib
 import json
+import re
 import os
 import sys
 import threading
@@ -16,6 +17,8 @@ STATE = os.path.expanduser("~/.agent-router/enforce-state.json")
 LOG = os.path.expanduser("~/.agent-router/enforce.jsonl")
 CHEAP = ("haiku", "sonnet")  # owner decision 2026-11-15: modern haiku/sonnet are enough; opus/fable add nothing measurable
 DEADLINE_S = 0.3
+# delegation rules: these routes are Claude-subagent work (browser/MCP/verification/judgment), not NIM-redirectable
+ROUTE_TAG = re.compile(r"\broute:\s*(browser|mcp|verify|judgment|private|fresh-context)\b", re.I)
 
 
 def command_for(prompt: str, picker=None, delegate: bool = False) -> str:
@@ -44,6 +47,8 @@ def decide(payload: dict, state: dict, now=time.time, picker=None, holdout_pct: 
     arm = "none" if not sid else ("holdout" if fnv1a32(sid) % 100 < holdout_pct else "treat")
     if arm != "treat":
         return {"action": "allow", "arm": arm, "why": "not-treated"}
+    if ROUTE_TAG.search(prompt):
+        return {"action": "allow", "arm": arm, "why": "route-tag"}
     if "ROUTER-OK" in prompt:
         return {"action": "allow", "arm": arm, "why": "escape-phrase"}
     if any(c in str(ti.get("model", "")).lower() for c in CHEAP):

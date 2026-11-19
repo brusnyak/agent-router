@@ -1,0 +1,32 @@
+# Ordered, deterministic public-page reads; only controller artifacts are writable.
+# No workers, model calls, MCP, send tools, shell commands or paid services.
+tasks:
+  - id: enrich-maps
+    kind: enrich
+    seeds: ../leads/out/maps-seed-sk.csv
+    output: maps-enriched.csv
+    timeout_s: 600
+    acceptance: csv-provenance
+  - id: enrich-realtors
+    kind: enrich
+    seeds: ../research/2026-11-18-realtor-seeds.csv
+    output: realtors-enriched.csv
+    timeout_s: 600
+    acceptance: csv-provenance
+  - id: ready-counts
+    kind: summary
+    requires: [enrich-maps, enrich-realtors]
+    inputs: [maps-enriched.csv, realtors-enriched.csv]
+    output: ready-counts.json
+    acceptance: counts-match
+  - id: first-touch-drafts
+    kind: drafts
+    requires: [ready-counts]
+    inputs: [maps-enriched.csv, realtors-enriched.csv]
+    output: drafts/manifest.json
+    acceptance: facts-only-top5
+  - id: morning-report
+    kind: morning
+    requires: [first-touch-drafts]
+    output: morning.md
+    acceptance: history-match

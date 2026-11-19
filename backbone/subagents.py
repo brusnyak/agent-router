@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
 from . import otel
+from . import guard
 from .db import DB
 from .workers import (PiWorker, NimCallWorker, ClaudeWorker, CodexWorker,
                       Result)
@@ -116,6 +117,17 @@ class SubagentRunner:
         except IsolationError as e:
             state.state = "failed"
             state.error = str(e)
+            self._finish(sid, state, t0)
+        # safety kernel: PAUSE, unattended read-only, per-worker budget
+        lp = guard.ledger_path(self.bb.cfg)
+        ledger = guard.Ledger(lp) if lp else None
+        base_kind = spec.kind.split(":")[0]
+        try:
+            read_only = guard.check(base_kind, spec.read_only, self.bb.cfg, ledger=ledger)
+            spec.read_only = read_only
+        except guard.Blocked as e:
+            state.state = "blocked"
+            state.error = f"guard: {e}"
             self._finish(sid, state, t0)
             return state
 

@@ -133,6 +133,11 @@ def get(con: sqlite3.Connection, kind: str, name: str) -> Optional[Dict[str, Any
 
 def counts(con: sqlite3.Connection) -> Dict[str, int]:
     return {r["kind"]: r["n"] for r in con.execute("SELECT kind, COUNT(*) n FROM library GROUP BY kind")}
+# What the hook may route to. Personas (agent/subagent) and commands are suggested, skills are injected (see hook.py).
+INDEX_KINDS = ('skill', 'agent', 'subagent', 'command')
+NOT_ROUTABLE = re.compile(r'^(Agent Prompt|System Prompt|System Reminder|Tool Description|Data|Skill):', re.I)
+
+
 def export_index(con: sqlite3.Connection, path: str, kinds: Optional[List[str]] = None,
                  limit_per_kind: Optional[int] = None) -> int:
     """Export a compact, hook-consumable index of library rows.
@@ -142,21 +147,26 @@ def export_index(con: sqlite3.Connection, path: str, kinds: Optional[List[str]] 
     """
     import os
     out = 0
-    kinds = kinds or ["skill", "command"]
+    kinds = kinds or list(INDEX_KINDS)
     lines: List[str] = []
+    seen = set()
     for kind in kinds:
-        q = "SELECT id, kind, name, description, body, meta FROM library WHERE kind=?"
+        q = "SELECT id, kind, name, description, body, meta, source FROM library WHERE kind=?"
         if limit_per_kind:
             q += " ORDER BY updated DESC LIMIT ?"
             rows = con.execute(q, (kind, limit_per_kind)).fetchall()
         else:
             rows = con.execute(q, (kind,)).fetchall()
         for r in rows:
+            if NOT_ROUTABLE.match(r[2] or "") or (r[1], r[2]) in seen:   # vendor system prompts; duplicate names
+                continue
+            seen.add((r[1], r[2]))
             row = {
                 "id": r[0], "kind": r[1], "name": r[2],
                 "description": r[3] or "",
                 "body": (r[4] or "")[:2000],
                 "meta": json.loads(r[5] or "{}"),
+                "source": r[6] or "",
             }
             lines.append(json.dumps(row, ensure_ascii=False))
             out += 1

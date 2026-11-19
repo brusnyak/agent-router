@@ -30,6 +30,8 @@ def _cred(name: str) -> str:
 
 
 def notify(text: str) -> bool:
+    if os.environ.get("BACKBONE_UNATTENDED", "").lower() in ("1", "true", "yes"):
+        return False
     tok, chat = _cred("TELEGRAM_BOT_TOKEN"), _cred("TELEGRAM_CHAT_ID")
     if not tok or not chat:
         return False

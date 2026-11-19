@@ -1,0 +1,19 @@
+# Known LLM providers: used to recognise key names and fill base_url. Data only; add a provider by adding a line.
+# base_url values are from each provider's public docs and are NOT verified by tests: confirm before first use.
+# "style": openai = OpenAI-compatible chat completions. Unknown providers are still discovered (keys listed), just without a base_url.
+{
+  "providers": {
+    "nim":        {"base_url": "https://integrate.api.nvidia.com/v1", "style": "openai", "aliases": ["nvidia"]},
+    "openrouter": {"base_url": "https://openrouter.ai/api/v1", "style": "openai"},
+    "groq":       {"base_url": "https://api.groq.com/openai/v1", "style": "openai"},
+    "mistral":    {"base_url": "https://api.mistral.ai/v1", "style": "openai"},
+    "openai":     {"base_url": "https://api.openai.com/v1", "style": "openai"},
+    "deepseek":   {"base_url": "https://api.deepseek.com/v1", "style": "openai"},
+    "together":   {"base_url": "https://api.together.xyz/v1", "style": "openai"},
+    "fireworks":  {"base_url": "https://api.fireworks.ai/inference/v1", "style": "openai"},
+    "cerebras":   {"base_url": "https://api.cerebras.ai/v1", "style": "openai"},
+    "xai":        {"base_url": "https://api.x.ai/v1", "style": "openai"},
+    "gemini":     {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "style": "openai", "aliases": ["google"]},
+    "anthropic":  {"base_url": "https://api.anthropic.com/v1", "style": "anthropic"}
+  }
+}

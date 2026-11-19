@@ -10,6 +10,7 @@ import dataclasses
 import sqlite3
 import threading
 import uuid
+import time
 from typing import Any, Dict, List, Optional, TypedDict
 
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -48,6 +49,7 @@ class S(TypedDict, total=False):
     accepted: bool
     abort: bool
     out: dict
+    started_at: float
 
 
 def build(bb, db_path: str):
@@ -91,7 +93,12 @@ def build(bb, db_path: str):
         # Preserve them as-is: never let norm_worker or a fallback swap them for a local binary.
         if spec and not bb.cfg.get("workers", {}).get(spec, {}).get("base_url"):
             spec = norm_worker(spec)
-        prompt, meta, notes, sources = bb.resolve(task)
+        # Approved scheduler packets already name their sources and worker. Avoid
+        # another model/retrieval pass; normal chat keeps the existing resolver.
+        if o.get("prepared") and spec:
+            prompt, meta, notes, sources = task.prompt, {}, "", []
+        else:
+            prompt, meta, notes, sources = bb.resolve(task)
         spec = spec or norm_worker(meta.get("worker", "")) or f"pi:{bb.cfg['nim']['default_key']}"
         gate = o.get("gate") or meta.get("gate") or None
         read_only = bool(o.get("read_only")) or str(meta.get("readonly", "")).lower() in ("1", "true", "yes")
@@ -127,7 +134,8 @@ def build(bb, db_path: str):
         return {"sid": sid, "task_prompt": task.prompt, "project": task.project, "proj_path": proj_path,
                 "ws_path": ws.path, "ws_base": ws.base, "isolated": ws.isolated, "spec": spec, "plan": plan, "n": 0,
                 "gate": gate, "read_only": read_only, "style": style, "mode": "loop" if loop else "single",
-                "packet": packet, "feedback": "", "abort": False, "sources": sources}
+                "packet": packet, "feedback": "", "abort": False, "sources": sources,
+                "started_at": time.time()}
 
     def work(s: S) -> dict:
         rid, n = s["rid"], s["n"]
@@ -178,6 +186,14 @@ def build(bb, db_path: str):
     def after_check(s: S) -> str:
         if s.get("accepted"):
             return "critic"
+        last = s.get("last", {})
+        if not last.get("ok"):
+            meta = last.get("meta") or {}
+            text = str(last.get("text", "")).lower()
+            if (meta.get("retryable") is False or meta.get("failure_kind") == "timeout"
+                    or "timeout after" in text or "timed out" in text
+                    or text.startswith("blocked:")):
+                return "finish"
         return "work" if s["n"] < len(s["plan"]) else "finish"
 
     def after_critic(s: S) -> str:
@@ -233,6 +249,8 @@ def build(bb, db_path: str):
         learn(s.get("task_prompt") or s["text"], last["worker"], bool(s.get("gate")), gate_passed, last["latency_ms"])
         return {"out": {"run": rid, "session": s["sid"], "state": "done" if success else "blocked", "worker": last["worker"],
                         "mode": s["mode"], "style": s["style"], "verified": verified,
+                        "key_slot": last.get("key_slot", ""), "worker_meta": last.get("meta", {}),
+                        "elapsed_ms": max(0, round((time.time() - s.get("started_at", time.time())) * 1000)),
                         "gate_passed": gate_passed, "evidence_missing": miss, "unverified_reason": reason,
                         "attempts": s["n"], "output": last["text"], "gate_output": s.get("gate_out", ""), "patch": patch,
                         "ticket": ticket, "workspace": s["ws_path"] if s["isolated"] else s["proj_path"], "prompt_sources": s.get("sources", []),

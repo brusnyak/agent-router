@@ -1,0 +1,222 @@
+{
+ "positive": [
+  {
+   "p": "write a database migration that adds a nullable column and backfills it",
+   "ok": [
+    "database-migrations"
+   ]
+  },
+  {
+   "p": "set up kubernetes deployment manifests and a helm chart for the api",
+   "ok": [
+    "kubernetes-patterns",
+    "deployment-patterns"
+   ]
+  },
+  {
+   "p": "add end to end playwright tests for the checkout flow",
+   "ok": [
+    "e2e-testing",
+    "e2e-runner"
+   ]
+  },
+  {
+   "p": "design a REST API for orders with pagination and versioning",
+   "ok": [
+    "api-design"
+   ]
+  },
+  {
+   "p": "build a FastAPI endpoint with pydantic models and dependency injection",
+   "ok": [
+    "fastapi-patterns"
+   ]
+  },
+  {
+   "p": "write table driven go tests for this package",
+   "ok": [
+    "golang-testing",
+    "go-test"
+   ]
+  },
+  {
+   "p": "configure a wireguard vpn on my home server",
+   "ok": [
+    "homelab-wireguard-vpn"
+   ]
+  },
+  {
+   "p": "set up pihole as the dns server on my network",
+   "ok": [
+    "homelab-pihole-dns"
+   ]
+  },
+  {
+   "p": "write a django celery task with retries",
+   "ok": [
+    "django-celery"
+   ]
+  },
+  {
+   "p": "create an MCP server that exposes my database as tools",
+   "ok": [
+    "build-mcp-server",
+    "mcp-builder",
+    "mcp-integration"
+   ]
+  },
+  {
+   "p": "draft a cold email to investors about our seed round",
+   "ok": [
+    "investor-outreach",
+    "investor-materials"
+   ]
+  },
+  {
+   "p": "make this hipaa compliant for patient health data",
+   "ok": [
+    "hipaa-compliance",
+    "healthcare-phi-compliance"
+   ]
+  },
+  {
+   "p": "diagnose why the bgp neighbor keeps flapping",
+   "ok": [
+    "network-bgp-diagnostics"
+   ]
+  },
+  {
+   "p": "do deep research on competitors with citations",
+   "ok": [
+    "deep-research",
+    "market-research",
+    "exa-search"
+   ]
+  },
+  {
+   "p": "improve my CLAUDE.md so the agent follows it",
+   "ok": [
+    "claude-md-improver"
+   ]
+  },
+  {
+   "p": "write a claude code hook that blocks dangerous commands",
+   "ok": [
+    "hook-development",
+    "hookify-rules"
+   ]
+  },
+  {
+   "p": "git branching strategy and commit workflow for the team",
+   "ok": [
+    "git-workflow"
+   ]
+  },
+  {
+   "p": "write laravel tests with TDD",
+   "ok": [
+    "laravel-tdd"
+   ]
+  },
+  {
+   "p": "optimize this slow mysql query and add indexes",
+   "ok": [
+    "mysql-patterns"
+   ]
+  },
+  {
+   "p": "create a NestJS module with controllers and providers",
+   "ok": [
+    "nestjs-patterns"
+   ]
+  },
+  {
+   "p": "review my C++ code against modern coding standards",
+   "ok": [
+    "cpp-coding-standards"
+   ]
+  },
+  {
+   "p": "map java JPA entities with lazy loading and relations",
+   "ok": [
+    "jpa-patterns"
+   ]
+  },
+  {
+   "p": "run an accessibility audit of this page for WCAG",
+   "ok": [
+    "accessibility"
+   ]
+  },
+  {
+   "p": "build an angular component with signals",
+   "ok": [
+    "angular-developer"
+   ]
+  },
+  {
+   "p": "review this router and switch configuration for security problems",
+   "ok": [
+    "network-config-reviewer",
+    "network-config-validation"
+   ]
+  },
+  {
+   "p": "plan a full marketing campaign for the product launch",
+   "ok": [
+    "marketing-campaign"
+   ]
+  },
+  {
+   "p": "write docker compose setup for local development",
+   "ok": [
+    "docker-patterns"
+   ]
+  },
+  {
+   "p": "kotlin coroutines and flow in my android app",
+   "ok": [
+    "kotlin-coroutines-flows",
+    "kotlin-patterns"
+   ]
+  },
+  {
+   "p": "forensic review of my trades as price action",
+   "ok": [
+    "trade-forensics"
+   ]
+  }
+ ],
+ "negative": [
+  "thanks",
+  "ok continue",
+  "yes do it",
+  "what time is it",
+  "why did that fail",
+  "show me the diff",
+  "restart the proxy",
+  "can you check on it",
+  "move it to the trash",
+  "kill that process",
+  "let me know what you think",
+  "run the tests",
+  "fix the typo in the readme",
+  "rename the variable foo to bar",
+  "summarize what you did",
+  "sounds good, go ahead",
+  "I restarted everything, validate it",
+  "which one is better",
+  "explain that again simply",
+  "alright so first of all that is not what I meant",
+  "continue",
+  "and the second part?",
+  "are you sure about that",
+  "please check and tell me",
+  "good job",
+  "ask me if you have questions",
+  "what do you think we should do next",
+  "that looks wrong to me",
+  "check the logs",
+  "commit it"
+ ]
+}

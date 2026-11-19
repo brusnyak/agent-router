@@ -8,8 +8,6 @@ import shutil
 from typing import Callable, Dict, List, Optional
 
 AGENT_BINS = ["claude", "codex", "opencode", "omp", "qwen", "kilo", "pi", "cline", "hermes", "goose", "crush"]
-KEY_PATTERNS = {"nim": r"^NIM_\d+$", "openrouter": r"^OPENROUTER_API_KEY$", "groq": r"^GROQ_API_KEY$",
-                "mistral": r"^MISTRAL_API_KEY$", "anthropic": r"^ANTHROPIC_API_KEY$", "openai": r"^OPENAI_API_KEY$"}
 
 
 def ssh_hosts(path: str = "~/.ssh/config") -> List[str]:
@@ -37,14 +35,22 @@ def git_projects(roots: Optional[List[str]] = None, limit: int = 30) -> List[str
 
 
 def discover(env: Optional[dict] = None, which: Callable[[str], Optional[str]] = shutil.which,
-             ssh_config: str = "~/.ssh/config", project_roots: Optional[List[str]] = None) -> Dict:
-    env = os.environ if env is None else env
-    keys: Dict[str, List[str]] = {}
-    for kind, pat in KEY_PATTERNS.items():
-        names = sorted(k for k, v in env.items() if v and re.match(pat, k))
-        if names:
-            keys[kind] = names
-    return {"agents": {a: which(a) for a in AGENT_BINS if which(a)}, "keys": keys,
+             ssh_config: str = "~/.ssh/config", project_roots: Optional[List[str]] = None,
+             env_files=None) -> Dict:
+    from .keys import ENV_FILES
+    # an explicit env means "use only this" (hermetic); the real run (env=None) also reads key NAMES from the env files
+    env_files = (ENV_FILES if env is None else ()) if env_files is None else env_files
+    from . import keys as _keys
+    from .harness import ROOT, load_yaml
+    try:
+        known = load_yaml(ROOT / "config/providers.yaml").get("providers", {})
+    except (OSError, ValueError):
+        known = {}
+    # any provider, from key NAMES in env files + environment (values are never read); only LLM providers feed init_config
+    found = _keys.discover_keys(env_files, env, known)
+    keys: Dict[str, List[str]] = {p: v["keys"] for p, v in found.items() if v["llm"]}
+    other = {p: v["keys"] for p, v in found.items() if not v["llm"]}
+    return {"other_secrets": other, "providers": {p: found[p]["base_url"] for p in keys}, "agents": {a: which(a) for a in AGENT_BINS if which(a)}, "keys": keys,
             "ssh_hosts": ssh_hosts(ssh_config), "projects": git_projects(project_roots)}
 
 
@@ -61,5 +67,8 @@ def init_config(caps: Dict, base: Dict) -> Dict:
     cfg["workers"] = {k: v for k, v in base["workers"].items() if k in caps["agents"]}
     expert = next((a for a in ("codex", "claude") if a in caps["agents"]), "")
     cfg["escalation"] = {"expert": expert}
+    # every other discovered LLM provider: keys + endpoint, so a worker/model entry can name them (operator picks the model)
+    cfg["providers"] = {p: {"keys": names, "base_url": (caps.get("providers") or {}).get(p, "")}
+                        for p, names in caps["keys"].items() if p != "nim"}
     cfg["hosts"] = base.get("hosts", {})
     return cfg

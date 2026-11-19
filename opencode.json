@@ -4,8 +4,10 @@
     "agent-router": {
       "type": "local",
       "command": [
-        "~/.claude/scripts/with-env", "NIM_1", "NIM_2", "NIM_3", "--",
-        "python3", "-m", "backbone", "mcp"
+        "python3",
+        "-m",
+        "backbone",
+        "mcp"
       ],
       "enabled": true
     }

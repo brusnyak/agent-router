@@ -23,6 +23,17 @@ def usable(path: str, worker: str, max_age_s: int = 21600) -> bool:
         return True
 
 
+def unusable(path: str, max_age_s: int = 21600) -> set:
+    """Names the last doctor run found unusable. Results older than max_age_s are ignored (unknown = allowed)."""
+    try:
+        d = json.load(open(path))
+        if time.time() - float(d["saved_at"]) > max_age_s:
+            return set()
+        return {r["name"] for r in d.get("agents", []) if r.get("usable") is False and r.get("name")}
+    except Exception:
+        return set()
+
+
 def pick(order: Iterable[str], usable_fn: Callable[[str], bool]) -> Optional[str]:
     return next((w for w in order if usable_fn(w)), None)
 

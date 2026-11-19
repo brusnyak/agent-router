@@ -16,7 +16,8 @@ def Backbone(*args, **kwargs):
 
 
 def _j(o) -> None:
-    print(json.dumps(o, indent=2, default=str))
+    from .redact import redact
+    print(redact(json.dumps(o, indent=2, default=str)))
 
 
 _EVAL = {
@@ -64,9 +65,11 @@ def main(argv=None) -> None:
 
     lib = sub.add_parser("library"); ls = lib.add_subparsers(dest="lcmd", required=True)
     ls.add_parser("ingest"); ls.add_parser("counts"); ls.add_parser("embed")
+    so = ls.add_parser("sources", help="scan the machine for skill/agent/command sources; --apply registers + ingests + re-exports the hook index")
+    so.add_argument("--apply", action="store_true")
     xi = ls.add_parser("export-index", help="export compact hook-consumable library index to JSONL")
     xi.add_argument("--out", default="~/.agent-router/library-index.jsonl")
-    xi.add_argument("--kinds", nargs="*", default=["skill", "command"])
+    xi.add_argument("--kinds", nargs="*", default=["skill", "agent", "subagent", "command"])
     xi.add_argument("--limit-per-kind", type=int, default=None)
     q = ls.add_parser("search"); q.add_argument("query"); q.add_argument("--kind"); q.add_argument("-k", type=int, default=5)
 
@@ -110,19 +113,41 @@ def main(argv=None) -> None:
         sub.add_parser(n, help=h)
     rr = sub.add_parser("router-report", help="hook A/B report: treat vs holdout follow rate")
     rr.add_argument("--json", action="store_true"); rr.add_argument("--receipts"); rr.add_argument("--outcomes")
+
     dg = sub.add_parser("digest", help="watcher snapshot: enforcement, Nina router calls, runs, bandit (logs only, no prompts)")
     dg.add_argument("--hours", type=float, default=24.0); dg.add_argument("--write", action="store_true")
+    st = sub.add_parser("stop", help="stop everything: guard pause, halt hub/daemon/node, sync to VM")
+    st.add_argument("--sync", action="store_true", help="also rsync to Oracle VM via scripts/sync_vm.sh --restart")
+    st.add_argument("--no-sync", action="store_true", help="do not sync to VM; stop local only")
     pl = sub.add_parser("plan", help="deterministic plan for a prompt: class, worker pick (bandit), compiled command; --table shows learned cells")
+    nt = sub.add_parser("night-tick", help="run one bounded night-mode tick (PAUSE honored, read-only, gate-checked)")
+    nt.add_argument("prompt", nargs="*", default="")
+    nt.add_argument("--cfg", help="path to night config yaml")
+    nt.add_argument("--tasks", help="path to bounded tasks.yaml queue")
+    nt.add_argument("--dry-run", action="store_true", help="simulate window and one task; isolated state, no network")
+    nt.add_argument("--loop", action="store_true", help="loop ticks until PAUSE or out of window")
+    pt = sub.add_parser("proactive-tick", help="enqueue one eligible step from the approved persistent goal manifest")
+    pt.add_argument("--manifest", default="~/memory-vault/pages/plans/proactive-goals.json")
+    pc = sub.add_parser("proactive-cycle", help="run one bounded text-only unattended goal cycle")
+    pc.add_argument("--manifest", default="~/memory-vault/pages/plans/proactive-goals.json")
+    sub.add_parser("proactive-status", help="persistent proactive goal state")
+
     pl.add_argument("text", nargs="*"); pl.add_argument("--table", action="store_true")
     cp = sub.add_parser("compile", help="prompt -> compact card (entities kept verbatim)")
     cp.add_argument("text"); cp.add_argument("--no-llm", action="store_true")
     mon = sub.add_parser("monitor", help="collect local or SSH host resource snapshots")
     mon.add_argument("--host", nargs="+", action="extend", default=[])
     mon.add_argument("--json", action="store_true"); mon.add_argument("--write", action="store_true")
-    for name in ("contract", "diagnose", "recover", "status", "harness"):
+    for name in ("contract", "diagnose", "recover", "status", "harness", "install", "guard"):
         sub.add_parser(name, add_help=False)
     a, rest = ap.parse_known_args(argv)
-    if a.cmd in ("contract", "diagnose", "recover", "status", "harness"):
+    if a.cmd in ("contract", "diagnose", "recover", "status", "harness", "install", "guard"):
+        if a.cmd == "guard":
+            from . import guard
+            raise SystemExit(guard.main(rest))
+        if a.cmd == "install":
+            from . import scan
+            raise SystemExit(scan.main(rest))
         if a.cmd == "harness":
             from . import harness
             raise SystemExit(harness.main(rest))
@@ -197,6 +222,11 @@ def main(argv=None) -> None:
         b = Bandit(_p.bandit_path())
         print(json.dumps(b.table() if a.table else _p.plan(" ".join(a.text), bandit=b), indent=1))
         return
+    if a.cmd == "night-tick":
+        from . import night as _n
+        prompt = " ".join(a.prompt) if isinstance(a.prompt, list) else str(a.prompt or "")
+        raise SystemExit(_n.run_tick(cfg_path=a.cfg, prompt=prompt, tasks_path=a.tasks, dry_run=a.dry_run))
+
     if a.cmd == "compile":
         from . import compile as _c
         raise SystemExit(_c.main([a.text] + (["--no-llm"] if a.no_llm else [])))
@@ -241,6 +271,11 @@ def main(argv=None) -> None:
         _j(res)
         return
     bb = Backbone()
+    if a.cmd in ("proactive-tick", "proactive-status", "proactive-cycle"):
+        from . import proactive
+        _j(proactive.cycle(bb, os.path.expanduser(a.manifest)) if a.cmd == "proactive-cycle" else
+           proactive.tick(bb, os.path.expanduser(a.manifest)) if a.cmd == "proactive-tick" else proactive.status(bb))
+        return
     if a.cmd == "tickets":
         from .ticket import submit_tickets
         res = submit_tickets(os.path.expanduser(a.dir), bb)
@@ -313,6 +348,19 @@ def main(argv=None) -> None:
     elif a.cmd == "library":
         if a.lcmd == "ingest":
             _j(bb.ingest())
+        elif a.lcmd == "sources":
+            from . import sources as _src
+            cfg_src = list(bb.cfg.get("library", {}).get("sources", [])) + _src.load_registry()
+            rep = _src.coverage(_src.discover(), cfg_src)
+            import re as _re
+            known = {_re.sub(r"[^a-z0-9]+", "-", (r[0] or "").lower()).strip("-") for r in bb.con.execute("SELECT name FROM library")} | {(r[0] or "").lower() for r in bb.con.execute("SELECT name FROM library")}
+            new = _src.only_unique([r for r in rep if not r["covered"]], known)
+            _j({"found": len(rep), "already_covered": len(rep) - len(new), "new": new})
+            if a.apply and new:
+                print("registry:", _src.save_registry(new))
+                _j(bb.ingest())
+                from .library import export_index
+                print("index rows:", export_index(bb.con, os.path.expanduser("~/.agent-router/library-index.jsonl")))
         elif a.lcmd == "embed":
             print(bb.rag.embed_missing(), "embedded")
         elif a.lcmd == "counts":
@@ -368,6 +416,9 @@ def main(argv=None) -> None:
         serve(bb, port=a.port)
     elif a.cmd == "keys":
         _j(bb.pool.status())
+    elif a.cmd == "stop":
+        from . import stop as _stop
+        raise SystemExit(_stop.main(a.sync if hasattr(a, "sync") else True, a.no_sync if hasattr(a, "no_sync") else False))
 
 
 if __name__ == "__main__":

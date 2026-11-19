@@ -139,12 +139,12 @@ def test_hook_skill_inject_only_heavy_treat_prompts(tmp_path, monkeypatch):
     monkeypatch.delenv("MR_ORCH_DISPATCH", raising=False)
     index = tmp_path / "library-index.jsonl"
     index.write_text(
-        json.dumps({"id": "skill:review", "kind": "skill", "name": "review",
+        json.dumps({"id": "skill:review", "kind": "skill", "name": "correctness-bugs",
                     "description": "Check code for correctness bugs.",
                     "body": "## review\nrun pytest\n"}) + "\n"
     )
     monkeypatch.setattr(hook, "INDEX_PATH", str(index))
-    monkeypatch.setattr(hook, "SCORE_FLOOR", 0.0)
+    monkeypatch.setattr("backbone.pick.FLOOR", 0.0)
     assert not hook.decide({"prompt": "fix the typo in README", "session_id": "x1"})["selected"]
     # prompt shares terms with the skill description so it clears the score floor
     heavy = "refactor this code and check it for correctness bugs across the repo"
