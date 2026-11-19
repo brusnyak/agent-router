@@ -6,6 +6,7 @@ import fcntl
 import json
 from pathlib import Path
 import plistlib
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -263,6 +264,7 @@ def test_interrupted_attempt_recovers_as_failure(queue, tmp_path):
     assert [r['state'] for r in history] == ['failed', 'done']
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS sandbox-exec required")
 def test_enrich_mid_task_pause_kills_child(queue, tmp_path, monkeypatch):
     pause = tmp_path / 'PAUSE'
     calls = []

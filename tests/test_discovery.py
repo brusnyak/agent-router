@@ -129,12 +129,11 @@ def test_derived_usable_agents():
 
 
 def test_browsers_available():
-    """derived.browsers_available lists installed browsers."""
+    """derived.browsers_available is a list; its contents are machine-specific."""
     inv = discover()
     browsers = inv["derived"]["browsers_available"]
     assert isinstance(browsers, list)
-    assert "browserclaw" in browsers or "ego-lite" in browsers
-    assert "ego-lite" in browsers or len(browsers) == 0
+    assert all(isinstance(b, str) for b in browsers)
 
 
 @pytest.mark.skipif(not os.path.isdir(os.path.expanduser("~/memory-vault")), reason="machine-local vault absent")
