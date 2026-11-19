@@ -35,8 +35,9 @@ The `backbone` CLI is an environment-aware orchestration foundation:
 - **Configure:** `backbone init` generates local config under `~/.agent-router/`
   from what discovery finds; review it before running jobs.
 - **Dispatch:** route a task to a supported worker or select one explicitly with
-  `--worker`. Built-in adapters: Pi, Claude Code, Codex. Any other discovered CLI
-  can run through the `generic` adapter (argv-only, allowlisted, bounded).
+  `--worker`. `workers.py` defines 11 dedicated CLI adapters (pi, claude, codex,
+  jcode, opencode, goose, omp, cline, OpenHands, agy, kilo); any other discovered
+  CLI can run through the `generic` adapter (argv-only, allowlisted, bounded).
 - **Delegate:** `fanout` runs independent prompts in parallel; `swarm` splits a
   goal among workers; `submit` queues work for the daemon.
 - **Verify:** each run uses a named acceptance gate (config `gates:`), retries
@@ -96,8 +97,10 @@ flowchart TD
 
 Core orchestration is CLI-driven. Adapter discovery and execution capability are
 deliberately distinct: a CLI appearing in `discover` output does **not** mean it is
-execution-ready — workers.py ships dedicated adapters for Pi, Claude, Codex, jcode, opencode, goose, omp, cline and OpenHands today;
-everything else goes through the `generic` adapter or stays inventory-only.
+execution-ready — `workers.py` defines 11 dedicated CLI adapters (pi, claude, codex,
+jcode, opencode, goose, omp, cline, OpenHands, agy, kilo), plus a direct NIM API lane
+and a persona lane; `config/backbone.yaml` ships entries for 9 of the CLIs. Everything
+else goes through the `generic` adapter or stays inventory-only.
 
 The skill-routing experiment is separate from execution: a Claude Code shadow hook
 records hashed prompt receipts and later tool-use outcomes, then offline jobs
@@ -110,7 +113,7 @@ suggestions into live sessions.
 | --- | --- | --- |
 | Environment discovery | 11 CLI names, 6 provider-key patterns, SSH aliases, Git roots | Implemented; limited inventory scan |
 | Local setup | `discover` → `init` generated config | Implemented; non-destructive, not zero-config |
-| Worker execution | Pi, Claude Code, Codex adapters | Implemented; other CLIs via `generic` adapter |
+| Worker execution | 11 CLI adapters in `workers.py` (9 configured by default) | Implemented; other CLIs via `generic` adapter |
 | Dispatch | explicit worker, `ask`, `fanout`, `swarm` | Implemented; validate routes on your setup |
 | Acceptance | named gates, retries, isolated workspaces, tickets | Implemented |
 | Durable execution | SQLite jobs, leases, LangGraph checkpoints | Implemented; restart recovery tested |
