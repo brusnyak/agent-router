@@ -14,6 +14,7 @@ It adapts to your tools rather than requiring a particular agent provider.
 </p>
 
 <p align="center">
+  <a href="https://github.com/brusnyak/agent-router/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/brusnyak/agent-router/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white">
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-blue"></a>
   <img alt="Development status" src="https://img.shields.io/badge/Status-Experimental-orange">
@@ -71,7 +72,7 @@ make doctor             # probe workers (read-only)
 make run prompt="Review this project" worker=codex gate="noop"
 
 # Queue background work
-make test               # ~100 s test suite
+make test               # ~110 s locally; CI runs the same suite on a clean runner
 ```
 
 `init` is non-destructive: it refuses to overwrite an existing `backbone.yaml`.
@@ -95,7 +96,7 @@ flowchart TD
 
 Core orchestration is CLI-driven. Adapter discovery and execution capability are
 deliberately distinct: a CLI appearing in `discover` output does **not** mean it is
-execution-ready — only Pi, Claude Code, and Codex have dedicated adapters today;
+execution-ready — workers.py ships dedicated adapters for Pi, Claude, Codex, jcode, opencode, goose, omp, cline and OpenHands today;
 everything else goes through the `generic` adapter or stays inventory-only.
 
 The skill-routing experiment is separate from execution: a Claude Code shadow hook
@@ -153,12 +154,13 @@ All figures are **development signals, not production routing accuracy**. Source
 | Evaluation | Result | Source |
 | --- | --- | --- |
 | Silver-labeled prompts (LLM-judged, human-unverified) | 517 / 1,011 | `eval/heldout_v2` |
-| Dense NIM retrieval, top-1 / top-3 | 25.0% / 46.0% | `docs/HANDOFF.md` |
+| Dense NIM retrieval, top-1 / top-3 | 25.0% / 46.0% | `HANDOFF.md` |
 | Existing local router, top-1 / top-3 | 28.2% / 42.6% | `eval/baseline_router.py` |
 | Prompt compiler, top-3 vs raw | +1.2 pp (gate was +5 pp) | `eval/compile_test.py` |
+| Silver labels, dense retrieval | `eval/heldout_v2` is gitignored: numbers cannot be re-derived from the repo | `docs/ROADMAP-2026-11-13.md` |
 | Shadow A/A, treat vs holdout | 1.7% vs 1.6%, p=0.89 | `backbone aa-replay` |
-| Always-guess floor, top-1 | 14.1% | `docs/HANDOFF.md` |
-| Judge agreement | ~41–47% | `docs/HANDOFF.md` |
+| Always-guess floor, top-1 | 14.1% | `HANDOFF.md` |
+| Judge agreement | ~41–47% | `HANDOFF.md` |
 | Cold shadow-hook p95 | 33 ms | local measurement |
 | Skill-tool activation (953 prompts) | ~3% (32 calls, 14 sessions) | `docs/SKILL-ACTIVATION.md` |
 
@@ -208,7 +210,7 @@ See `docs/INVARIANTS.md` and `docs/ARCHITECTURE.md`.
 ## Development
 
 ```bash
-# Run the test suite (must pass in your environment)
+# Run the test suite (same suite CI runs on a clean runner)
 .venv/bin/python -m pytest tests -q
 
 # Inspect hook installation without modifying settings
