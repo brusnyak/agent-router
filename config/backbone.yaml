@@ -69,7 +69,7 @@ style:
   default: caveman
   texts:
     caveman: Terse. Result first. No openers, no recaps, no pleasantries.
-    ponytail: Laziest solution that works: standard library first, fewest lines.
+    ponytail: "Laziest solution that works: standard library first, fewest lines."
     none: ''
 
 openrouter:

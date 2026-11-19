@@ -1,12 +1,15 @@
 """Tests for machine discovery script."""
 import json
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 HOME = os.path.expanduser("~")
-PROJECT_ROOT = os.path.join(HOME, "Developer", "agent-router")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 from scripts.discover_machine import discover, scan_cli_on_path, scan_agent_configs, scan_env_keys, scan_browsers, scan_vault, scan_skills, scan_hooks
@@ -92,6 +95,7 @@ def test_scan_vault_returns_dict():
     assert "agents_sandbox" in result
 
 
+@pytest.mark.skipif(not os.path.isdir(os.path.expanduser("~/.claude/skills")), reason="machine-local skills corpus absent")
 def test_scan_skills_returns_dict():
     """scan_skills() returns dict keyed by location."""
     result = scan_skills()
@@ -113,6 +117,7 @@ def test_scan_hooks_returns_dict():
     assert "hook_files" in result
 
 
+@pytest.mark.skipif(not os.path.isdir(os.path.expanduser("~/.claude")), reason="no claude config dir on this machine")
 def test_derived_usable_agents():
     """derived.usable_agents contains agents with CLI + config."""
     inv = discover()
@@ -132,6 +137,7 @@ def test_browsers_available():
     assert "ego-lite" in browsers or len(browsers) == 0
 
 
+@pytest.mark.skipif(not os.path.isdir(os.path.expanduser("~/memory-vault")), reason="machine-local vault absent")
 def test_vault_sandbox_ready():
     """derived.vault_sandbox_ready is True when vault exists."""
     inv = discover()

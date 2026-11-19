@@ -5,10 +5,17 @@ import sys
 from pathlib import Path
 
 HOME = os.path.expanduser("~")
-PROJECT_ROOT = os.path.join(HOME, "Developer", "agent-router")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 from scripts.index_vault import discover_corpus, build_index, search, INDEX_DB, tokenize
+
+import pytest
+
+
+def _need_corpus():
+    if not discover_corpus():
+        pytest.skip("machine-local corpus absent (vault, skills, refs)")
 
 
 def test_tokenize():
@@ -24,6 +31,7 @@ def test_tokenize():
 
 
 def test_discover_corpus_returns_docs():
+    _need_corpus()
     """discover_corpus() returns a list of doc dicts."""
     docs = discover_corpus()
     assert isinstance(docs, list)
@@ -36,6 +44,7 @@ def test_discover_corpus_returns_docs():
 
 
 def test_build_index_creates_db():
+    _need_corpus()
     """build_index() creates index.db and returns info dict."""
     docs = discover_corpus()
     info = build_index(docs)
@@ -46,6 +55,7 @@ def test_build_index_creates_db():
 
 
 def test_index_db_has_tables():
+    _need_corpus()
     """index.db contains fts, tfidf_meta, and idf tables."""
     import sqlite3
     docs = discover_corpus()
@@ -59,6 +69,7 @@ def test_index_db_has_tables():
 
 
 def test_search_returns_results():
+    _need_corpus()
     """search() returns ranked results."""
     docs = discover_corpus()
     build_index(docs)

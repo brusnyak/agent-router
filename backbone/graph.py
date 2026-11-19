@@ -7,6 +7,7 @@ in `prepare` (a gate means a loop); the loop is graph edges, not a Python `for`.
 from __future__ import annotations
 
 import dataclasses
+import os
 import sqlite3
 import threading
 import uuid
@@ -55,6 +56,8 @@ class S(TypedDict, total=False):
 def build(bb, db_path: str):
     from .core import norm_worker, parse  # local import: core imports this module lazily
 
+    db_path = os.path.expanduser(db_path)
+    os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
     gcon = sqlite3.connect(db_path, check_same_thread=False, timeout=30)
     gcon.execute("PRAGMA journal_mode=WAL")
     gcon.execute("PRAGMA busy_timeout=30000")

@@ -2,6 +2,8 @@
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backbone.catalog_ingest import ingest_all, ingest_ecc_agents, ingest_agency_agents, slugify
@@ -12,6 +14,7 @@ def test_slugify():
     assert slugify("UI Designer") == "ui-designer"
 
 
+@pytest.mark.skipif(not os.path.isdir(os.path.expanduser("~/Developer/ecc-reference/agents")), reason="machine-local ecc corpus absent")
 def test_ingest_ecc_agents():
     ecc_dir = os.path.expanduser("~/Developer/ecc-reference/agents")
     skills = ingest_ecc_agents(ecc_dir)
@@ -26,6 +29,7 @@ def test_ingest_ecc_agents():
         assert s["id"].startswith("ecc-")
 
 
+@pytest.mark.skipif(not os.path.isdir(os.path.expanduser("~/.agent-skills/vendor/msitarzewski_agency-agents")), reason="machine-local agency corpus absent")
 def test_ingest_agency_agents():
     agency_dir = os.path.expanduser("~/.agent-skills/vendor/msitarzewski_agency-agents")
     skills = ingest_agency_agents(agency_dir)
@@ -39,6 +43,10 @@ def test_ingest_agency_agents():
         assert s["id"].startswith("agency-")
 
 
+@pytest.mark.skipif(
+    not (os.path.isdir(os.path.expanduser("~/Developer/ecc-reference/agents"))
+         and os.path.isdir(os.path.expanduser("~/.agent-skills/vendor/msitarzewski_agency-agents"))),
+    reason="machine-local corpora absent")
 def test_ingest_all_dedupes_by_id():
     ecc_dir = os.path.expanduser("~/Developer/ecc-reference/agents")
     agency_dir = os.path.expanduser("~/.agent-skills/vendor/msitarzewski_agency-agents")

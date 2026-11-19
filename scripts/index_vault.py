@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 HOME = os.path.expanduser("~")
-PROJECT_ROOT = os.path.join(HOME, "Developer", "agent-router")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_DIR = os.path.join(PROJECT_ROOT, "config")
 INDEX_DB = os.path.join(CONFIG_DIR, "index.db")
 INVENTORY_PATH = os.path.join(CONFIG_DIR, "discovered-inventory.json")

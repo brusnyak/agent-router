@@ -239,6 +239,7 @@ class Backbone:
     def allowed_roots(self) -> List[str]:
         roots = [os.path.realpath(os.path.expanduser(p["path"])) for p in self.projects.values() if p.get("path")]
         roots += [os.path.realpath(os.path.expanduser(r)) for r in self.cfg.get("allowed_roots", [])]
+        roots.append(os.path.realpath(ROOT))  # the tool's own tree is always addressable
         return roots
 
     def check_cwd(self, cwd: str) -> str:

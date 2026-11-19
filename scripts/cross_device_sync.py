@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 HOME = os.path.expanduser("~")
-PROJECT_ROOT = os.path.join(HOME, "Developer", "agent-router")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VAULT = os.path.join(HOME, "memory-vault")
 DB_PATH = os.path.join(PROJECT_ROOT, "kanban.db")
 

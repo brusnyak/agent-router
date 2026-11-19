@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 HOME = os.path.expanduser("~")
-PROJECT_ROOT = os.path.join(HOME, "Developer", "agent-router")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_DIR = os.path.join(PROJECT_ROOT, "config")
 DRIFT_DIR = os.path.join(CONFIG_DIR, "drift")
 DRIFT_PATH = os.path.join(DRIFT_DIR, "config-drift.yaml")

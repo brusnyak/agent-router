@@ -162,7 +162,7 @@ def test_mcp_boundary_refuses_outside_roots_and_unknown_gates(bb):
     with _p.raises(PermissionError):
         bb.named_gate("rm -rf /")
     assert bb.named_gate("noop") == "true"
-    assert bb.check_cwd(os.path.expanduser("~/Developer/agent-router")).endswith("agent-router")
+    assert bb.check_cwd(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).endswith("agent-router")
 
 
 def test_pi_read_only_gets_read_tool_only(bb, monkeypatch):
