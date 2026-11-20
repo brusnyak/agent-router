@@ -32,12 +32,13 @@ nc -z 127.0.0.1 "$LOCAL_PORT" 2>/dev/null || exit 1
 # HUB_TOKEN_KEY names the stored key holding the hub's token (default BACKBONE_TOKEN), so a local
 # `backbone serve` token with the same name never collides with the remote hub's token.
 WITH_ENV="${WITH_ENV:-$HOME/.claude/scripts/with-env}"
+BACKBONE_BIN="${BACKBONE_BIN:-$HOME/.local/bin/backbone}"   # the shim picks the interpreter (BACKBONE_PYTHON, venv, python3)
 TOKEN_KEY="${HUB_TOKEN_KEY:-BACKBONE_TOKEN}"
 if [ -z "${BACKBONE_TOKEN:-}" ] && [ -x "$WITH_ENV" ]; then
   "$WITH_ENV" "$TOKEN_KEY" -- sh -c 'export BACKBONE_TOKEN="$(printenv "$1")"; shift; exec "$@"' sh "$TOKEN_KEY" \
-    python3 -m backbone node --hub "http://127.0.0.1:${LOCAL_PORT}" --name "$NODE_NAME" >>"$LOG_DIR/node.log" 2>&1 &
+    "$BACKBONE_BIN" node --hub "http://127.0.0.1:${LOCAL_PORT}" --name "$NODE_NAME" >>"$LOG_DIR/node.log" 2>&1 &
 else
-  python3 -m backbone node --hub "http://127.0.0.1:${LOCAL_PORT}" --name "$NODE_NAME" >>"$LOG_DIR/node.log" 2>&1 &
+  "$BACKBONE_BIN" node --hub "http://127.0.0.1:${LOCAL_PORT}" --name "$NODE_NAME" >>"$LOG_DIR/node.log" 2>&1 &
 fi
 NODE_PID=$!
 
