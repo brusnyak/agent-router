@@ -5,7 +5,8 @@
 set -u
 
 HUB_HOST="${HUB_HOST:-oracle-vm}"
-HUB_PORT="${HUB_PORT:-8799}"
+HUB_PORT="${HUB_PORT:-8799}"          # port of the hub on the remote host
+LOCAL_PORT="${LOCAL_PORT:-18799}"     # local end of the tunnel; 8799 is usually a local `backbone serve`
 NODE_NAME="${NODE_NAME:-mac}"
 LOG_DIR="${LOG_DIR:-$HOME/Library/Logs/agent-router}"
 mkdir -p "$LOG_DIR"
@@ -17,21 +18,27 @@ trap cleanup EXIT TERM INT
 
 ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
     -o BatchMode=yes -o ConnectTimeout=15 \
-    -L "127.0.0.1:${HUB_PORT}:127.0.0.1:${HUB_PORT}" "$HUB_HOST" >>"$LOG_DIR/tunnel.log" 2>&1 &
+    -L "127.0.0.1:${LOCAL_PORT}:127.0.0.1:${HUB_PORT}" "$HUB_HOST" >>"$LOG_DIR/tunnel.log" 2>&1 &
 TUNNEL_PID=$!
 
 for _ in $(seq 1 30); do
-  nc -z 127.0.0.1 "$HUB_PORT" 2>/dev/null && break
+  nc -z 127.0.0.1 "$LOCAL_PORT" 2>/dev/null && break
   kill -0 "$TUNNEL_PID" 2>/dev/null || exit 1
   sleep 1
 done
-nc -z 127.0.0.1 "$HUB_PORT" 2>/dev/null || exit 1
+nc -z 127.0.0.1 "$LOCAL_PORT" 2>/dev/null || exit 1
 
 # BACKBONE_TOKEN is never stored in the plist: take it from the environment, else from the local secret loader.
+# HUB_TOKEN_KEY names the stored key holding the hub's token (default BACKBONE_TOKEN), so a local
+# `backbone serve` token with the same name never collides with the remote hub's token.
 WITH_ENV="${WITH_ENV:-$HOME/.claude/scripts/with-env}"
-LOAD=""
-if [ -z "${BACKBONE_TOKEN:-}" ] && [ -x "$WITH_ENV" ]; then LOAD="$WITH_ENV BACKBONE_TOKEN --"; fi
-$LOAD python3 -m backbone node --hub "http://127.0.0.1:${HUB_PORT}" --name "$NODE_NAME" >>"$LOG_DIR/node.log" 2>&1 &
+TOKEN_KEY="${HUB_TOKEN_KEY:-BACKBONE_TOKEN}"
+if [ -z "${BACKBONE_TOKEN:-}" ] && [ -x "$WITH_ENV" ]; then
+  "$WITH_ENV" "$TOKEN_KEY" -- sh -c 'export BACKBONE_TOKEN="$(printenv "$1")"; shift; exec "$@"' sh "$TOKEN_KEY" \
+    python3 -m backbone node --hub "http://127.0.0.1:${LOCAL_PORT}" --name "$NODE_NAME" >>"$LOG_DIR/node.log" 2>&1 &
+else
+  python3 -m backbone node --hub "http://127.0.0.1:${LOCAL_PORT}" --name "$NODE_NAME" >>"$LOG_DIR/node.log" 2>&1 &
+fi
 NODE_PID=$!
 
 # macOS bash 3.2 has no `wait -n`: poll both children, exit when either dies.
