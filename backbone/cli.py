@@ -303,6 +303,7 @@ def main(argv=None) -> None:
         return
     if a.cmd == "idle-tick":
         from . import idle_tick as _idle
+        from .core import load_config
         cfg = load_config()
         if a.idle_minutes is not None:
             cfg["idle_minutes"] = a.idle_minutes

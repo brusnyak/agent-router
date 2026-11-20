@@ -28,8 +28,9 @@ def hardcoded_loads(paths):
 def test_no_hardcoded_load_limits():
     root = Path(__file__).resolve().parents[1]
     rules = Path.home() / 'ai-context/rules'
-    assert rules.is_dir(), f'rules directory unavailable: {rules}'
-    paths = [*sorted((root / 'backbone').glob('*.py')), *sorted(rules.glob('*.md'))]
+    # The standalone product has no owner rules directory; scan it only where it exists.
+    rule_files = sorted(rules.glob('*.md')) if rules.is_dir() else []
+    paths = [*sorted((root / 'backbone').glob('*.py')), *rule_files]
     found = hardcoded_loads(paths)
     assert not found, 'Use see ~/.agent-router/limits.json:\n' + '\n'.join(found)
 

@@ -121,3 +121,11 @@ def _bb(tmp_path, monkeypatch):
     }
     bb = Backbone(cfg, env={"NIM_1": "a", "NIM_2": "b", "NIM_3": "c"})
     return bb
+
+
+def test_cli_idle_tick_smoke(tmp_path):
+    """The CLI entry must run end to end (regression: UnboundLocalError on load_config)."""
+    import os, subprocess, sys
+    env = {**os.environ, "HOME": str(tmp_path)}
+    r = subprocess.run([sys.executable, "-m", "backbone", "idle-tick"], capture_output=True, text=True, env=env, timeout=60)
+    assert r.returncode == 0, r.stderr[-400:]
