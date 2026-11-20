@@ -96,6 +96,14 @@ class DB:
             rows = cur.fetchall() if cur.description else []
             return _Result(rows, cur.lastrowid, cur.rowcount)
 
+    def write(self, sql: str, args=()):
+        """Execute and commit under one lock. A separate commit() lets another thread's commit close this
+        thread's transaction first, which raises `cannot commit - no transaction is active`."""
+        with self._l:
+            cur = self._c.execute(sql, args)
+            self._c.commit()
+            return _Result(cur.fetchall() if cur.description else [], cur.lastrowid, cur.rowcount)
+
     def commit(self) -> None:
         with self._l:
             self._c.commit()

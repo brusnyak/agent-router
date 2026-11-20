@@ -27,11 +27,10 @@ class Runs:
                rid: Optional[str] = None) -> str:
         rid = rid or uuid.uuid4().hex[:8]
         now = time.time()
-        self.con.execute(
+        self.con.write(
             "INSERT INTO runs(id,session_id,project,command,prompt,state,worker,lease_until,created,updated,meta) "
             "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (rid, session_id, project, command, prompt, "running", worker, now + LEASE_S, now, now, json.dumps(meta or {})))
-        self.con.commit()
         return rid
 
     def fence(self, rid: str) -> int:
@@ -44,24 +43,21 @@ class Runs:
         q, a = "UPDATE runs SET lease_until=?, updated=? WHERE id=?", [now + LEASE_S, now, rid]
         if fence is not None:
             q += " AND fence=?"; a.append(fence)
-        n = self.con.execute(q, tuple(a)).rowcount
-        self.con.commit()
+        n = self.con.write(q, tuple(a)).rowcount
         return n > 0
 
     def reap(self, rid: str, reason: str) -> bool:
         """Declare an expired run dead and bump the fence so the zombie's later writes are rejected."""
-        n = self.con.execute("UPDATE runs SET state='blocked', error=?, fence=fence+1, updated=? WHERE id=? AND state='running'",
-                             (reason[:2000], time.time(), rid)).rowcount
-        self.con.commit()
+        n = self.con.write("UPDATE runs SET state='blocked', error=?, fence=fence+1, updated=? WHERE id=? AND state='running'",
+                           (reason[:2000], time.time(), rid)).rowcount
         return n > 0
 
     def step(self, rid: str, n: int, kind: str, worker: str, key_slot: str, ok: bool, latency_ms: int,
              output: str, note: str = "", fence: Optional[int] = None) -> None:
         if fence is not None and fence != self.fence(rid):
             raise StaleLease(f"run {rid}: lease was reaped (fence {fence} != {self.fence(rid)}); step rejected")
-        self.con.execute("INSERT INTO steps(run_id,n,kind,worker,key_slot,ok,latency_ms,output,note,ts) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                         (rid, n, kind, worker, key_slot, int(ok), latency_ms, output[:20000], note, time.time()))
-        self.con.commit()
+        self.con.write("INSERT INTO steps(run_id,n,kind,worker,key_slot,ok,latency_ms,output,note,ts) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                       (rid, n, kind, worker, key_slot, int(ok), latency_ms, output[:20000], note, time.time()))
         self.heartbeat(rid, fence)
 
     def set(self, rid: str, state: str, error: str = "", worker: Optional[str] = None, attempt: Optional[int] = None,
@@ -76,8 +72,7 @@ class Runs:
             q += " AND fence=?"; args = [*args, rid, fence]
         else:
             args = [*args, rid]
-        n = self.con.execute(q, tuple(args)).rowcount
-        self.con.commit()
+        n = self.con.write(q, tuple(args)).rowcount
         return n > 0
 
     def get(self, rid: str) -> Optional[dict]:
@@ -108,8 +103,7 @@ class Runs:
                 "\n".join(f"- step {s['n']} {s['kind']} on {s['worker']}: ok={bool(s['ok'])} {s['output'][:200]!r}" for s in last) + "\n")
         with open(path, "w") as f:
             f.write(body)
-        self.con.execute("UPDATE runs SET ticket=? WHERE id=?", (path, rid))
-        self.con.commit()
+        self.con.write("UPDATE runs SET ticket=? WHERE id=?", (path, rid))
         return path
 
     def save_patch(self, rid: str, diff: str) -> str:
