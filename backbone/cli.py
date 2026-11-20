@@ -148,9 +148,13 @@ def main(argv=None) -> None:
     mon = sub.add_parser("monitor", help="collect local or SSH host resource snapshots")
     mon.add_argument("--host", nargs="+", action="extend", default=[])
     mon.add_argument("--json", action="store_true"); mon.add_argument("--write", action="store_true")
+    sub.add_parser("factory-status", add_help=False, help="read-only business factory status JSON")
     for name in ("contract", "diagnose", "recover", "status", "harness", "install", "guard"):
         sub.add_parser(name, add_help=False)
     a, rest = ap.parse_known_args(argv)
+    if a.cmd == "factory-status":
+        from .factory_status import main as entry
+        raise SystemExit(entry(rest))
     if a.cmd in ("contract", "diagnose", "recover", "status", "harness", "install", "guard"):
         if a.cmd == "guard":
             from . import guard
