@@ -286,7 +286,7 @@ def test_rag_fuses_dense_and_bm25(bb, monkeypatch):
         library.upsert(bb.con, "skill", n, d, d, {}, n)
     vocab = {"copywriting": [1, 0, 0], "cold-email": [0, 1, 0], "seo": [0, 0, 1]}
 
-    def fake_post(pool, base, model, texts, kind):
+    def fake_post(pool, base, model, texts, kind, fast=False):
         out = []
         for t in texts:
             v = [0, 0, 0]

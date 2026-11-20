@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Approvals</title>
+<style>
+:root{--bg:#f4f1ec;--card:#fff;--ink:#17181a;--mut:#6b6f76;--ok:#1f8a4c;--no:#c4372b;--later:#b7791f;--line:#e2ded6}
+@media (prefers-color-scheme:dark){:root{--bg:#121315;--card:#1c1e21;--ink:#eceae5;--mut:#9a9da3;--line:#2c2f33}}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);overscroll-behavior:none}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 2px;color:var(--mut);font-size:14px}
+#stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
+.card{position:absolute;width:100%;max-width:560px;max-height:100%;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.08);touch-action:pan-y;user-select:none}
+.badge{display:inline-block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:2px 10px;margin-bottom:10px}
+h1{font-size:20px;margin:0 0 10px;line-height:1.25}
+.body{white-space:pre-wrap;word-break:break-word;font-size:15px}
+.link{display:inline-block;margin-top:12px;color:var(--ink);font-size:14px}
+.stamp{position:absolute;top:18px;font-weight:800;font-size:22px;border:3px solid;border-radius:10px;padding:2px 10px;opacity:0;transform:rotate(-8deg)}
+.s-ok{right:18px;color:var(--ok)}.s-no{left:18px;color:var(--no)}.s-later{left:50%;transform:translateX(-50%);color:var(--later)}
+#bar{display:flex;gap:12px;justify-content:center;padding:14px 0 6px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:12px 18px;min-width:64px}
+button.ok{background:var(--ok);color:#fff;border-color:var(--ok)}button.no{background:var(--no);color:#fff;border-color:var(--no)}
+#cm{display:none;padding:0 0 12px}#cm textarea{width:100%;min-height:64px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:10px;font:inherit}
+#empty{text-align:center;color:var(--mut)}#hint{text-align:center;color:var(--mut);font-size:12px;padding-bottom:6px}
+</style></head><body>
+<header><span id="count">loading</span><span id="auth"></span></header>
+<div id="stage"><div id="empty" hidden>Deck clear. Nothing waits for you.</div></div>
+<div id="cm"><textarea id="ct" placeholder="Optional comment travels with your decision, e.g. shorter, change the offer, wrong lead"></textarea></div>
+<div id="bar"><button class="no" id="b-no">No</button><button id="b-later">Later</button><button id="b-cm">Comment</button><button id="b-undo">Undo</button><button class="ok" id="b-ok">Do</button></div>
+<div id="hint">swipe right = do, left = no, up = later &middot; keys: &rarr; &larr; &uarr; &middot; C comment &middot; Z undo</div>
+<script>
+let token=(location.hash.match(/t=([^&]+)/)||[])[1]||sessionStorage.getItem('bt')||'';
+if(!token){token=prompt('Router token')||''}
+if(token){sessionStorage.setItem('bt',token);history.replaceState(null,'',location.pathname)}
+const H=()=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
+const BASE=location.pathname.replace(/\/$/,'');let deck=[],last=null,busy=false;const $=id=>document.getElementById(id),stage=$('stage');
+async function load(){try{const r=await fetch(BASE+'/queue',{headers:H()});if(r.status==401){$('auth').textContent='bad token';return}
+ const d=await r.json();$('auth').textContent='';if(deck.length&&d.cards.length&&deck[0].id==d.cards[0].id&&deck.length==d.cards.length)return;deck=d.cards;render()}catch(e){$('auth').textContent='offline'}}
+function render(){[...stage.querySelectorAll('.card')].forEach(n=>n.remove());$('count').textContent=deck.length?deck.length+' waiting':'0 waiting';
+ $('empty').hidden=deck.length>0;if(!deck.length)return;const c=deck[0];const el=document.createElement('div');el.className='card';
+ el.innerHTML='<div class="stamp s-ok">DO</div><div class="stamp s-no">NO</div><div class="stamp s-later">LATER</div><span class="badge"></span><h1></h1><div class="body"></div>';
+ el.querySelector('.badge').textContent=c.kind+(c.batch?' · '+c.batch:'');el.querySelector('h1').textContent=c.title;el.querySelector('.body').textContent=c.body;
+ if(c.link){const a=document.createElement('a');a.className='link';a.href=c.link;a.target='_blank';a.rel='noopener';a.textContent='Open demo / source ↗';el.appendChild(a)}
+ stage.appendChild(el);drag(el)}
+async function decide(dec){if(busy||!deck.length)return;busy=true;const c=deck[0],cm=$('ct').value.trim();
+ const r=await fetch(BASE+'/decide',{method:'POST',headers:H(),body:JSON.stringify({id:c.id,decision:dec,comment:cm})});
+ if(r.ok){last=c;deck.shift();$('ct').value='';$('cm').style.display='none'}busy=false;render()}
+async function undo(){if(!last)return;await fetch(BASE+'/decide',{method:'POST',headers:H(),body:JSON.stringify({id:last.id,decision:'pending',comment:''})});deck.unshift(last);last=null;render()}
+function drag(el){let x0=0,y0=0,on=false,dx=0,dy=0;const st=n=>el.querySelector(n);
+ el.onpointerdown=e=>{on=true;x0=e.clientX;y0=e.clientY;el.setPointerCapture(e.pointerId)};
+ el.onpointermove=e=>{if(!on)return;dx=e.clientX-x0;dy=e.clientY-y0;el.style.transform=`translate(${dx}px,${Math.min(0,dy)}px) rotate(${dx/25}deg)`;
+  st('.s-ok').style.opacity=Math.max(0,dx/120);st('.s-no').style.opacity=Math.max(0,-dx/120);st('.s-later').style.opacity=Math.max(0,-dy/120)};
+ el.onpointerup=()=>{if(!on)return;on=false;el.style.transform='';['.s-ok','.s-no','.s-later'].forEach(s=>st(s).style.opacity=0);
+  if(dx>110)decide('approve');else if(dx<-110)decide('reject');else if(dy<-110)decide('later');dx=dy=0}}
+$('b-ok').onclick=()=>decide('approve');$('b-no').onclick=()=>decide('reject');$('b-later').onclick=()=>decide('later');$('b-undo').onclick=undo;
+$('b-cm').onclick=()=>{const m=$('cm');m.style.display=m.style.display=='block'?'none':'block';if(m.style.display=='block')$('ct').focus()};
+addEventListener('keydown',e=>{if(e.target.tagName=='TEXTAREA')return;({ArrowRight:()=>decide('approve'),ArrowLeft:()=>decide('reject'),ArrowUp:()=>decide('later'),c:()=>$('b-cm').click(),z:undo})[e.key]?.()});
+load();setInterval(load,20000);
+</script></body></html>

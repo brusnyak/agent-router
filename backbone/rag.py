@@ -21,7 +21,10 @@ from .keys import KeyPool, Transient
 RRF_K = 60
 
 
-def _post(pool: KeyPool, base_url: str, model: str, texts: List[str], input_type: str) -> List[List[float]]:
+def _post(pool: KeyPool, base_url: str, model: str, texts: List[str], input_type: str,
+          fast: bool = False) -> List[List[float]]:
+    # fast=True (live query path): one 6s attempt, then raise a non-Transient error so KeyPool.call
+    # does not retry across all keys (was 5 keys x 90s = up to 114s hang before the worker even ran).
     body = json.dumps({"model": model, "input": texts, "input_type": input_type, "encoding_format": "float",
                        "truncate": "END"}).encode()
 
@@ -29,13 +32,15 @@ def _post(pool: KeyPool, base_url: str, model: str, texts: List[str], input_type
         req = urllib.request.Request(base_url.rstrip("/") + "/embeddings", data=body,
                                      headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=90) as r:
+            with urllib.request.urlopen(req, timeout=6 if fast else 90) as r:
                 d = json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
-            if e.code == 429 or e.code >= 500:
+            if (e.code == 429 or e.code >= 500) and not fast:
                 raise Transient(f"embed http {e.code}")
             raise RuntimeError(f"embed http {e.code}: {e.read().decode(errors='replace')[:160]}")
         except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
+            if fast:
+                raise RuntimeError(f"embed slow/unreachable: {e}")
             raise Transient(str(e))
         return [x["embedding"] for x in sorted(d["data"], key=lambda x: x["index"])]
 
@@ -110,7 +115,7 @@ class Rag:
         vecs = self._load()
         if not vecs:
             return []
-        q = _post(self.pool, self.base_url, self.model, [query[:1500]], "query")[0]
+        q = _post(self.pool, self.base_url, self.model, [query[:1500]], "query", fast=True)[0]
         qa = array.array("f", q)
         qn = math.sqrt(sum(x * x for x in qa))
         kinds = None

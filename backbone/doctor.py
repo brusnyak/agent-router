@@ -19,7 +19,7 @@ PROBES = {
     "kilo": lambda b: [b, "run", "--auto", PROBE],
     "opencode": lambda b: [b, "run", PROBE],
     "omp": lambda b: [b, "-p", "--no-session", PROBE],
-    "pi": lambda b: [b, "-p", "--no-session", "--no-extensions", "--no-mcp", "--no-skills", "--model", "openrouter/openrouter/free", "--", PROBE],
+    "pi": lambda b: [b, "-p", "--no-session", "--no-extensions", "--no-mcp", "--no-skills", "--model", "nvidia/nemotron-3.5-super-vl-120b-a12b", "--", PROBE],  # same route as PiWorker (NVIDIA key from the pool)
 }
 
 
@@ -29,7 +29,11 @@ def probe(name: str, binary: str, cwd: str, timeout: int = 60) -> Dict:
     if not build:
         return {"name": name, "path": binary, "usable": None, "note": "no probe defined"}
     try:
-        p = run_group(build(binary), cwd=cwd, timeout=timeout, env=os.environ.copy())
+        env = os.environ.copy()
+        if name == "pi" and not env.get("NVIDIA_API_KEY"):
+            from .keys import load_named
+            env["NVIDIA_API_KEY"] = load_named(["NIM_1"]).get("NIM_1", "")
+        p = run_group(build(binary), cwd=cwd, timeout=timeout, env=env)
         out = ((p.stdout or "") + (p.stderr or "")).strip()
         ok = p.returncode == 0 and "ok" in out.lower()
         return {"name": name, "path": binary, "usable": ok, "latency_s": round(time.time() - t0, 1),

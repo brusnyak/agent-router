@@ -79,6 +79,7 @@ def test_pi_token_limit_truncation_is_terminal_and_keeps_key_slot(monkeypatch, t
     monkeypatch.setattr(workers, "_run", run)
 
     cfg = load_config()
+    cfg.setdefault("workers", {}).setdefault("pi", {})["proxy"] = False  # owner config enables the key proxy; keep hermetic
     for key, name in [("db", "runs.db"), ("graph_db", "graph.db"),
                       ("tickets_dir", "tickets"), ("runs_dir", "runs"), ("work_dir", "work")]:
         cfg[key] = str(tmp_path / name)

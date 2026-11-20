@@ -161,9 +161,15 @@ def make_handler(bb, token: str):
             return True
 
         def do_GET(self):
+            u = urlparse(self.path)
+            if u.path.rstrip("/") == "/approvals":  # static page only; the data API below still needs the bearer token
+                with open(os.path.join(os.path.dirname(__file__), "approvals_deck.html"), encoding="utf-8") as fh:
+                    return self._send_html(200, fh.read())
             if not self._auth():
                 return
-            u = urlparse(self.path)
+            if u.path == "/approvals/queue":
+                from . import approvals
+                return self._send(200, {"cards": approvals.pending(), "counts": approvals.counts()})
             if u.path == "/nodes":
                 return self._send(200, jobs.nodes())
             if u.path.startswith("/jobs/"):
@@ -253,11 +259,18 @@ def make_handler(bb, token: str):
             if not self._auth():
                 return
             path = urlparse(self.path).path
-            allowed = ("/submit", "/nodes/claim", "/nodes/result", "/v1/chat/completions")
+            allowed = ("/submit", "/nodes/claim", "/nodes/result", "/v1/chat/completions", "/approvals/decide", "/approvals/add")
             if path not in allowed:
                 return self._send(404, {"error": "not found"})
             try:
                 d = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                if path == "/approvals/decide":
+                    from . import approvals
+                    return self._send(200, {"ok": approvals.decide(str(d["id"]), str(d["decision"]), str(d.get("comment", "")))})
+                if path == "/approvals/add":
+                    from . import approvals
+                    return self._send(200, {"id": approvals.add(str(d.get("kind", "other")), str(d["title"]), str(d.get("body", "")),
+                                                                 str(d.get("link", "")), d.get("meta"), str(d.get("batch", "")), str(d.get("id", "")))})
                 if path == "/nodes/claim":
                     return self._send(200, {"job": jobs.claim_for_node(str(d["node"]), d.get("caps") or {})})
                 if path == "/nodes/result":

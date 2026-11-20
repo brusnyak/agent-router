@@ -77,6 +77,7 @@ class PiWorker:
         self.timeout = int(cfg.get("timeout_s", 600))
         self.model_id = nim_model
         self.thinking = str(cfg.get("thinking", "off"))
+        self.use_proxy = bool(cfg.get("proxy", False))  # owner config opts in; tests stay hermetic
 
     def run(self, prompt: str, cwd: str, pool: KeyPool, prefer: Optional[str] = None, system: str = "",
             retries: int = 1, backoff_s: float = 3.0, read_only: bool = False) -> Result:
@@ -84,10 +85,20 @@ class PiWorker:
 
         def once(name: str, key: str) -> Result:
             env = os.environ.copy()
-            env["NVIDIA_API_KEY"] = key
             isolated = tempfile.TemporaryDirectory(prefix="router-pi-")
             env["PI_CODING_AGENT_DIR"] = isolated.name
             model = self.model_id
+            from .plan import _proxy_up
+            from .keyproxy import PORT
+            if self.use_proxy and _proxy_up(PORT):
+                # key proxy up: pi gets a dummy key and a loopback base_url; the real key never enters its env or argv
+                env.pop("NVIDIA_API_KEY", None)
+                with open(os.path.join(isolated.name, "models.json"), "w") as fh:
+                    json.dump({"providers": {"router": {"baseUrl": f"http://127.0.0.1:{PORT}/v1", "api": "openai-completions",
+                                                        "apiKey": "router-local", "models": [{"id": model}]}}}, fh)
+                model = "router/" + model
+            else:
+                env["NVIDIA_API_KEY"] = key
             cmd = [self.cmd, "-p", "--no-session", "--no-extensions", "--no-mcp", "--no-skills",
                    "--no-prompt-templates", "--thinking", self.thinking, "--model", model]
             if read_only:
