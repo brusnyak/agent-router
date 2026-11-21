@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 HOME = os.path.expanduser("~")
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VAULT = os.path.join(HOME, "memory-vault")
+VAULT = os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault"))
 DB_PATH = os.path.join(PROJECT_ROOT, "kanban.db")
 
 # Oracle VM council endpoint (via SSH tunnel: ssh -L 3033:127.0.0.1:3033 oracle-vm)

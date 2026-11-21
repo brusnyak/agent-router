@@ -25,7 +25,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPTS = Path.home() / "memory-vault" / "scripts"
+SCRIPTS = Path(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault"))) / "scripts"
 REPO = Path.home() / "Developer" / "agent-router"
 
 

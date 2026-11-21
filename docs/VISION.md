@@ -1,6 +1,6 @@
 # Agent Router: vision (single source of intent)
 
-Status: DRAFT v2, 2026-11-12. Owner: Yegor. This file says WHAT and WHY. How it is built: `AGENT_ROUTER.md` (spec), `COMPONENTS.md` (what to reuse), `RESEARCH-AND-REDESIGN.md` (evidence and faults found).
+Status: DRAFT v2, 2026-11-12. Owner: project maintainer. This file says WHAT and WHY. How it is built: `AGENT_ROUTER.md` (spec), `COMPONENTS.md` (what to reuse), `RESEARCH-AND-REDESIGN.md` (evidence and faults found).
 
 ## 1. One sentence
 Turn a lazy, raw request into the one great prompt (or two) that makes the best-suited agent deliver the whole result, then run it, verify it, and remember it.

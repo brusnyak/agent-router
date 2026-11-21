@@ -31,7 +31,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_DIR = os.path.join(PROJECT_ROOT, "config")
 INVENTORY_PATH = os.path.join(CONFIG_DIR, "discovered-inventory.json")
 
-VAULT_SANDBOX = os.path.join(HOME, "memory-vault", "agents")
+VAULT_SANDBOX = os.path.join(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault")), "agents")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -293,9 +293,9 @@ def gaps_report(inventory: dict) -> List[str]:
         gaps.append("hermes CLI found but no config dir — verify hermes is configured before routing")
 
     if not inventory["vault"]["exists"]:
-        gaps.append("Vault not found at ~/memory-vault — vault-scoped features disabled until created")
+        gaps.append("Vault not found at ~/vault — vault-scoped features disabled until created")
     if not inventory["derived"]["vault_sandbox_ready"]:
-        gaps.append("Vault agents sandbox missing — will be created at ~/memory-vault/agents/")
+        gaps.append("Vault agents sandbox missing — will be created at ~/vault/agents/")
 
     running_browsers = [b for b in browsers if b["running"]]
     if not running_browsers:

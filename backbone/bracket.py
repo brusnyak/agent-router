@@ -17,6 +17,8 @@ import os
 import re
 import subprocess
 import sys
+
+from .paths import vault_dir
 import time
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -96,7 +98,7 @@ def load_ok() -> bool:
 
 def paused() -> bool:
     for f in (Path.home() / '.agent-router/PAUSE',
-              Path.home() / 'memory-vault/pages/dispatch-PAUSE'):
+              Path(vault_dir('pages', 'dispatch-PAUSE'))):
         if f.exists():
             return True
     return False

@@ -263,7 +263,7 @@ def test_context_pack_without_anchors(tmp_path):
 
 
 def test_discovery_proposes_only(monkeypatch, tmp_path):
-    script = tmp_path / 'memory-vault/scripts/vector_memory/query.py'
+    script = tmp_path / 'vault/scripts/vector_memory/query.py'
     script.parent.mkdir(parents=True)
     script.write_text('')
     monkeypatch.setattr(r.shutil, 'which', lambda name: '/fake/' + name)

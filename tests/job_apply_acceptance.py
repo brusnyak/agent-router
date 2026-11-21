@@ -1,3 +1,4 @@
+import os
 """Acceptance test for the job-application delegation task (router: jobs lane -> claude).
 
 Per posting (never submit; owner clicks):
@@ -18,7 +19,7 @@ import sys
 from pathlib import Path
 
 CV = Path.home() / "cv" / "cv-print.html"
-BRIEF = Path.home() / "memory-vault" / "pages" / "jobs-system" / "BRIEF.md"
+BRIEF = Path(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault"))) / "pages" / "jobs-system" / "BRIEF.md"
 
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess:

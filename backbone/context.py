@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from .db import DB
 
+from .paths import vault_dir
+
 import os
 import re
 import sqlite3
@@ -31,7 +33,7 @@ class Sessions:
         self.budget = int(cfg.get("budget_tokens", 24000))
         self.fold_over = int(cfg.get("summarize_over_tokens", 12000))
         self.keep_recent = int(cfg.get("keep_recent_turns", 6))
-        self.vault_query = os.path.expanduser(cfg.get("vault_query", "~/memory-vault/scripts/vector_memory/query.py"))
+        self.vault_query = os.path.expanduser(cfg.get("vault_query") or vault_dir("scripts", "vector_memory", "query.py"))
 
     def open(self, session_id: Optional[str] = None, project: str = "") -> str:
         sid = session_id or uuid.uuid4().hex[:10]

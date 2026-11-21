@@ -13,6 +13,8 @@ from itertools import islice
 import json
 import math
 import os
+
+from .paths import vault_dir
 from pathlib import Path
 import re
 import selectors
@@ -472,7 +474,7 @@ class Registry:
 def discover():
     """Proposals only: never modify config or silently activate a provider."""
     entries = []
-    script = Path.home() / "memory-vault/scripts/vector_memory/query.py"
+    script = Path(vault_dir("scripts", "vector_memory", "query.py"))
     if script.is_file():
         entries.append(dict(name="vault", type="cmd", enabled=False, params=dict(
             command=['python3', str(script), '{q}', '--top-k', '{k}'])))

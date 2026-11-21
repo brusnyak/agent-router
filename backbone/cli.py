@@ -8,6 +8,11 @@ import sys
 
 from . import library
 
+
+def vault_dir(*parts):
+    from .paths import vault_dir as _v
+    return _v(*parts)
+
 def Backbone(*args, **kwargs):
     """Lazy factory: lightweight commands need no optional worker dependencies."""
     from .core import Backbone as implementation
@@ -52,6 +57,11 @@ def main(argv=None) -> None:
 
     f = sub.add_parser("fanout", help="run several prompts in parallel, one NIM key each")
     f.add_argument("prompts", nargs="+"); f.add_argument("--cwd"); f.add_argument("--gate"); f.add_argument("--project", default="")
+    dp = sub.add_parser("dispatch", help="lease-guarded, wave-scheduled dispatch of packet files")
+    dp.add_argument("packets", nargs="+", help="packet .md files")
+    dp.add_argument("--cwd"); dp.add_argument("--project", default=""); dp.add_argument("--parallel", type=int, default=None)
+    dp.add_argument("--workers", default="", help="comma separated worker specs, e.g. omp,pi,kilo")
+    dp.add_argument("--dry-run", action="store_true", help="print wave plan only, no model calls")
 
     s = sub.add_parser("swarm", help="planner splits a goal, workers run subtasks in parallel")
     s.add_argument("goal"); s.add_argument("-n", default="auto", help="worker count or auto"); s.add_argument("--cwd"); s.add_argument("--gate"); s.add_argument("--project", default="")
@@ -82,7 +92,7 @@ def main(argv=None) -> None:
     rag = sub.add_parser("rag", help="RAG operations: rag index-vault / search-vault")
     rrag = rag.add_subparsers(dest="rcmd2", required=True)
     rag_idx = rrag.add_parser("index-vault", help="index vault pages into RAG library")
-    rag_idx.add_argument("--dir", default="~/memory-vault/pages"); rag_idx.add_argument("--limit", type=int, default=5000)
+    rag_idx.add_argument("--dir", default=vault_dir("pages")); rag_idx.add_argument("--limit", type=int, default=5000)
     rag_s = rrag.add_parser("search-vault", help="search vault pages in RAG")
     rag_s.add_argument("query"); rag_s.add_argument("-k", type=int, default=5)
 
@@ -115,7 +125,7 @@ def main(argv=None) -> None:
     sub.add_parser("init", help="write ~/.agent-router/backbone.yaml from what discover found")
     sub.add_parser("keys")
     tk = sub.add_parser("tickets", help="submit eligible vault tickets from pages/jobs/ to the existing SQLite queue")
-    tk.add_argument("--dir", default="~/memory-vault/pages/jobs", help="local vault jobs directory")
+    tk.add_argument("--dir", default=vault_dir("pages", "jobs"), help="local vault jobs directory")
     sub.add_parser("mcp")
     for n, (_f, h) in _EVAL.items():
         sub.add_parser(n, help=h)
@@ -135,9 +145,9 @@ def main(argv=None) -> None:
     nt.add_argument("--dry-run", action="store_true", help="simulate window and one task; isolated state, no network")
     nt.add_argument("--loop", action="store_true", help="loop ticks until PAUSE or out of window")
     pt = sub.add_parser("proactive-tick", help="enqueue one eligible step from the approved persistent goal manifest")
-    pt.add_argument("--manifest", default="~/memory-vault/pages/plans/proactive-goals.json")
+    pt.add_argument("--manifest", default=vault_dir("pages", "plans", "proactive-goals.json"))
     pc = sub.add_parser("proactive-cycle", help="run one bounded text-only unattended goal cycle")
-    pc.add_argument("--manifest", default="~/memory-vault/pages/plans/proactive-goals.json")
+    pc.add_argument("--manifest", default=vault_dir("pages", "plans", "proactive-goals.json"))
     sub.add_parser("proactive-status", help="persistent proactive goal state")
     it = sub.add_parser("idle-tick", help="run one idle-tick: submit the next backlog item if idle")
     it.add_argument("--idle-minutes", type=int, default=None)
@@ -356,6 +366,17 @@ def main(argv=None) -> None:
                   gate=health.rewrite_gate(a.gate, a.cwd or _o.getcwd()) if a.gate else a.gate,
                   isolate=not a.no_isolate, worker=worker, read_only=a.read_only, use_vault=not a.no_vault,
                   escalate=esc))
+    elif a.cmd == "dispatch":
+        workers = [w for w in a.workers.split(",") if w] or None
+        out = bb.dispatch(a.packets, cwd=a.cwd, project=a.project, max_parallel=a.parallel,
+                          workers=workers, dry_run=a.dry_run)
+        if a.dry_run:
+            for w in out:
+                print(f"wave {w['wave']}: {', '.join(w['packets'])}")
+        else:
+            for r in out:
+                gate = "pass" if r["gate_passed"] else "fail"
+                print(f"{r['name']} | {r['worker']}/{r['key_slot']} | {r['state']} | {gate} | {r['seconds']:.2f}")
     elif a.cmd == "fanout":
         _j(bb.fanout(a.prompts, project=a.project, cwd=a.cwd, gate=a.gate))
     elif a.cmd == "swarm":

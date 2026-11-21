@@ -14,7 +14,7 @@ providers:
     params:
       # Strings are shlex-split BEFORE {q}/{k} substitution. No shell is used.
       # argv lists also work; ~ expands in each argument.
-      command: 'python3 ~/memory-vault/scripts/vector_memory/query.py "{q}" --top-k {k}'
+      command: 'python3 ~/vault/scripts/vector_memory/query.py "{q}" --top-k {k}'
       timeout_s: 10
   - name: memory-mcp
     type: mcp_stdio

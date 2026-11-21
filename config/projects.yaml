@@ -32,7 +32,7 @@ projects:
     context_files: []
 
   - id: vault
-    path: ~/memory-vault
+    path: ~/vault
     name: Memory Vault
     type: research
     default_agent: claude
@@ -53,7 +53,7 @@ projects:
       - mechanical
 
   - id: business
-    path: ~/memory-vault
+    path: ~/vault
     name: Business (master plan, leads, outreach)
     keywords: [plan, master, vision, leads, lead, outreach, offer, pilot, cv, jobs, career, clients, sales, business, copy, polsia]
     type: ops

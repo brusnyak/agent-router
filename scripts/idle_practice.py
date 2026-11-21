@@ -3,7 +3,7 @@
 owner idle >= 10 min, no router run in flight, load < 4, last tick >= 30 min ago, < 8 ticks today, not paused.
 One READY auto-safe task from the ROI queue per tick, executed by `backbone run @pi --read-only` (read tool only:
 no shell, no write, no send, no spend). The receipt is written by this script into the vault, never by the worker.
-Receipts: ~/memory-vault/pages/reports/practice/ (INDEX.md = one line per tick). Stdlib only."""
+Receipts: ~/vault/pages/reports/practice/ (INDEX.md = one line per tick). Stdlib only."""
 import datetime as dt
 import json
 import os
@@ -13,7 +13,7 @@ import sys
 import time
 
 HOME = os.path.expanduser("~")
-VAULT = f"{HOME}/memory-vault"
+VAULT = os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault"))
 QUEUE = f"{VAULT}/pages/plans/2026-11-19-roi-execution-queue.md"
 PROMPT = f"{VAULT}/pages/prompts/agent-router-practice-mode-operator.md"
 OUT = f"{VAULT}/pages/reports/practice"
@@ -70,7 +70,7 @@ def main() -> int:
     json.dump(st, open(STATE, "w"))
     packet = (open(PROMPT, encoding="utf-8").read() + "\n\nCHOSEN TASK (execute only this):\n" + body +
               "\n\nLANE LIMITS: you have a read tool only (no shell, no write, no browsing). Read files under "
-              "~/memory-vault and ~/Developer. Cite file paths for every claim. If the task needs a tool you lack, "
+              "~/vault and ~/Developer. Cite file paths for every claim. If the task needs a tool you lack, "
               "reply RESULT: blocked and name the exact missing capability. Use at most 12 read calls, then answer: "
               "converge, do not keep exploring. Answer with the receipt fields only.")
     try:

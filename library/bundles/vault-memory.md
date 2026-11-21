@@ -17,7 +17,7 @@ Behavioural rules:
 ## Command
 Follow this numbered procedure and emit the exact output format:
 1. Ask what to recall, pin, or resume if not specified.
-2. Query the vault: `python3 ~/memory-vault/scripts/vector_memory/query.py "<topic>" --top-k 5`.
+2. Query the vault: `python3 ~/vault/scripts/vector_memory/query.py "<topic>" --top-k 5`.
 3. Read relevant pages: recall results, prior handoffs, plans.
 4. Extract new facts, decisions, reversals from the current turn.
 5. Write durable facts to the memory store; mark superseded facts stale.

@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """NVIDIA NIM chat call (stdlib). Keys read from the process env (set -a; . ~/.env) or the env file; never printed, never in argv.
 Rotates to the next key on 429. Library: chat(model, messages, ...) ; CLI: nim_call.py <model> [--system-file F] [--timeout S] < prompt
@@ -56,7 +57,7 @@ def _log(model, ok, err=""):
         pass
 
 
-RULES_JSON = os.path.join(os.path.expanduser("~"), "memory-vault/pages/dispatch-routes.json")
+RULES_JSON = os.path.join(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault")), "pages/dispatch-routes.json")
 
 
 def with_rules(messages):

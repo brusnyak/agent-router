@@ -2,7 +2,7 @@
 
 Config: `idle_minutes` (default 10). Backlog: `~/.agent-router/backlog.jsonl`,
 one JSON task per line: {prompt, gate, worker_hint, runner}. Items with
-`runner: mac` are addressed to `@node:mac`. Honours `~/memory-vault/pages/dispatch-PAUSE`.
+`runner: mac` are addressed to `@node:mac`. Honours the vault's `pages/dispatch-PAUSE` kill file (see `backbone.paths.vault_dir`).
 Idempotent (a submitted line is consumed from the backlog) and flock-safe (a lock
 serializes concurrent ticks).
 
@@ -18,12 +18,14 @@ import json
 import os
 import time
 
+from .paths import vault_dir
+
 from backbone.core import Backbone, load_config
 from backbone.jobs import Jobs
 
 DEFAULT_IDLE_MINUTES = 10
 BACKLOG = os.path.expanduser("~/.agent-router/backlog.jsonl")
-PAUSE = os.path.expanduser("~/memory-vault/pages/dispatch-PAUSE")
+PAUSE = vault_dir("pages", "dispatch-PAUSE")
 LOCK = os.path.expanduser("~/.agent-router/idle_tick.lock")
 
 

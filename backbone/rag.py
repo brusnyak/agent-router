@@ -145,13 +145,14 @@ class Rag:
                                       "via": ("both" if i in lex and i in den else "dense" if i in den else "bm25")})
         return out
 
-    def index_vault(self, vault_dir: str = "~/memory-vault/pages", limit: int = 5000) -> int:
-        """Index .md files under vault_dir as library rows with kind='vault'."""
+    def index_vault(self, vault_root: Optional[str] = None, limit: int = 5000) -> int:
+        """Index .md files under the vault as library rows with kind='vault'."""
+        from .paths import vault_dir as _vault_root
         import os
         import re
         from pathlib import Path
 
-        pages = Path(os.path.expanduser(vault_dir))
+        pages = Path(os.path.expanduser(vault_root or _vault_root("pages")))
         if not pages.exists():
             return 0
 
