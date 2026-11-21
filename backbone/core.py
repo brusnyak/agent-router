@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import itertools
 import subprocess
 import threading
 import time
@@ -22,8 +23,11 @@ from typing import Callable, Dict, List, Optional
 
 import yaml
 
-from . import library, nim, otel
+from . import library, limits as _limits, nim, otel
+from .lease import LeaseTable, path_conflicts
+from .packet import parse_packet
 from . import guard
+from .paths import vault_dir  # noqa: F401 re-exported for callers
 from .workflow import run_workflow
 from .context import Sessions, est_tokens
 from .db import connect
@@ -672,6 +676,81 @@ class Backbone:
                          f"(do not invent facts) to complete the goal.\n\n{parts}",
                          project=project, cwd=cwd, gate=gate, use_vault=False)
         return {"plan": subs, "results": results, "final": final}
+
+    def dispatch(self, packets, *, cwd: str, project: str = "", max_parallel: Optional[int] = None,
+                 workers: Optional[List[str]] = None, dry_run: bool = False) -> List[dict]:
+        """Parse packets, schedule waves so overlapping writes never run together, run each
+        under a lease. Returns per-packet {name, worker, key_slot, state, gate_passed,
+        seconds, leased}. dry_run returns the wave plan only (no model calls)."""
+        parsed = [parse_packet(p) for p in packets]
+        cwd_real = os.path.realpath(os.path.expanduser(cwd or os.getcwd()))
+        lim = _limits.load_limits()
+        cap = max(1, min(max_parallel or lim.get("max_workers", 4), 4))
+
+        waves: List[List[dict]] = []
+        todo = list(parsed)
+        while todo:
+            wave, deferred = [], []
+            for p in todo:
+                if any(path_conflicts(cwd_real, p["allowed_writes"], q["allowed_writes"]) for q in wave):
+                    deferred.append(p)
+                else:
+                    wave.append(p)
+            waves.append(wave)
+            todo = deferred
+
+        if dry_run:
+            return [{"wave": i + 1, "packets": [p["name"] for p in w]} for i, w in enumerate(waves)]
+
+        slots = list(workers or [f"pi:{k}" for k in (self.pool.names or [self.cfg["nim"]["default_key"]])])
+        slots = list(slots) or ["pi:NIM_1"]
+        slot_cycle = itertools.cycle(slots)
+        table = LeaseTable()
+        results: List[dict] = []
+
+        def run_one(item) -> None:
+            index, packet = item
+            run_id = uuid.uuid4().hex[:8]
+            slot = next(slot_cycle)
+            worker, _, key_slot = slot.partition(":")
+            key_slot = key_slot or slot
+            state = "leased"
+            seconds = 0.0
+            gate_passed = False
+            deadline = time.time() + 900.0
+            while True:
+                holder = table.acquire(run_id, cwd_real, packet["allowed_writes"], os.getpid())
+                if holder is None:
+                    break
+                if time.time() >= deadline:
+                    state = "lease_timeout"
+                    break
+                time.sleep(2)
+            t0 = time.time()
+            if state != "lease_timeout":
+                try:
+                    res = self.run(packet["goal"], project=project, cwd=cwd_real,
+                                   gate=packet["acceptance"] or None, worker=slot,
+                                   read_only=not packet["allowed_writes"])
+                    seconds = time.time() - t0
+                    state = res.get("state", "done")
+                    gate_passed = bool(res.get("gate_passed", state == "done"))
+                except Exception:
+                    seconds = time.time() - t0
+                    state = "failed"
+                finally:
+                    table.release(run_id)
+            results.append({"index": index, "name": packet["name"], "worker": worker,
+                            "key_slot": key_slot, "state": state, "gate_passed": gate_passed,
+                            "seconds": seconds, "leased": state != "lease_timeout"})
+
+        for wave in waves:
+            with ThreadPoolExecutor(max_workers=min(cap, len(wave))) as ex:
+                list(ex.map(run_one, list(enumerate(wave))))
+        results.sort(key=lambda r: r["index"])
+        for r in results:
+            del r["index"]
+        return results
 
     def delegate(self, goal: str, *, project: str = "", cwd: Optional[str] = None, gate: Optional[str] = None,
                  worker: str = "", max_subagents: int = 3, read_only: bool = False,

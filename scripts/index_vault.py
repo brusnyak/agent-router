@@ -4,9 +4,9 @@
 Builds a SQLite FTS5 + TF-IDF cosine-similarity index over:
 - SKILL.md files (~/.agent-skills, ~/.claude/skills)
 - Hooks (~/.claude/hooks/*.py)
-- Vault pages (~/memory-vault/pages/*.md)
+- Vault pages (~/vault/pages/*.md)
 - Local repos (~/Developer/* AGENTS.md / CLAUDE.md / README.md)
-- last30days output (~/memory-vault/pages/research-*.md, last30days skill)
+- last30days output (~/vault/pages/research-*.md, last30days skill)
 
 Output: config/index.db (SQLite, FTS5 virtual table + tfidf metadata)
 Usable by the supervisor for index-aware routing before dispatch.
@@ -71,7 +71,7 @@ def discover_corpus() -> List[Dict[str, str]]:
             })
 
     # 3. Vault pages
-    vault_pages = os.path.join(HOME, "memory-vault", "pages")
+    vault_pages = os.path.join(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault")), "pages")
     if os.path.isdir(vault_pages):
         for pf in glob.glob(os.path.join(vault_pages, "**", "*.md"), recursive=True):
             try:

@@ -162,7 +162,8 @@ def test_mcp_boundary_refuses_outside_roots_and_unknown_gates(bb):
     with _p.raises(PermissionError):
         bb.named_gate("rm -rf /")
     assert bb.named_gate("noop") == "true"
-    assert bb.check_cwd(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).endswith("agent-router")
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    assert bb.check_cwd(repo_root) == repo_root  # a clone may live in any directory name
 
 
 def test_pi_read_only_gets_read_tool_only(bb, monkeypatch):
@@ -286,7 +287,7 @@ def test_rag_fuses_dense_and_bm25(bb, monkeypatch):
         library.upsert(bb.con, "skill", n, d, d, {}, n)
     vocab = {"copywriting": [1, 0, 0], "cold-email": [0, 1, 0], "seo": [0, 0, 1]}
 
-    def fake_post(pool, base, model, texts, kind):
+    def fake_post(pool, base, model, texts, kind, fast=False):
         out = []
         for t in texts:
             v = [0, 0, 0]
@@ -465,7 +466,7 @@ def test_analyze_validates():
 def test_no_personal_paths_in_tracked_code():
     """Open-source gate: no owner-specific absolute path or handle in tracked code/config (docs and data excluded)."""
     import subprocess
-    out = subprocess.run(["git", "grep", "-l", "-E", "/Users/[a-z]|yegor|brusnyak", "--", ".", ":!docs", ":!*.md", ":!data", ":!artifacts", ":!.archon", ":!tests", ":!eval/check_bundle.py"],
+    out = subprocess.run(["git", "grep", "-l", "-E", "/Users/[a-z]|yegor|brusnyak|memory-vault", "--", ".", ":!docs", ":!*.md", ":!data", ":!artifacts", ":!.archon", ":!tests", ":!eval/check_bundle.py"],
                          capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.split()
     assert out == [], f"personal paths in: {out}"
 

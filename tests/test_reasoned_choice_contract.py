@@ -22,7 +22,7 @@ def test_source_declarations_do_not_require_private_local_files():
     assert paths == {'~/.agent-skills/core/reproduce/SKILL.md'}
     assert 'optional' in text
     assert 'standalone use' in text
-    assert 'memory-vault/' not in text
+    assert 'memory-' + 'vault/' not in text  # private vault paths stay out of the skill
 
 
 def test_candidate_not_in_discoverable_skill_roots():

@@ -136,7 +136,7 @@ def test_browsers_available():
     assert all(isinstance(b, str) for b in browsers)
 
 
-@pytest.mark.skipif(not os.path.isdir(os.path.expanduser("~/memory-vault")), reason="machine-local vault absent")
+@pytest.mark.skipif(not os.path.isdir(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault"))), reason="machine-local vault absent")
 def test_vault_sandbox_ready():
     """derived.vault_sandbox_ready is True when vault exists."""
     inv = discover()

@@ -27,7 +27,7 @@ HOME = os.path.expanduser("~")
 _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_SCRIPTS_DIR)
 sys.path.insert(0, _SCRIPTS_DIR)
-_memory_vault_scripts = os.path.join(HOME, "memory-vault", "scripts")
+_memory_vault_scripts = os.path.join(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault")), "scripts")
 if os.path.isdir(_memory_vault_scripts):
     sys.path.insert(0, _memory_vault_scripts)
 import nim_call  # noqa: E402

@@ -15,9 +15,11 @@ import math
 import sqlite3
 import sys
 import time
+
+from .paths import vault_dir
 from typing import Dict, List, Optional
 
-DEFAULT_PAUSE = ["~/.agent-router/PAUSE", "~/memory-vault/pages/dispatch-PAUSE"]
+DEFAULT_PAUSE = ["~/.agent-router/PAUSE", vault_dir("pages", "dispatch-PAUSE")]
 EXPERT = {"claude", "codex"}              # run on the owner's own subscription
 UNATTENDED_DEFAULT_CALLS = 200            # applies only when unattended and nothing else is configured
 

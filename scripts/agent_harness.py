@@ -31,7 +31,7 @@ from typing import Any, Dict, List, Optional
 HOME = os.path.expanduser("~")
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_DIR = os.path.join(_PROJECT_ROOT, "config")
-VAULT_SANDBOX = os.path.join(HOME, "memory-vault", "agents")
+VAULT_SANDBOX = os.path.join(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault")), "agents")
 
 # NIM key rotation order
 NIM_KEYS = ["NIM_1", "NIM_2", "NIM_3"]
@@ -105,7 +105,7 @@ class AgentHarness:
     def _nim_call(self, prompt: str, max_retries: int = 3) -> str:
         """Call NIM model with key rotation and exponential backoff."""
         import sys as _sys
-        sys.path.insert(0, os.path.join(HOME, "memory-vault", "scripts"))
+        sys.path.insert(0, os.path.join(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault")), "scripts"))
         import nim_call
 
         last_error = ""

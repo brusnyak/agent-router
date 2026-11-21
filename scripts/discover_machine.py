@@ -141,7 +141,7 @@ def _exists(path: str) -> bool:
 
 
 def scan_vault() -> Dict[str, Any]:
-    vault = os.path.join(HOME, "memory-vault")
+    vault = os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault"))
     return {
         "path": vault,
         "exists": _exists(vault),
@@ -209,7 +209,7 @@ def scan_project_roots() -> Dict[str, Any]:
     roots = [
         os.path.join(HOME, "Developer"),
         os.path.join(HOME, "Documents", "Acore"),
-        os.path.join(HOME, "memory-vault"),
+        os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault")),
     ]
     found: Dict[str, Any] = {}
     for r in roots:
@@ -231,7 +231,7 @@ def scan_project_roots() -> Dict[str, Any]:
 def scan_last30days() -> Dict[str, Any]:
     paths = [
         os.path.join(HOME, "Developer", "refs", "mvanhorn_last30days-skill"),
-        os.path.join(HOME, "memory-vault", "pages"),
+        os.path.join(os.path.expanduser(os.environ.get("BACKBONE_VAULT", "~/vault")), "pages"),
     ]
     found: Dict[str, Any] = {}
     for p in paths:

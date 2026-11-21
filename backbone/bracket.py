@@ -1,7 +1,8 @@
 """Bracket mode: idle-triggered daytime bounded work via the router.
 
 Reuses night.py helpers (atomic, confined). Triggers when the Mac is idle
-> 10 min, on AC power, PAUSE absent, load < 6, and no interactive Claude
+past the configured idle threshold, on AC power, PAUSE absent, below the
+configured load threshold (see ~/.agent-router/limits.json), and no interactive Claude
 on a TTY. Dispatches read-only tasks through Backbone.run so the router
 picks the right worker and applies gates.
 
@@ -16,19 +17,21 @@ import os
 import re
 import subprocess
 import sys
+
+from .paths import vault_dir
 import time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from . import guard
 from .night import atomic, confined
+from .limits import load_limits
 
 ROOT = Path.home() / 'Developer/agent-router'
 TASKS = Path.home() / '.agent-router/data/bracket/tasks.yaml'
 STATE_DIR = Path.home() / '.agent-router/data/bracket/state'
 OUT_DIR = Path.home() / '.agent-router/data/bracket/out'
 LOG = Path.home() / 'Library/Logs' / 'bracket-mode.log'
-IDLE_SEC_DEFAULT = 600
 TZ = ZoneInfo('Europe/Bratislava')
 
 
@@ -88,14 +91,14 @@ def interactive_claude() -> bool:
 
 def load_ok() -> bool:
     try:
-        return os.getloadavg()[0] < 6.0
-    except OSError:
+        return os.getloadavg()[0] < load_limits()['max_load']
+    except (OSError, ValueError):
         return False
 
 
 def paused() -> bool:
     for f in (Path.home() / '.agent-router/PAUSE',
-              Path.home() / 'memory-vault/pages/dispatch-PAUSE'):
+              Path(vault_dir('pages', 'dispatch-PAUSE'))):
         if f.exists():
             return True
     return False
@@ -156,7 +159,9 @@ def run_task(task, cwd=None):
     return res
 
 
-def tick(tasks_path=TASKS, *, force: bool = False, idle_sec: int = IDLE_SEC_DEFAULT) -> dict:
+def tick(tasks_path=TASKS, *, force: bool = False, idle_sec: float | None = None) -> dict:
+    if idle_sec is None:
+        idle_sec = load_limits()['idle_minutes'] * 60
     now = dt.datetime.now(TZ)
     event = {'time': now.isoformat(), 'state': None, 'tasks_run': 0}
 
@@ -228,7 +233,7 @@ def tick(tasks_path=TASKS, *, force: bool = False, idle_sec: int = IDLE_SEC_DEFA
     return event
 
 
-def run_tick(tasks_path=None, *, force: bool = False, idle_sec: int = IDLE_SEC_DEFAULT) -> int:
+def run_tick(tasks_path=None, *, force: bool = False, idle_sec: float | None = None) -> int:
     result = tick(tasks_path or str(TASKS), force=force, idle_sec=idle_sec)
     print(json.dumps(result, ensure_ascii=False))
     return result['rc']
@@ -239,6 +244,6 @@ if __name__ == '__main__':  # pragma: no cover
     ap = argparse.ArgumentParser()
     ap.add_argument('--tasks', default=str(TASKS))
     ap.add_argument('--force', action='store_true')
-    ap.add_argument('--idle-sec', type=int, default=IDLE_SEC_DEFAULT)
+    ap.add_argument('--idle-sec', type=int, default=None)
     a = ap.parse_args()
     raise SystemExit(run_tick(a.tasks, force=a.force, idle_sec=a.idle_sec))

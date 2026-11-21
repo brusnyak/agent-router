@@ -129,10 +129,13 @@ def check(snap: dict, limits: dict | None = None) -> list[str]:
 
 
 def ok_to_dispatch(snap: dict) -> tuple[bool, str]:
+    from .limits import load_limits
+
     if "error" in snap:
         return False, f"collection failed: {snap['error']}"
-    if snap["load1"] >= 10:
-        return True, f"warning: load1 {snap['load1']:.1f} >= 10; dispatch still allowed but host is heavily loaded"
+    max_load = load_limits()['max_load']
+    if snap["load1"] >= max_load:
+        return True, f"warning: load1 {snap['load1']:.1f} >= {max_load}; dispatch still allowed but host is heavily loaded"
     if snap["mem_avail_mb"] < 500:
         return False, "mem_avail_mb < 500"
     return True, "resources available"

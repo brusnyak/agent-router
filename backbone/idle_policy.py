@@ -7,6 +7,8 @@ of eligibility; a one-time check is not an enforcement boundary.
 from dataclasses import dataclass
 import math
 
+from .limits import load_limits
+
 
 @dataclass(frozen=True)
 class Snapshot:
@@ -16,8 +18,12 @@ class Snapshot:
     paused: bool | None
 
 
-def decision(snapshot: Snapshot, *, min_idle: float = 600, max_load: float = 6) -> str:
+def decision(snapshot: Snapshot, *, min_idle: float | None = None, max_load: float | None = None) -> str:
     """Return 'ready' or the first reason the supervisor must not run."""
+    if min_idle is None or max_load is None:
+        limits = load_limits()
+        min_idle = limits['idle_minutes'] * 60 if min_idle is None else min_idle
+        max_load = limits['max_load'] if max_load is None else max_load
     if not math.isfinite(min_idle) or min_idle < 0 or not math.isfinite(max_load) or max_load <= 0:
         raise ValueError('invalid policy thresholds')
     if snapshot.paused is not False:

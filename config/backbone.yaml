@@ -1,6 +1,6 @@
 # Backbone config. Shareable: no secrets here, only env var NAMES. Copy to ~/.agent-router/backbone.yaml to override.
 db: data/backbone.db
-tickets_dir: data/tickets          # point at your vault inbox when ready, e.g. ~/memory-vault/inbox/tickets
+tickets_dir: data/tickets          # point at your vault inbox when ready, e.g. ~/vault/inbox/tickets
 runs_dir: data/runs
 graph_db: data/graph.db
 work_dir: data/work
@@ -35,7 +35,7 @@ context:
   budget_tokens: 24000
   summarize_over_tokens: 12000
   keep_recent_turns: 6
-  vault_query: ~/memory-vault/scripts/vector_memory/query.py
+  vault_query: ~/vault/scripts/vector_memory/query.py
 
 library:
   sources:
@@ -56,8 +56,8 @@ library:
     - {path: ~/Developer/refs/VoltAgent_awesome-design-md,             kind: design}
     - {path: ~/Developer/refs/zubair-trabzada_ai-sales-team-claude,    kind: playbook}
     - {path: ~/.codex/skills,                                          kind: skill}
-    - {path: ~/memory-vault/pages/upwork-drafts,                       kind: application}
-    - {path: ~/memory-vault/pages/jobs-system,                         kind: application}
+    - {path: ~/vault/pages/upwork-drafts,                       kind: application}
+    - {path: ~/vault/pages/jobs-system,                         kind: application}
     - {path: docs/appendix,                                            kind: loop}
     - {path: ~/Developer/refs/anthropic-web,                           kind: prompt}
     - {path: ~/Developer/refs/anthropics_skills/skills,                kind: skill}

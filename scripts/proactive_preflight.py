@@ -99,7 +99,7 @@ def inspect(manifest_path, cfg, *, env=None, now=None, load=None, doctor_path=No
 def main():
     from backbone.core import load_config, ROOT
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--manifest', default='~/memory-vault/pages/plans/proactive-goals.json')
+    parser.add_argument('--manifest', default='~/vault/pages/plans/proactive-goals.json')
     parser.add_argument('--config')
     args = parser.parse_args()
     try:

@@ -28,7 +28,7 @@ Inputs: roast agent (static review, no shell), researcher agent (web, abstract-l
 - Extra reasoning: deterministic verifiers first (gate, schema, evidence); self-consistency N=3 only for short checkable answers (arXiv 2203.11171: +17.9 on GSM8K with PaLM-540B); Reflexion only where tests exist; Chain-of-Verification is 3-4x calls, too costly on free-tier RPM.
 - Memory: mem0/Zep/A-MEM numbers conflict across summaries by 5-10 points and one independent A/B found no gain over strong RAG: build the minimal SQLite design (turns, facts with validity window, pinned facts, FTS + vector, fold older turns) and evaluate on the owner's own sessions.
 - Prompt optimisation (DSPy, OPRO, TextGrad): needs a metric and labelled set; defer until the outcome log exists.
-- Local note the router work ignored: `~/memory-vault/pages/research/router-landscape-2026-10-31.md`.
+- Local note the router work ignored: `~/vault/pages/research/router-landscape-2026-10-31.md`.
 
 ## 4. Redesign (what changes in the spec)
 1. Outcome log: every run writes (task_class, route, gate_pass, evidence_ok, latency, tokens, owner accept/reject). Substrate for math, curation and eval.

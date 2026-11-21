@@ -18,7 +18,7 @@ make compile text="Fix failing tests in my project"
 make run prompt="Review this project" worker=codex gate="noop"
 
 # Submit eligible vault tickets to the existing queue
-make tickets [dir=~/memory-vault/pages/jobs]
+make tickets [dir=~/vault/pages/jobs]
 ```
 
 `make install` is the equivalent of `python3 -m venv .venv && pip install -r requirements.txt`.

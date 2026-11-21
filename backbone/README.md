@@ -25,6 +25,14 @@ python -m backbone run "/build @nim1 create hello.py that prints hi" --cwd ~/som
 | `keys` | which keys are present, cooling down, ok/fail counts |
 | `mcp` | stdio MCP server: dispatch, submit, fanout, library_search, library_get, run_status, keys_status |
 
+## Dispatch (`backbone dispatch`)
+
+`backbone dispatch [--cwd C] [--project P] [--parallel N] [--workers omp,pi,kilo] [--dry-run] packet.md ...`
+
+Parses each packet, schedules waves so overlapping `Allowed writes` never run together, and runs each packet under a lease
+(poll 2 s, 15 min timeout -> `lease_timeout`). Prints one line per packet: `name | worker/key | state | gate | seconds`.
+`--dry-run` prints the wave plan only.
+
 ## Behaviour you can rely on
 - Every run works in a detached git worktree; the result is `data/runs/<id>/patch.diff`, not a claim.
 - No gate means `verified: false` and the result says so.

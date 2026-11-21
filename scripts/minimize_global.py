@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """Minimize global Claude Code config to Karpathy-style guidelines + mentor/caveman/ponytail.
 Backs up everything it touches to ~/.claude/backups-minimize-<ts>/. Dry-run unless --apply.
@@ -7,10 +8,10 @@ import json, os, shutil, sys, time
 
 H = os.path.expanduser("~/.claude")
 apply = "--apply" in sys.argv
-DROP = ("intake_hook.py", "session_retro.py", "agent-log.py", "memory-vault/scripts/re")
+DROP = ("intake_hook.py", "session_retro.py", "agent-log.py", "scripts/re")
 
 CLAUDE_MD = """# Global rules (minimal; Karpathy guidelines + mentor/caveman/ponytail)
-Owner: Yegor. Facts only when relevant: ~/memory-vault/pages/owner-facts.md. Recall: `python3 ~/memory-vault/scripts/vector_memory/query.py "<topic>" --top-k 5`.
+Owner: maintainer. Facts only when relevant: ~/vault/pages/owner-facts.md. Recall: `python3 ~/vault/scripts/vector_memory/query.py "<topic>" --top-k 5`.
 
 ## Method (Karpathy)
 1. Think first: state assumptions, ask only if the answer changes the decision.

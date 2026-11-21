@@ -9,6 +9,10 @@ import sys
 from . import library
 
 
+def vault_dir(*parts):
+    from .paths import vault_dir as _v
+    return _v(*parts)
+
 def Backbone(*args, **kwargs):
     """Lazy factory: lightweight commands need no optional worker dependencies."""
     from .core import Backbone as implementation
@@ -53,6 +57,11 @@ def main(argv=None) -> None:
 
     f = sub.add_parser("fanout", help="run several prompts in parallel, one NIM key each")
     f.add_argument("prompts", nargs="+"); f.add_argument("--cwd"); f.add_argument("--gate"); f.add_argument("--project", default="")
+    dp = sub.add_parser("dispatch", help="lease-guarded, wave-scheduled dispatch of packet files")
+    dp.add_argument("packets", nargs="+", help="packet .md files")
+    dp.add_argument("--cwd"); dp.add_argument("--project", default=""); dp.add_argument("--parallel", type=int, default=None)
+    dp.add_argument("--workers", default="", help="comma separated worker specs, e.g. omp,pi,kilo")
+    dp.add_argument("--dry-run", action="store_true", help="print wave plan only, no model calls")
 
     s = sub.add_parser("swarm", help="planner splits a goal, workers run subtasks in parallel")
     s.add_argument("goal"); s.add_argument("-n", default="auto", help="worker count or auto"); s.add_argument("--cwd"); s.add_argument("--gate"); s.add_argument("--project", default="")
@@ -73,14 +82,17 @@ def main(argv=None) -> None:
     xi.add_argument("--limit-per-kind", type=int, default=None)
     q = ls.add_parser("search"); q.add_argument("query"); q.add_argument("--kind"); q.add_argument("-k", type=int, default=5)
 
-    cat = sub.add_parser("catalog", help="catalog operations: catalog ingest")
+    cat = sub.add_parser("catalog", help="catalog operations: catalog ingest, catalog models")
     ccat = cat.add_subparsers(dest="ccmd")
     ccat.add_parser("ingest", help="ingest ECC personas + agency agents into catalog skills")
+    models = ccat.add_parser("models", help="snapshot and probe free models once per UTC day")
+    models.add_argument("--out", default="~/.agent-router/model_catalog.json")
+    models.add_argument("--force", action="store_true", help="repeat today's probes")
 
     rag = sub.add_parser("rag", help="RAG operations: rag index-vault / search-vault")
     rrag = rag.add_subparsers(dest="rcmd2", required=True)
     rag_idx = rrag.add_parser("index-vault", help="index vault pages into RAG library")
-    rag_idx.add_argument("--dir", default="~/memory-vault/pages"); rag_idx.add_argument("--limit", type=int, default=5000)
+    rag_idx.add_argument("--dir", default=vault_dir("pages")); rag_idx.add_argument("--limit", type=int, default=5000)
     rag_s = rrag.add_parser("search-vault", help="search vault pages in RAG")
     rag_s.add_argument("query"); rag_s.add_argument("-k", type=int, default=5)
 
@@ -103,11 +115,17 @@ def main(argv=None) -> None:
     nd.add_argument("--hub", required=True, help="hub serve URL, e.g. http://127.0.0.1:8799 (through an ssh -L tunnel)"); nd.add_argument("--name", required=True)
     dr = sub.add_parser("doctor", help="probe every detected agent with one tiny headless call (uses your logins briefly)")
     dr.add_argument("--only", nargs="*")
+    apv = sub.add_parser("approvals", help="approval deck: add a card, list waiting cards, decide, ask status (swipe UI at /approvals on `backbone serve`)")
+    apv.add_argument("op", choices=["add", "list", "decide", "status"]); apv.add_argument("--id", default="")
+    apv.add_argument("--kind", default="other"); apv.add_argument("--title", default=""); apv.add_argument("--body", default="")
+    apv.add_argument("--link", default=""); apv.add_argument("--batch", default=""); apv.add_argument("--decision", default=""); apv.add_argument("--comment", default="")
+    kp = sub.add_parser("proxy", help="loopback key proxy: agents use base_url http://127.0.0.1:8790/v1 + any dummy key; real keys stay in the router")
+    kp.add_argument("--port", type=int, default=0)
     sub.add_parser("discover", help="detect agents, keys, ssh hosts, projects on this machine")
     sub.add_parser("init", help="write ~/.agent-router/backbone.yaml from what discover found")
     sub.add_parser("keys")
     tk = sub.add_parser("tickets", help="submit eligible vault tickets from pages/jobs/ to the existing SQLite queue")
-    tk.add_argument("--dir", default="~/memory-vault/pages/jobs", help="local vault jobs directory")
+    tk.add_argument("--dir", default=vault_dir("pages", "jobs"), help="local vault jobs directory")
     sub.add_parser("mcp")
     for n, (_f, h) in _EVAL.items():
         sub.add_parser(n, help=h)
@@ -127,10 +145,12 @@ def main(argv=None) -> None:
     nt.add_argument("--dry-run", action="store_true", help="simulate window and one task; isolated state, no network")
     nt.add_argument("--loop", action="store_true", help="loop ticks until PAUSE or out of window")
     pt = sub.add_parser("proactive-tick", help="enqueue one eligible step from the approved persistent goal manifest")
-    pt.add_argument("--manifest", default="~/memory-vault/pages/plans/proactive-goals.json")
+    pt.add_argument("--manifest", default=vault_dir("pages", "plans", "proactive-goals.json"))
     pc = sub.add_parser("proactive-cycle", help="run one bounded text-only unattended goal cycle")
-    pc.add_argument("--manifest", default="~/memory-vault/pages/plans/proactive-goals.json")
+    pc.add_argument("--manifest", default=vault_dir("pages", "plans", "proactive-goals.json"))
     sub.add_parser("proactive-status", help="persistent proactive goal state")
+    it = sub.add_parser("idle-tick", help="run one idle-tick: submit the next backlog item if idle")
+    it.add_argument("--idle-minutes", type=int, default=None)
 
     pl.add_argument("text", nargs="*"); pl.add_argument("--table", action="store_true")
     cp = sub.add_parser("compile", help="prompt -> compact card (entities kept verbatim)")
@@ -138,9 +158,13 @@ def main(argv=None) -> None:
     mon = sub.add_parser("monitor", help="collect local or SSH host resource snapshots")
     mon.add_argument("--host", nargs="+", action="extend", default=[])
     mon.add_argument("--json", action="store_true"); mon.add_argument("--write", action="store_true")
+    sub.add_parser("factory-status", add_help=False, help="read-only business factory status JSON")
     for name in ("contract", "diagnose", "recover", "status", "harness", "install", "guard"):
         sub.add_parser(name, add_help=False)
     a, rest = ap.parse_known_args(argv)
+    if a.cmd == "factory-status":
+        from .factory_status import main as entry
+        raise SystemExit(entry(rest))
     if a.cmd in ("contract", "diagnose", "recover", "status", "harness", "install", "guard"):
         if a.cmd == "guard":
             from . import guard
@@ -260,6 +284,17 @@ def main(argv=None) -> None:
                                fh, sort_keys=False)
             print("wrote", out_path + ";", len(caps["projects"]), "projects; ssh hosts you can add under `hosts:`:", caps["ssh_hosts"])
         return
+    if a.cmd == "approvals":
+        from . import approvals
+        if a.op == "add":
+            print(approvals.add(a.kind, a.title, a.body, a.link, None, a.batch, a.id))
+        elif a.op == "list":
+            _j({"counts": approvals.counts(), "cards": [{k: c[k] for k in ("id", "kind", "title", "decision")} for c in approvals.pending()]})
+        elif a.op == "decide":
+            print(approvals.decide(a.id, a.decision, a.comment))
+        else:
+            _j(approvals.status(a.id))
+        return
     if a.cmd == "doctor":
         from .discover import discover
         from .doctor import run as doctor_run
@@ -271,10 +306,22 @@ def main(argv=None) -> None:
         _j(res)
         return
     bb = Backbone()
+    if a.cmd == "proxy":
+        from . import keyproxy
+        keyproxy.serve(bb.cfg["nim"], bb.cfg["nim"]["model"], a.port or keyproxy.PORT)
+        return
     if a.cmd in ("proactive-tick", "proactive-status", "proactive-cycle"):
         from . import proactive
         _j(proactive.cycle(bb, os.path.expanduser(a.manifest)) if a.cmd == "proactive-cycle" else
            proactive.tick(bb, os.path.expanduser(a.manifest)) if a.cmd == "proactive-tick" else proactive.status(bb))
+        return
+    if a.cmd == "idle-tick":
+        from . import idle_tick as _idle
+        from .core import load_config
+        cfg = load_config()
+        if a.idle_minutes is not None:
+            cfg["idle_minutes"] = a.idle_minutes
+        _j(_idle.tick(cfg))
         return
     if a.cmd == "tickets":
         from .ticket import submit_tickets
@@ -319,6 +366,17 @@ def main(argv=None) -> None:
                   gate=health.rewrite_gate(a.gate, a.cwd or _o.getcwd()) if a.gate else a.gate,
                   isolate=not a.no_isolate, worker=worker, read_only=a.read_only, use_vault=not a.no_vault,
                   escalate=esc))
+    elif a.cmd == "dispatch":
+        workers = [w for w in a.workers.split(",") if w] or None
+        out = bb.dispatch(a.packets, cwd=a.cwd, project=a.project, max_parallel=a.parallel,
+                          workers=workers, dry_run=a.dry_run)
+        if a.dry_run:
+            for w in out:
+                print(f"wave {w['wave']}: {', '.join(w['packets'])}")
+        else:
+            for r in out:
+                gate = "pass" if r["gate_passed"] else "fail"
+                print(f"{r['name']} | {r['worker']}/{r['key_slot']} | {r['state']} | {gate} | {r['seconds']:.2f}")
     elif a.cmd == "fanout":
         _j(bb.fanout(a.prompts, project=a.project, cwd=a.cwd, gate=a.gate))
     elif a.cmd == "swarm":
@@ -374,14 +432,17 @@ def main(argv=None) -> None:
             for h in bb.rag.search(a.query, a.kind, a.k):
                 print(f"{h['kind']:8} {h['name']:30} {h['via']:5} {h['description'][:70]}")
     elif a.cmd == "catalog":
-        if a.ccmd == "ingest":
+        if a.ccmd == "models":
+            from .model_catalog import snapshot
+            _j(snapshot(a.out, force=a.force))
+        elif a.ccmd == "ingest":
             from .catalog_ingest import ingest_all
             ecc = os.path.expanduser("~/Developer/ecc-reference/agents")
             agency = os.path.expanduser("~/.agent-skills/vendor/msitarzewski_agency-agents")
             skills = ingest_all(ecc, agency)
             _j({"ingested": len(skills), "skills": skills})
         else:
-            ap.error("catalog requires: ingest")
+            ap.error("catalog requires: ingest or models")
     elif a.cmd == "rag":
         if a.rcmd2 == "index-vault":
             from . import rag as _rag_mod

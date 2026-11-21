@@ -1,0 +1,37 @@
+title = "agent-router secret gate (extends gitleaks defaults)"
+
+[extend]
+useDefault = true
+
+# gitleaks has no built-in NVIDIA rule: without this file an nvapi- key scans as "0 findings".
+[[rules]]
+id = "nvidia-nim-key"
+description = "NVIDIA NIM / build.nvidia.com API key"
+regex = '''nvapi-[A-Za-z0-9_\-]{20,}'''
+keywords = ["nvapi-"]
+
+[[rules]]
+id = "kaggle-token"
+description = "Kaggle API token (new KGAT_ format or KAGGLE_* assignment)"
+regex = '''(KGAT_[a-f0-9]{20,}|KAGGLE_(API_)?(TOKEN|KEY)[\s"'<>/a-z:=]{0,12}[A-Za-z0-9]{24,})'''
+keywords = ["kgat_", "kaggle_"]
+
+[[rules]]
+id = "plist-secret-string"
+description = "launchd plist key named *TOKEN/*KEY/*SECRET/*PASSWORD with an inline value"
+regex = '''<key>[A-Z0-9_]*(TOKEN|KEY|SECRET|PASSWORD)[A-Z0-9_]*</key>\s*<string>[^<\s]{12,}</string>'''
+keywords = ["<key>"]
+path = '''\.plist(\.[a-z0-9-]+)?$'''
+
+[[rules]]
+id = "ssh-private-key"
+description = "SSH private key block"
+regex = '''-----BEGIN (OPENSSH|RSA|EC|DSA) PRIVATE KEY-----'''
+keywords = ["BEGIN OPENSSH", "BEGIN RSA", "BEGIN EC", "BEGIN DSA"]
+
+[allowlist]
+description = "not secrets: tests and scanner fixtures"
+paths = [
+  '''__pycache__/''',
+  '''\.pyc$''',
+]
