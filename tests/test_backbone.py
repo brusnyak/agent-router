@@ -162,7 +162,8 @@ def test_mcp_boundary_refuses_outside_roots_and_unknown_gates(bb):
     with _p.raises(PermissionError):
         bb.named_gate("rm -rf /")
     assert bb.named_gate("noop") == "true"
-    assert bb.check_cwd(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).endswith("agent-router")
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    assert bb.check_cwd(repo_root) == repo_root  # a clone may live in any directory name
 
 
 def test_pi_read_only_gets_read_tool_only(bb, monkeypatch):
